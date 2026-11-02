@@ -6154,6 +6154,15 @@
       const GHOST_COLOR = "#a4a8ac";
       const GHOST_OPACITY = 0.12;
       const COALESCE_MS = 150; // longest wait for other models' refreshes before a changed view is drawn
+      /*
+       * Longest wait, after the engine calls of a display plan, a selection or the IfcSpace option, until every model
+       * that got calls shows them in its tiles (R-4): one complete frame per click instead of one per model. A frame
+       * blocks the main thread for its whole GPU time in headless software WebGL (about 600 ms at 30,000 elements),
+       * which also delays the other models' tile updates, so a partial first frame made the complete one come a whole
+       * frame later.
+       */
+      const SETTLE_MS = 300;
+      const KICK_MS = 16; // a model still waiting for its change refreshes again after this, not after ~100 ms
       const GHOST = "ghost"; // paint of a ghost in the display mirror; colours are "#rrggbb"
       /**
        * Neutral light grey of context geometry (e.g. the IfcSite terrain) while `Faerben nach` is active without a
@@ -6218,6 +6227,12 @@
             changePending = false;
             changeFrames.push(lastFrameAt);
             if (changeFrames.length > 64) changeFrames = changeFrames.slice(-32);
+            // the next animation frame starts once this frame is on screen (headless: after the compositor has read
+            // the canvas back); recorded for the perf tests ("pixels on screen", Q-002)
+            requestAnimationFrame(() => {
+              shownFrames.push(performance.now());
+              if (shownFrames.length > 64) shownFrames = shownFrames.slice(-32);
+            });
           }
           const waiters = frameWaiters;
           frameWaiters = [];
@@ -6238,6 +6253,7 @@
         const signatures = new Map(); // model -> signature of its tiles at the last refresh
         let changePending = false;
         let changeFrames = [];
+        let shownFrames = []; // performance.now() at the animation frame after each change frame
         function tileSignature(model) {
           let sig = 0;
           const mix = (x) => {
@@ -6272,13 +6288,50 @@
         let coalesceTimer = 0;
         function drawWhenSettled() {
           coalesceTimer = 0;
+          const now = performance.now();
           const busy = [...models.values()].some((m) => m.isBusy);
-          if (busy && performance.now() - coalesceSince < COALESCE_MS) {
+          const waiting = settling.size > 0 && now - settlingSince < SETTLE_MS;
+          if (waiting || (busy && now - coalesceSince < COALESCE_MS)) {
             coalesceTimer = setTimeout(drawWhenSettled, 8);
             return;
           }
+          settling.clear();
           coalesceSince = 0;
           requestRender();
+        }
+        /*
+         * Models that got engine calls and are not settled yet (see SETTLE_MS): false = tiles not changed since the
+         * calls, true = changed, waiting for one refresh without a change (Fragments can change a model's tiles in
+         * two steps, e.g. after resetHighlight). Fragments shows a worker's tile update with its own refresh about
+         * maxUpdateRate (100 ms) later; a model still settling is refreshed again after KICK_MS instead (one timer for
+         * all models). settle() is called before the calls, settled() after them: the wait counts from the last call.
+         */
+        const settling = new Map(); // modelId -> changed since the calls
+        let settlingSince = 0;
+        let kickTimer = 0;
+        function settle(modelIds) {
+          let any = false;
+          for (const id of modelIds)
+            if (models.has(id)) {
+              settling.set(id, false);
+              any = true;
+            }
+          if (any) settlingSince = performance.now();
+        }
+        function settled() {
+          if (settling.size) settlingSince = performance.now();
+        }
+        function kick() {
+          if (kickTimer) return;
+          kickTimer = setTimeout(() => {
+            kickTimer = 0;
+            if (settling.size) updateView(false);
+          }, KICK_MS);
+        }
+        /** Waits until no model is settling any more or SETTLE_MS have passed since the last calls. */
+        async function whenSettled() {
+          while (settling.size && performance.now() - settlingSince < SETTLE_MS)
+            await new Promise((resolve) => setTimeout(resolve, 8));
         }
         function viewChanged() {
           changePending = true;
@@ -6292,7 +6345,19 @@
           const sig = tileSignature(model);
           if (sig !== signatures.get(model)) {
             signatures.set(model, sig);
+            if (settling.has(model.modelId)) {
+              settling.set(model.modelId, true); // changed: wait for one refresh without a change
+              kick();
+            }
             viewChanged();
+          } else if (settling.has(model.modelId)) {
+            const expired = performance.now() - settlingSince >= SETTLE_MS;
+            if (settling.get(model.modelId) || expired) settling.delete(model.modelId);
+            else kick();
+            if (!settling.size && coalesceTimer) {
+              clearTimeout(coalesceTimer);
+              drawWhenSettled();
+            }
           }
           const waiters = refreshWaiters;
           refreshWaiters = [];
@@ -6519,6 +6584,8 @@
               items.delete(localId);
             }
           }
+          // no frame until every model with calls shows them (a frame drawn in between delays the remaining calls)
+          settle(work.keys());
           for (const [modelId, w] of work) {
             const model = models.get(modelId);
             if (!model) continue;
@@ -6529,6 +6596,7 @@
           }
           appliedMode = plan.mode;
           lastAppliedAt = performance.now();
+          settled();
           await updateView(true);
         }
 
@@ -6552,6 +6620,7 @@
           }
           for (const [key, { modelId, localId }] of next) if (!selected.has(key)) workOf(modelId).select.push(localId);
           selected = next;
+          settle(work.keys()); // as applyDisplay: one complete frame (TASK-006c R1, group highlight)
           for (const [modelId, w] of work) {
             const model = models.get(modelId);
             if (!model) continue;
@@ -6560,6 +6629,7 @@
             if (w.select.length) await model.highlight(w.select, selectionMaterial);
           }
           lastSelectedAt = performance.now();
+          settled();
           await updateView(true);
         }
 
@@ -6723,6 +6793,7 @@
               const model = models.get(modelId);
               if (!model) return;
               models.delete(modelId);
+              settling.delete(modelId);
               const items = mirror.get(modelId);
               mirror.delete(modelId);
               if (items) for (const entry of items.values()) selected.delete(entry.key);
@@ -6739,7 +6810,9 @@
             return enqueue(async () => {
               const model = models.get(modelId);
               if (!model || !localIds.length) return;
+              settle([modelId]);
               await model.setVisible(localIds, visible);
+              settled();
               await updateView(true);
             });
           },
@@ -6778,7 +6851,8 @@
           },
           /**
            * Resolves (with the frame time) when every queued engine call is done, Fragments has refreshed the view
-           * with them and a frame showing the result has been drawn.
+           * with them, every model that got calls shows them (or SETTLE_MS passed) and a frame showing the result has
+           * been drawn.
            */
           async whenIdle() {
             for (;;) {
@@ -6786,6 +6860,8 @@
               await current;
               if (current !== chain || pending !== 0) continue;
               await refreshedTwice(3000);
+              // the frame requested below must not cut the wait for the models' changes short (SETTLE_MS)
+              await whenSettled();
               if (current === chain && pending === 0) break;
             }
             return nextFrame();
@@ -6798,6 +6874,8 @@
           camera: () => ({ position: camera.position.toArray(), target: controls.target.toArray() }),
           /** Times (performance.now) of the recent frames drawn because the view changed (perf measurements). */
           changeFrames: () => changeFrames.slice(),
+          /** Times (performance.now) of the first animation frame after each change frame (pixels on screen). */
+          shownFrames: () => shownFrames.slice(),
           frames: () => frames,
           lastFrameAt: () => lastFrameAt,
           modelCount() {
@@ -8016,6 +8094,7 @@
           lastFrameAt: () => engine.lastFrameAt(),
           lastAppliedAt: () => engine.lastAppliedAt(),
           changeFrames: () => engine.changeFrames(),
+          shownFrames: () => engine.shownFrames(),
           screenBox: (key) => engine.screenBox(key),
           engineVisible: (modelId, localIds) => engine.engineVisible(modelId, localIds),
           axisRange: (axis) => engine.axisRange(axis),

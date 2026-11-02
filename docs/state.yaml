@@ -42,3 +42,4 @@ history:
   - {date: 2026-11-02, event: "TASK-004 follow-ups fixed and rechecked (7/7 PASS); TASK-005 3D coupling done and independently verified (14/14 PASS, render on demand, follow-ups L1-L4, P2)"}
   - {date: 2026-11-02, event: "TASK-006a table done (verification PASS); TASK-006b grouping done (verification FAIL on a test measurement bug, fixed, recheck PASS); R-4 confirmed: complete 3D frame at 30k elements 1.1-1.7 s"}
   - {date: 2026-11-02, event: "TASK-006c selection and TASK-007 configuration done (verification PASS each); R-4 spike: one frame per click via settle patch, 30k complete frame 298-349 ms; Q-002, Q-003 opened"}
+  - {date: 2026-11-02, event: "Q-002 answered (NFR-001 = last changed frame drawn; deviation for software WebGL), Q-003 answered (group selection only shrinks)"}

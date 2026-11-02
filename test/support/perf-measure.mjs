@@ -32,3 +32,71 @@ export async function measureInput(page, action) {
     };
   });
 }
+
+/**
+ * Runs action (a Playwright input that changes the filter) and measures in the page from its click event (timeStamp,
+ * performance clock) until the 3D view shows the result (NFR-001 3D part, TASK-005 / TASK-010):
+ *   filterMs  filter pass of the click (window.__calc.filter.lastMs)
+ *   applied   the engine calls of the new display plan are done (CalcView.lastAppliedAt; state() derives from them)
+ *   first     the first frame drawn because the view changed after the click (CalcView.changeFrames)
+ *   frame     the last such frame before the view is idle: the complete frame (last changed frame drawn)
+ *   changed   the number of changed frames the click drew (R-4: one is the goal)
+ *   shown     the first animation frame after the last changed frame: pixels on screen (Q-002, recorded only)
+ *   idle      CalcView.whenIdle() (upper bound)
+ * Times are NaN when the click drew no changed frame.
+ */
+export async function measureViewClick(page, action) {
+  await idle(page);
+  const updates = await page.evaluate(() => {
+    window.__t0 = null;
+    document.addEventListener("click", (e) => (window.__t0 = e.timeStamp), { capture: true, once: true });
+    return window.__calc.filter.updates;
+  });
+  await action();
+  return page.evaluate(async (n) => {
+    await new Promise((resolve) => {
+      const tick = () => (window.__calc.filter.updates >= n + 1 ? resolve() : requestAnimationFrame(tick));
+      tick();
+    });
+    const idleAt = await window.CalcView.whenIdle();
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); // the shown mark of the last frame
+    const t0 = window.__t0;
+    const changes = window.CalcView.changeFrames().filter((t) => t > t0);
+    const last = changes.length ? changes[changes.length - 1] : NaN;
+    const shown = window.CalcView.shownFrames().find((t) => t > last);
+    return {
+      filterMs: window.__calc.filter.lastMs,
+      applied: window.CalcView.lastAppliedAt() - t0,
+      first: changes.length ? changes[0] - t0 : NaN,
+      frame: last - t0,
+      changed: changes.length,
+      shown: shown === undefined ? NaN : shown - t0,
+      idle: idleAt - t0,
+    };
+  }, updates);
+}
+
+/**
+ * Medians of measureViewClick runs per action, rounded to 0.1 ms: { filterMs, appliedMs, firstFrameMs, frameMs,
+ * shownMs, idleMs, oneFrameRuns, frames (changed frames per run), runs (complete frame per run) }.
+ */
+export function summariseViewClicks(results) {
+  const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+  const r1 = (x) => Math.round(x * 10) / 10;
+  return Object.fromEntries(
+    Object.entries(results).map(([k, runs]) => [
+      k,
+      {
+        filterMs: r1(median(runs.map((r) => r.filterMs))),
+        appliedMs: r1(median(runs.map((r) => r.applied))),
+        firstFrameMs: r1(median(runs.map((r) => r.first))),
+        frameMs: r1(median(runs.map((r) => r.frame))),
+        shownMs: r1(median(runs.map((r) => r.shown))),
+        idleMs: r1(median(runs.map((r) => r.idle))),
+        oneFrameRuns: runs.filter((r) => r.changed === 1).length,
+        frames: runs.map((r) => r.changed),
+        runs: runs.map((r) => Math.round(r.frame)),
+      },
+    ]),
+  );
+}

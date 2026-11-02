@@ -6,42 +6,18 @@
 //             only when the tiles changed, once every model has refreshed, see changeFrames)     -> asserted < 500 ms
 //   frame   = the last such frame before the view is idle (complete result)                      -> asserted < 500 ms
 //   idle    = CalcView.whenIdle(): two further Fragments refreshes and a frame (upper bound)       -> recorded
+//   changed = changed frames per click (R-4 settle, TASK-010): exactly one in most runs             -> asserted
+//   shown   = the animation frame after the last changed frame: pixels on screen (Q-002 open)     -> recorded
+// Shared measurement: test/support/perf-measure.mjs measureViewClick.
 // Chromium headless with software WebGL (one frame about 280 ms). Runs in the `file` project only (the user's path).
 import { test, expect } from "../support/perf-lock.mjs";
 import { fetched, loadFiles, openBuilder } from "../support/builder.mjs";
 import { filterSet } from "../support/filter-area.mjs";
 import { colourBy, idle, viewState } from "../support/view-3d.mjs";
+import { measureViewClick, summariseViewClicks } from "../support/perf-measure.mjs";
 
 const BUDGET_MS = 500; // NFR-001
-const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
-
-/** Runs action (a Playwright input) and measures from its input event to the engine calls and the drawn frame. */
-async function measure(page, action) {
-  await page.evaluate(() => {
-    window.__t0 = null;
-    document.addEventListener("click", (e) => (window.__t0 = e.timeStamp), { capture: true, once: true });
-  });
-  const updates = await page.evaluate(() => window.__calc.filter.updates);
-  await action();
-  return page.evaluate(async (n) => {
-    const t0 = window.__t0;
-    const waitUpdates = () =>
-      new Promise((resolve) => {
-        const tick = () => (window.__calc.filter.updates >= n ? resolve() : requestAnimationFrame(tick));
-        tick();
-      });
-    await waitUpdates();
-    const idleAt = await window.CalcView.whenIdle();
-    const changes = window.CalcView.changeFrames().filter((t) => t > t0);
-    return {
-      filterMs: window.__calc.filter.lastMs,
-      applied: window.CalcView.lastAppliedAt() - t0,
-      first: changes.length ? changes[0] - t0 : NaN,
-      frame: changes.length ? changes[changes.length - 1] - t0 : NaN,
-      idle: idleAt - t0,
-    };
-  }, updates);
-}
+const measure = measureViewClick;
 
 test("@perf @NFR-001 @REQ-005 volume set: a filter click updates state() and the drawn frame within 500 ms", async ({
   page,
@@ -100,19 +76,7 @@ test("@perf @NFR-001 @REQ-005 volume set: a filter click updates state() and the
     await idle(page);
   }
 
-  const summary = Object.fromEntries(
-    Object.entries(results).map(([k, runs]) => [
-      k,
-      {
-        filterMs: +median(runs.map((r) => r.filterMs)).toFixed(1),
-        appliedMs: +median(runs.map((r) => r.applied)).toFixed(1),
-        firstFrameMs: +median(runs.map((r) => r.first)).toFixed(1),
-        frameMs: +median(runs.map((r) => r.frame)).toFixed(1),
-        idleMs: +median(runs.map((r) => r.idle)).toFixed(1),
-        runs: runs.map((r) => +r.frame.toFixed(0)),
-      },
-    ]),
-  );
+  const summary = summariseViewClicks(results);
   console.log(
     `[perf NFR-001 3D] rows=${total} withGeometry=${geometry} value=${value.value} (${value.count}) ` +
       JSON.stringify(summary),
@@ -121,6 +85,10 @@ test("@perf @NFR-001 @REQ-005 volume set: a filter click updates state() and the
     expect(sum.appliedMs, `${k}: click -> state() updated (engine calls done)`).toBeLessThan(BUDGET_MS);
     expect(sum.firstFrameMs, `${k}: click -> next drawn frame shows the change`).toBeLessThan(BUDGET_MS);
     expect(sum.frameMs, `${k}: click -> last changed frame (complete result)`).toBeLessThan(BUDGET_MS);
+    // R-4 (TASK-010): one complete frame per click instead of one per model, in most runs
+    expect(sum.oneFrameRuns, `${k}: runs with exactly one changed frame ${sum.frames}`).toBeGreaterThan(
+      sum.frames.length / 2,
+    );
   }
   expect(errors).toEqual([]);
 });

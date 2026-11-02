@@ -5,6 +5,7 @@
 //   first   = the first frame drawn because the view changed after the click (changeFrames)        -> asserted < 500 ms
 //   frame   = the last such frame before the view is idle (the highlight is drawn completely)     -> asserted < 500 ms
 //   idle    = CalcView.whenIdle() (upper bound)                                                     -> recorded
+//   changed = changed frames per click (R-4 settle also covers the selection, TASK-010)             -> recorded
 // Actions: a table row click (single-element view, rows at the start, middle and end of the table) and a group row
 // click on the largest Kategorie group (grouping view; every element of the group is highlighted). Runs in the `file`
 // project only (the user's path); Chromium headless with software WebGL.
@@ -39,6 +40,7 @@ async function measureClick(page, click) {
       applied: window.CalcView.lastSelectedAt() - t0,
       first: changes.length ? changes[0] - t0 : NaN,
       frame: changes.length ? changes[changes.length - 1] - t0 : NaN,
+      changed: changes.length,
       idle: idleAt - t0,
     };
   });
@@ -115,6 +117,7 @@ test("@perf @NFR-001 @REQ-007 volume set: a row click and a group row click draw
         frameMs: +median(runs.map((r) => r.frame)).toFixed(1),
         idleMs: +median(runs.map((r) => r.idle)).toFixed(1),
         runs: runs.map((r) => +r.frame.toFixed(0)),
+        frames: runs.map((r) => r.changed), // changed frames per click (R-4 settle, TASK-010; recorded)
       },
     ]),
   );
