@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 date: 2026-11-02
 relates_to: [C01, C02, C03, C04, C05, C09, C99, FUN-01, FUN-02, FUN-04, FUN-x1, FUN-x2, FUN-x3, FUN-x4, DAT-01, QLT-01, UI-01, UI-02, STK-01, ASM-001, ASM-002, ASM-003, ASM-004, ASM-005, ASM-006, ASM-007, ASM-008]
 ---
@@ -37,8 +37,8 @@ Priorities from FUN-04: must = UC 1, 2, 3, 5, 7, 8, 9; should = UC 4 (colouring,
   - `unsupported-schema` — FILE_SCHEMA other than IFC2X3/IFC4: `… verwendet das nicht unterstützte Schema <schema>.`
   - `unreadable` — parsing or conversion fails (e.g. truncated file): `… konnte nicht gelesen werden: <cause>.`
   - `too-large` — the conversion worker crashes: `… ist möglicherweise zu groß für den Arbeitsspeicher des Browsers.` (as ref L2196-2199)
-- REQ-001-AC1: Given the builder is open, When the user loads two valid fixture files, Then both models are shown in 3D, the status line shows the element count per model, and a filter set `Modell` lists both names with their element counts.
-- REQ-001-AC2: Given one fixture per error class (`empty`, `not-ifc` = renamed PDF, `unsupported-schema` = IFC4X3 header, `unreadable` = truncated IFC) loaded after a valid model, Then for each the message of that class with the file name appears, the valid model stays loaded and the page remains usable.
+- REQ-001-AC1: Given the builder is open, When the user loads two valid fixture files, Then both models are shown in 3D and a filter set `Modell` lists both names with their element counts.
+- REQ-001-AC2: Given one fixture per error class (`empty`, `not-ifc` = renamed PDF, `unsupported-schema` = IFC4X3 header, `unreadable` = truncated IFC; `too-large` simulated by a test hook that makes the conversion worker raise an `error` event) loaded after a valid model, Then for each the message of that class with the file name appears, the valid model stays loaded and the page remains usable.
 - REQ-001-AC3: Given two loaded models and an active filter, When the user removes one, Then its elements disappear from 3D, filter sets and table, and filters on remaining values stay active.
 - REQ-001-AC4: Given a fixture with IfcSpace elements, When the option is off, Then no IfcSpace is in 3D, table or filter sets; When it is switched on, Then they are.
 - REQ-001-AC5: Given `A.ifc` is loaded, When `A.ifc` is loaded again, Then `Modell` lists `A` and `A (2)` with their own counts, and removing one leaves the other.
@@ -62,7 +62,7 @@ Priorities from FUN-04: must = UC 1, 2, 3, 5, 7, 8, 9; should = UC 4 (colouring,
 - REQ-002-AC4: Given an element with a layered material, Then `Material` lists every layer material once, and filtering by any one of them matches the element.
 - REQ-002-AC5: Given an IfcLabel value `"1.5"`, Then it is text (left-aligned, not summed).
 - REQ-002-AC6: Given a length in feet, Then it is shown in m; Given two models where the same numeric property has different non-convertible units, Then the header reads `… (gemischt)` and no sums are shown for it.
-- REQ-002-AC7: Given a fixture element without geometry after conversion (recorded in `reference-values.json`), Then it is a table row with `Geometrie` = `Nein`.
+- REQ-002-AC7: Given the SampleCastle fixture and an element known to lose its geometry in conversion (GlobalId recorded in `reference-values.json`), Then it is a table row with `Geometrie` = `Nein`.
 
 ### REQ-003: Configure filter sets
 - Priority: must · Source: UC 2, C00
@@ -130,7 +130,7 @@ Priorities from FUN-04: must = UC 1, 2, 3, 5, 7, 8, 9; should = UC 4 (colouring,
 
 ### REQ-008: Export table as CSV and Excel
 - Priority: must · Source: UC 7, FUN-x4
-- `Export CSV` and `Export Excel` export exactly the rows the table currently shows, in their order: in the single-element view the filtered rows; in the grouping view the group rows, level-2 rows only under expanded level-1 groups, element rows only under expanded groups, and the total row last. Grouping-view exports start with the columns `Ebene` (`1`, `2`, `Element`, `Summe`), `Gruppe` and `Anzahl`, followed by the visible columns in their order.
+- `Export CSV` and `Export Excel` export exactly the rows the table currently shows, in their order: in the single-element view the filtered rows; in the grouping view the group rows, level-2 rows only under expanded level-1 groups, element rows only under expanded groups, and the total row last. Grouping-view exports start with the columns `Ebene` (`1`, `2`, `Element`, `Summe`), `Gruppe` and `Anzahl`, followed by the visible columns in their order. `Gruppe` = group value on group rows, empty on `Element` and `Summe` rows; `Anzahl` = count on group and `Summe` rows, empty on `Element` rows; numeric columns carry the sums on group and `Summe` rows (REQ-006).
 - Values: numbers unrounded (shortest round-trip representation), no exponent notation; multi-valued cells joined with `, ` (as displayed).
 - CSV: UTF-8 with BOM, separator `;`, decimal comma, no thousands separator, CRLF, quoting per RFC 4180; text cells starting with `=`, `+`, `-` or `@` get a `'` prefix (DEC-6); numeric cells unaffected.
 - Excel: one `.xlsx` sheet `Tabelle`, header bold and frozen, autofilter, numbers as numeric cells, column widths fitted, group and total rows bold.
@@ -319,7 +319,7 @@ As in §2 User interface. Components copied from the reference CSS (chips, check
 Tags: node:test names carry `[unit]`/`[perf]` prefixes; Playwright titles carry `@integration @system @e2e @acceptance @perf @robustness @smoke` plus requirement IDs (`@REQ-004-AC2`). Each type runs alone via `npx playwright test --grep @<tag>` or `node --test --test-name-pattern='\[<tag>\]'`. `test_fast` = unit + integration on committed fixtures; `test_all` = all suites incl. fetched fixtures; `check` = `node scripts/check.mjs`.
 
 Test data:
-- Committed small fixtures: `AC20-FZK-Haus.ifc` (IFC4), Duplex architecture (IFC2X3), error-class fixtures (empty, renamed PDF, IFC4X3 header, truncated IFC), configuration files per error class; manifest with source URL, licence and sha256.
+- Committed small fixtures: `AC20-FZK-Haus.ifc` (IFC4), Duplex architecture (IFC2X3), error-class fixtures (empty, renamed PDF, IFC4X3 header, truncated IFC), configuration files per error class; unit fixtures derived from FZK-Haus by a committed script: `fzk-feet.ifc` (length unit IfcConversionBasedUnit foot) and `fzk-unit-a.ifc` / `fzk-unit-b.ifc` (one numeric non-length property with different units, for `gemischt`); manifest with source URL, licence and sha256.
 - Fetched by `scripts/fetch-fixtures.mjs` with sha256 check: SampleCastle (49 MB), Revit MEP (29 MB, mm units, `Qto_WallBaseQuantities`), Revit ARC, Duplex MEP. The script also generates reproducibly a synthetic single IFC ≥ 100 MB from SampleCastle (renumbered STEP ids, new GlobalIds, offset copies) and records its sha256. Volume set: ≥ 30,000 elements from several fixtures/copies with distinct file names. Multi-model set: ≥ 100 MB total.
 - `test/fixtures/reference-values.json`: reference elements of `AC20-FZK-Haus.ifc` by GlobalId (≥ one wall, slab, door, window, an element without material or storey if present, an element without geometry if present) with expected Kategorie, Name, GlobalId, Typ, Geschoss, Material and quantities; expected key sets for the AC filters; the 2,000-element filter on a fetched fixture. Values are taken independently of the extraction code (read from the IFC STEP text or by a separate script whose output is committed) and reviewed by a fresh-context tester, not by the TASK-002 implementer.
 - No real project data in the repository (ASM-003).
@@ -336,7 +336,7 @@ Every task: read `AGENTS.md`, this spec §2 entries it implements, §4; done whe
 | TASK-003 | Filter engine: lazy column store, OR/AND, facet counts with hidden and checked-zero values, column filters (text, range), sorting | REQ-004 (logic), REQ-006 (filter/sort logic) | 002 | cv-core, test/unit | todo |
 | TASK-004 | Layout and filter area: screen layout, styles, virtualised value lists, filter sets (catalogue dialog, add/order/collapse/remove, defaults), reset, status line | REQ-003, REQ-004, REQ-001-AC1 (Modell set) | 003 | cv-css, cv-ui, cv-app, test/e2e | todo |
 | TASK-005 | 3D coupling: ghost/hide, colouring + legend, section, `CalcView.state()`, picking and details panel | REQ-005, REQ-007-AC1/AC4/AC5 (3D side) | 004 | cv-3d, cv-ui | todo |
-| TASK-006a | Table single-element view: virtualisation, column chooser/order/width/remove, sort, column filter UI | REQ-006 (AC1, AC4–AC6, AC9) | 004 | cv-ui, cv-core | todo |
+| TASK-006a | Table single-element view: virtualisation, column chooser/order/width/remove, sort, column filter UI; full filter coupling table + 3D | REQ-006 (AC1, AC4–AC6, AC9), REQ-004-AC1/AC4 (table + 3D), REQ-001-AC3/AC4 (full) | 004, 005 | cv-ui, cv-core | todo |
 | TASK-006b | Grouping view: 2 levels, `Gruppe`/`Anzahl`/sums, `(leer)`, multi-valued, expand/collapse, total row | REQ-006 (AC2, AC3, AC7, AC8, AC10) | 006a | cv-core, cv-ui | todo |
 | TASK-006c | Selection both directions: table ↔ 3D, group row selection, expand on selection | REQ-007-AC2/AC3 | 005, 006b | cv-ui, cv-3d | todo |
 | TASK-007 | Title/date/logo, configuration save/load with schema and tolerant apply | REQ-011, REQ-009 | 005, 006b | cv-core, cv-builder, cv-ui | todo |
@@ -347,14 +347,14 @@ Every task: read `AGENTS.md`, this spec §2 entries it implements, §4; done whe
 Task details (context to read · acceptance):
 - TASK-001a · read: process/calibration/testing.md §4, spike notes in §4.8 · acceptance: from a clean clone `npm ci`, `node scripts/vendor-cdn.mjs`, `node scripts/fetch-fixtures.mjs` succeed; `node scripts/check.mjs --all` green with a placeholder unit and smoke test; pre-commit blocks a misformatted file; AGENTS.md §4 filled.
 - TASK-001b · read: modelviewer-analysis.md, ref L163-192, L1669-1710, L1940-2113, L2186-2205 · acceptance: `@smoke` Playwright test loads `AC20-FZK-Haus.ifc` in the builder opened via `file://` and via http with the network guard active and asserts the model is loaded (fragments model count, non-empty canvas); drift-guard unit test (wrong version → message). If `file://` cannot be made to work: stop and record a blocking question (fallback candidate: run the app inside a sandboxed `srcdoc` frame as the reference preview).
-- TASK-002 · read: §4.3, §4.8, spike code notes · acceptance: REQ-001-AC2..AC5, REQ-002-AC1..AC7 tests green; ≥ 100 MB multi-model set converts and extracts in Chromium without crash, time and peak heap recorded in §6 — if not, stop and record a blocking question (R-2).
-- TASK-003 · acceptance: unit tests for REQ-004 logic, REQ-006-AC5/AC9 logic, multi-valued facets; perf micro-benchmark facet pass ≤ 50 ms at 30k rows.
-- TASK-004 · acceptance: REQ-003-AC1..AC3, REQ-004-AC1..AC4 (DOM part), REQ-001-AC1 green.
-- TASK-005 · acceptance: REQ-005-AC1..AC4, REQ-007-AC1/AC4/AC5 green; render smoke test green.
-- TASK-006a/006b/006c · acceptance: the REQ-006/REQ-007 ACs listed in the table green.
-- TASK-007 · acceptance: REQ-009-AC1..AC3, REQ-011-AC1 (header part) green.
-- TASK-008 · acceptance: REQ-008-AC1..AC5, REQ-011-AC1 (file name) green; openpyxl read-back.
-- TASK-009 · acceptance: REQ-010-AC1..AC3 green with the viewer file opened via `file://` in a network-blocked context; NFR-005 request log empty.
+- TASK-002 · read: §4.3, §4.8, modelviewer-analysis.md (data section) · acceptance: REQ-001-AC2, AC5 and the data-level part of AC3/AC4 (rows and catalogue), REQ-002-AC1..AC7 tests green; ≥ 100 MB multi-model set converts and extracts in Chromium without crash, time and peak heap recorded in §6 — if not, stop and record a blocking question (R-2).
+- TASK-003 · read: §4.3 column store, §4.4 · acceptance: unit tests for REQ-004 logic, REQ-006-AC5/AC9 logic, multi-valued facets; perf micro-benchmark facet pass ≤ 50 ms at 30k rows.
+- TASK-004 · read: §2 User interface, §4.5, ref CSS L1714-1938 · acceptance: REQ-003-AC1..AC3, REQ-004-AC2/AC3 and the filter-set part of AC1/AC4, REQ-001-AC1 green.
+- TASK-005 · read: §4.4, modelviewer-analysis.md, ref L979-1169 · acceptance: REQ-005-AC1..AC4, REQ-007-AC1/AC4/AC5 green; render smoke test green.
+- TASK-006a/006b/006c · read: §2 REQ-006/REQ-007, §4.3, §4.4 · acceptance: the ACs listed in the table green.
+- TASK-007 · read: §2 REQ-009/REQ-011, §4.3 · acceptance: REQ-009-AC1..AC3, REQ-011-AC1 (header part) green.
+- TASK-008 · read: §2 REQ-008, §4.8 (xlsx writer notes) · acceptance: REQ-008-AC1..AC5, REQ-011-AC1 (file name) green; openpyxl read-back.
+- TASK-009 · read: §4.2, modelviewer-analysis.md, ref L116-120, L163-192, L1669-1710, L2065-2104, L2217-2340 · acceptance: REQ-010-AC1..AC3 green with the viewer file opened via `file://` in a network-blocked context; NFR-005 request log empty.
 - TASK-010 · acceptance: NFR-001..004 measured and met (or deviation recorded for the release gate); full T7 suite green.
 
 ## 6. Testing results  _(working section)_
@@ -370,3 +370,4 @@ Task details (context to read · acceptance):
 
 | Date | CR | Request | Category | Affected IDs | Risk check (R4/R5/R7) | Tests run | Result / PIR |
 |---|---|---|---|---|---|---|---|
+| 2026-11-02 | – | spec approved at agent gate after independent review (3 lenses + adversarial verification, fresh context; re-check: 30/33 resolved, remaining 3 partly + 5 new defects fixed) | – | REQ-001..011, NFR-001..005 | – | – | approved (independence: separate contexts) |

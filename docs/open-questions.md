@@ -1,6 +1,6 @@
 ---
 status: draft
-relates_to: [ASM-001, ASM-002, ASM-003, ASM-004]
+relates_to: [ASM-001, ASM-002, ASM-003, ASM-004, ASM-005, ASM-006, ASM-007, ASM-008]
 ---
 # Open questions and assumptions
 
