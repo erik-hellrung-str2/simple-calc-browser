@@ -9,6 +9,8 @@ relates_to: [ASM-001, ASM-002, ASM-003, ASM-004, ASM-005, ASM-006, ASM-007, ASM-
 | ID | Question | Raised by / in | Blocking | Status | Answer |
 |---|---|---|---|---|---|
 | Q-001 | Licence of the committed test fixture `Ifc2x3_Duplex_Architecture.ifc` (source repo youshengCode/IfcSampleFiles states none; origin buildingSMART/NIBS Common BIM Files) — keep, replace, or confirm | TASK-001a | no (before release) | open | |
+| Q-002 | NFR-001 at 30k elements: is "interaction done" the last changed 3D frame drawn (met with the R-4 settle patch: 298-349 ms median in headless software WebGL) or pixels on screen (0.7-1.1 s in software WebGL; on a GPU estimated 150-300 ms, not measured)? | R-4 spike | no (before TASK-010) | open | |
+| Q-003 | Group selection when the filter changes: only shrink and clear once empty (current), or follow the group's current members | TASK-006c | no (before release) | open | |
 
 Status: `open` | `answered` | `obsolete`. Blocking questions are also listed in `docs/state.yaml` → `blocking_questions`.
 

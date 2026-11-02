@@ -102,6 +102,25 @@
         width: 22px;
         height: 22px;
       }
+      /* own logo (REQ-011): the image at header height, no accent box */
+      .cv-logo.cv-logo-custom {
+        width: auto;
+        max-width: 180px;
+        border-radius: 0;
+        background: none;
+      }
+      .cv-logo-img {
+        display: block;
+        max-width: 180px;
+        max-height: 36px;
+        object-fit: contain;
+      }
+      .cv-title-default {
+        color: var(--cv-ink-2);
+      }
+      .cv-header-edit {
+        flex: none;
+      }
       .cv-brand {
         display: flex;
         flex-direction: column;
@@ -422,6 +441,13 @@
       .cv-message-text {
         flex: 1;
         overflow-wrap: anywhere;
+        white-space: pre-line;
+      }
+      /* notice of a tolerant configuration load (REQ-009-AC2): information, not an error */
+      .cv-message.cv-notice {
+        border-left-color: var(--cv-ink-2);
+        background: var(--cv-bg);
+        color: var(--cv-ink);
       }
 
       /* Filter area and filter sets (REQ-003, REQ-004) */
@@ -689,6 +715,64 @@
         gap: 8px;
         min-height: 0;
         padding: 14px 20px 10px;
+      }
+      /* dialog `Titel, Datum und Logo` (REQ-011) */
+      .cv-form {
+        gap: 14px;
+      }
+      .cv-field {
+        display: grid;
+        gap: 4px;
+        font-size: 13px;
+      }
+      .cv-field-label {
+        color: var(--cv-ink-2);
+        font-weight: 600;
+      }
+      .cv-field input[type="text"],
+      .cv-field input[type="date"] {
+        padding: 6px 8px;
+        border: 1px solid var(--cv-line);
+        border-radius: 8px;
+        color: var(--cv-ink);
+      }
+      .cv-field input:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: -1px;
+      }
+      .cv-logo-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .cv-logo-preview {
+        display: flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: 180px;
+        height: 48px;
+        border: 1px dashed var(--cv-line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .cv-logo-preview .cv-logo-img {
+        max-height: 44px;
+        max-width: 176px;
+      }
+      .cv-field-error {
+        margin: 0;
+        color: var(--cv-err);
+        overflow-wrap: anywhere;
+      }
+      .cv-field-error:empty {
+        display: none;
+      }
+      .cv-dialog-foot {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 10px 20px 16px;
       }
       .cv-cat-list {
         height: min(420px, 55vh);
@@ -1209,6 +1293,12 @@
       .cv-tr.cv-grp:hover {
         background: var(--cv-accent-soft);
       }
+      /* Selection (TASK-006c, REQ-007): the selected element rows and the selected group row */
+      .cv-tr.cv-sel,
+      .cv-tr.cv-sel:hover {
+        background: rgba(215, 38, 34, 0.14);
+        box-shadow: inset 3px 0 0 var(--cv-accent);
+      }
       .cv-grp-toggle {
         display: inline-flex;
         align-items: center;
@@ -1449,6 +1539,11 @@
         font-size: 14px;
         font-weight: 600;
         overflow-wrap: anywhere;
+      }
+      .cv-det-count {
+        margin: 0 0 8px;
+        font-size: 13px;
+        color: var(--cv-ink-2);
       }
       .cv-det-nogeo {
         margin: 0 0 8px;
@@ -3204,6 +3299,24 @@
       }
 
       /**
+       * Groups of a tree that contain the row with this index (REQ-007-AC2: expand them for a selected element), depth
+       * first: each level-1 group with the row, followed by its level-2 groups with the row. A row with several values
+       * of a grouping property (DEC-16) is in several groups of a level.
+       */
+      export function groupsOfRow(tree, rowIndex) {
+        const out = [];
+        const visit = (groups) => {
+          for (const g of groups) {
+            if (!g.indices.includes(rowIndex)) continue;
+            out.push(g);
+            if (g.children) visit(g.children);
+          }
+        };
+        if (tree) visit(tree.groups);
+        return out;
+      }
+
+      /**
        * Grouping state of the table (configuration part, REQ-009 "table view, grouping properties"; saved by TASK-007):
        * { view: 'single' | 'grouped', groupBy: [key1, key2?] }; duplicate, empty and (with a catalogue) unknown keys are
        * dropped, at most GROUP_LEVELS keys.
@@ -3218,11 +3331,460 @@
         }
         return { view, groupBy };
       }
+
+      // ---------------------------------------------------------------------------------------------------------
+      // Header and configuration (TASK-007; REQ-011 title / date / logo, REQ-009 save and load, spec 4.3)
+      // ---------------------------------------------------------------------------------------------------------
+
+      /** Schema name of a configuration file; the full value is "calc-viewer-config/<version>" (REQ-009). */
+      export const CONFIG_SCHEMA = "calc-viewer-config";
+      export const CONFIG_VERSION = 1;
+      /** Largest configuration file that is read at all (bytes; larger -> too-large, view unchanged). */
+      export const CONFIG_MAX_BYTES = 20 * 1024 * 1024;
+      /** Largest logo image file (bytes; REQ-011 "embedded": it travels in every configuration and viewer file). */
+      export const LOGO_MAX_BYTES = 1024 * 1024;
+      /** Longest title kept (characters). */
+      export const TITLE_MAX_LENGTH = 200;
+      /** At most this many entries per list in the load notice; the rest is counted ("und n weitere"). */
+      export const NOTICE_LIST_LIMIT = 20;
+      export const CONFIG_ERROR_CLASSES = ["invalid-json", "not-a-config", "unsupported-version", "too-large"];
+
+      /** A configuration load error (REQ-009) with its class and German message. */
+      export class ConfigError extends Error {
+        constructor(configClass, detail) {
+          super(configErrorMessage(configClass, detail));
+          this.name = "ConfigError";
+          this.configClass = configClass;
+          this.detail = detail === undefined ? null : detail;
+        }
+      }
+
+      /** German message of a configuration load error class (REQ-009); detail: the version for unsupported-version. */
+      export function configErrorMessage(configClass, detail) {
+        switch (configClass) {
+          case "invalid-json":
+            return "Die Datei ist kein g\u00fcltiges JSON.";
+          case "not-a-config":
+            return "Die Datei ist keine Calc-Viewer-Konfiguration.";
+          case "unsupported-version":
+            return "Konfigurationsversion " + detail + " wird nicht unterst\u00fctzt.";
+          case "too-large":
+            return (
+              "Die Datei ist zu gro\u00df f\u00fcr eine Konfiguration (h\u00f6chstens " +
+              formatBytes(CONFIG_MAX_BYTES) +
+              ")."
+            );
+          default:
+            return "Die Konfiguration konnte nicht geladen werden.";
+        }
+      }
+
+      /** File size in German: "512 Bytes", "12 KB", "1,5 MB" (1 KB = 1024 bytes). */
+      export function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + " Bytes";
+        if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
+        const mb = bytes / (1024 * 1024);
+        return mb.toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " MB";
+      }
+
+      const isPlainObject = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
+
+      /**
+       * Checks the schema of a parsed configuration (REQ-009): null when it is a supported configuration, else
+       * { configClass, detail }. Missing or foreign schema (or no JSON object) -> not-a-config;
+       * "calc-viewer-config/<n>" with n other than CONFIG_VERSION -> unsupported-version (n shown, at most 20 chars).
+       */
+      export function validateConfig(config) {
+        if (!isPlainObject(config) || typeof config.schema !== "string") return { configClass: "not-a-config" };
+        const prefix = CONFIG_SCHEMA + "/";
+        if (config.schema.indexOf(prefix) !== 0 || config.schema.length === prefix.length)
+          return { configClass: "not-a-config" };
+        const version = config.schema.slice(prefix.length);
+        if (version !== String(CONFIG_VERSION))
+          return {
+            configClass: "unsupported-version",
+            detail: version.length > 20 ? version.slice(0, 20) + "\u2026" : version,
+          };
+        return null;
+      }
+
+      /** Parses the text of a configuration file; throws ConfigError (invalid-json, not-a-config, unsupported-version). */
+      export function parseConfig(text) {
+        let config;
+        try {
+          config = JSON.parse(String(text).replace(/^\ufeff/, ""));
+        } catch {
+          throw new ConfigError("invalid-json");
+        }
+        const problem = validateConfig(config);
+        if (problem) throw new ConfigError(problem.configClass, problem.detail);
+        return config;
+      }
+
+      const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+      /** True for an existing calendar date "YYYY-MM-DD" (years 1000..9999). */
+      export function isIsoDate(text) {
+        const m = typeof text === "string" ? DATE_RE.exec(text) : null;
+        if (!m) return false;
+        const y = Number(m[1]);
+        const mo = Number(m[2]);
+        const d = Number(m[3]);
+        if (y < 1000 || mo < 1 || mo > 12 || d < 1) return false;
+        return d <= new Date(Date.UTC(y, mo, 0)).getUTCDate();
+      }
+
+      /** Local calendar date of a Date as "YYYY-MM-DD" (REQ-011 default date: today). */
+      export function isoDate(date) {
+        const pad = (n) => String(n).padStart(2, "0");
+        return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
+      }
+
+      /** "YYYY-MM-DD" shown in German as the UI shows dates ("12.8.2026", de-DE); other text unchanged. */
+      export function germanDate(iso) {
+        if (!isIsoDate(iso)) return String(iso || "");
+        const [y, m, d] = iso.split("-").map(Number);
+        return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("de-DE", { timeZone: "UTC" });
+      }
+
+      /**
+       * Export file name (REQ-008, REQ-011): "<title>_<date><suffix>"; the characters \ / : * ? " < > | and control
+       * characters of the title become "_", an empty title (after trimming) becomes "Export".
+       */
+      export function safeFileName(title, date, suffix) {
+        // eslint-disable-next-line no-control-regex
+        const clean = String(title === null || title === undefined ? "" : title).replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, "_");
+        const base = clean.trim() === "" ? "Export" : clean;
+        return base + "_" + date + (suffix || "");
+      }
+
+      const LOGO_MIMES = ["image/png", "image/jpeg", "image/svg+xml"];
+      const LOGO_DATA_RE = /^data:(image\/png|image\/jpeg|image\/svg\+xml);base64,([A-Za-z0-9+/]*={0,2})$/;
+
+      /**
+       * Checks a logo image file before it is read (REQ-011: PNG, JPG or SVG, embedded; at most LOGO_MAX_BYTES).
+       * head: the first bytes of the file (Uint8Array or array of byte values; 4096 are enough for SVG). Returns
+       * { mime } or { error } (German). The type is taken from the content (PNG / JPEG signature, or an <svg element
+       * for SVG), not from the file name.
+       */
+      export function classifyLogo(fileName, size, head) {
+        const bytes = head || [];
+        const starts = (sig) => bytes.length >= sig.length && sig.every((b, i) => bytes[i] === b);
+        if (size > LOGO_MAX_BYTES)
+          return {
+            error:
+              "Das Logo " +
+              fileName +
+              " ist zu gro\u00df (" +
+              formatBytes(size) +
+              "). Erlaubt sind h\u00f6chstens " +
+              formatBytes(LOGO_MAX_BYTES) +
+              ".",
+          };
+        if (size > 0 && starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return { mime: "image/png" };
+        if (size > 0 && starts([0xff, 0xd8, 0xff])) return { mime: "image/jpeg" };
+        let text = "";
+        for (let i = 0; i < Math.min(bytes.length, 4096); i++) text += String.fromCharCode(bytes[i]);
+        if (size > 0 && /<svg[\s>]/i.test(text)) return { mime: "image/svg+xml" };
+        return { error: fileName + " ist kein PNG-, JPG- oder SVG-Bild." };
+      }
+
+      /** True for a logo data URL as the builder embeds it: PNG / JPG / SVG, base64, at most LOGO_MAX_BYTES decoded. */
+      export function isLogoDataUrl(text) {
+        if (typeof text !== "string") return false;
+        const m = LOGO_DATA_RE.exec(text);
+        if (!m || !LOGO_MIMES.includes(m[1]) || m[2].length === 0 || m[2].length % 4 !== 0) return false;
+        const padding = m[2].endsWith("==") ? 2 : m[2].endsWith("=") ? 1 : 0;
+        return (m[2].length / 4) * 3 - padding <= LOGO_MAX_BYTES;
+      }
+
+      /** A filter value as saved: text or finite number; null is the empty value `(leer)`. */
+      const configValue = (v) => v === null || typeof v === "string" || (typeof v === "number" && Number.isFinite(v));
+
+      /**
+       * The configuration object saved by `Konfiguration speichern` (REQ-009), from the current state:
+       * { header { title, date, logo }, filterSets [{ key, collapsed, selected }], table { view, groupBy, columns
+       * [{ key, width }], sort, columnFilters }, display { mode, colourBy, section } }. Fixed field order, so equal
+       * states give equal JSON text. The expanded state of groups, the selection and the models are not part of it.
+       */
+      export function buildConfig(state) {
+        const header = state.header || {};
+        const table = state.table || {};
+        const grouping = state.grouping || {};
+        const display = state.display || {};
+        const section = display.section;
+        return {
+          schema: CONFIG_SCHEMA + "/" + CONFIG_VERSION,
+          header: {
+            title: typeof header.title === "string" ? header.title : "",
+            date: header.date,
+            logo: header.logo || null,
+          },
+          filterSets: (state.filterSets || []).map((s) => ({
+            key: s.key,
+            collapsed: Boolean(s.collapsed),
+            selected: (s.selected || []).map((v) => (v === undefined ? null : v)),
+          })),
+          table: {
+            view: grouping.view === "grouped" ? "grouped" : "single",
+            groupBy: (grouping.groupBy || []).slice(),
+            columns: (table.columns || []).map((c) => ({ key: c.key, width: c.width })),
+            sort: table.sort ? { key: table.sort.key, dir: table.sort.dir } : null,
+            columnFilters: (table.columnFilters || []).map((f) =>
+              f.type === "range"
+                ? { key: f.key, type: "range", min: f.min, max: f.max }
+                : { key: f.key, type: "values", values: f.values.map((v) => (v === undefined ? null : v)) },
+            ),
+          },
+          display: {
+            mode: display.mode === "hide" ? "hide" : "ghost",
+            colourBy: display.colourKey || null,
+            section: section ? { axis: section.axis, offset: section.offset, flipped: Boolean(section.flipped) } : null,
+          },
+        };
+      }
+
+      const CONFIG_FIELDS = {
+        "": ["schema", "header", "filterSets", "table", "display"],
+        header: ["title", "date", "logo"],
+        table: ["view", "groupBy", "columns", "sort", "columnFilters"],
+        display: ["mode", "colourBy", "section"],
+      };
+
+      /**
+       * Tolerant apply of a parsed, valid configuration to the loaded models (REQ-009, REQ-009-AC2). ctx:
+       * { has(key) -> property in the loaded models, hasValue(key, value) -> some element has that value (null = an
+       * empty one), columns (current column keys, used when the file has no columns) }.
+       * Returns { apply, skipped }. apply holds only the parts the file defines (a missing part keeps the current
+       * state): header { title?, date?, logo? }, filterSets, table { view?, groupBy?, columns?, sort?, columnFilters? },
+       * display { mode?, colourBy?, section? }. skipped lists what is not applied: properties (keys missing from the
+       * loaded models), values ([{ key, value }] filter values no element has), invalid (German names of malformed
+       * entries) and unknown (unknown field names). "" in a saved selection is the empty value null (TASK-003 D3).
+       */
+      export function applyConfig(config, ctx) {
+        const skipped = { properties: [], values: [], invalid: [], unknown: [] };
+        const missing = (key) => {
+          if (!skipped.properties.includes(key)) skipped.properties.push(key);
+        };
+        const invalid = (what) => {
+          if (!skipped.invalid.includes(what)) skipped.invalid.push(what);
+        };
+        const unknownFields = (obj, path) => {
+          if (!isPlainObject(obj)) return;
+          for (const name of Object.keys(obj))
+            if (!CONFIG_FIELDS[path].includes(name)) skipped.unknown.push(path ? path + "." + name : name);
+        };
+        const has = (key) => typeof key === "string" && key !== "" && ctx.has(key);
+        const skippedValues = new Map(); // key -> Set of values already in skipped.values (linear in the values)
+        /** The values of a saved selection that the loaded models have; the rest goes to skipped.values. */
+        const selection = (key, values, what) => {
+          const out = [];
+          if (!Array.isArray(values)) {
+            if (values !== undefined) invalid(what);
+            return out;
+          }
+          const seen = new Set();
+          if (!skippedValues.has(key)) skippedValues.set(key, new Set());
+          const skippedOfKey = skippedValues.get(key);
+          for (const raw of values) {
+            const value = raw === "" ? null : raw;
+            if (!configValue(value)) {
+              invalid(what);
+              continue;
+            }
+            if (seen.has(value)) continue;
+            seen.add(value);
+            if (ctx.hasValue(key, value)) out.push(value);
+            else if (!skippedOfKey.has(value)) {
+              skippedOfKey.add(value);
+              skipped.values.push({ key, value });
+            }
+          }
+          return out;
+        };
+        const apply = {};
+        unknownFields(config, "");
+
+        // header (REQ-011)
+        if (config.header !== undefined) {
+          const header = {};
+          if (!isPlainObject(config.header)) invalid("Kopfzeile");
+          else {
+            unknownFields(config.header, "header");
+            const h = config.header;
+            if (typeof h.title === "string") header.title = h.title.slice(0, TITLE_MAX_LENGTH);
+            else if (h.title !== undefined) invalid("Titel");
+            if (isIsoDate(h.date)) header.date = h.date;
+            else if (h.date !== undefined) invalid("Datum");
+            if (h.logo === null || isLogoDataUrl(h.logo)) header.logo = h.logo;
+            else if (h.logo !== undefined) invalid("Logo");
+          }
+          apply.header = header;
+        }
+
+        // filter sets: keys in order, collapsed state, checked values (REQ-003-AC2, REQ-004)
+        if (config.filterSets !== undefined) {
+          if (!Array.isArray(config.filterSets)) invalid("Filters\u00e4tze");
+          else {
+            apply.filterSets = [];
+            for (const s of config.filterSets) {
+              if (!isPlainObject(s) || typeof s.key !== "string" || s.key === "") {
+                invalid("Filters\u00e4tze");
+                continue;
+              }
+              if (apply.filterSets.some((x) => x.key === s.key)) continue;
+              if (!has(s.key)) {
+                missing(s.key);
+                continue;
+              }
+              if (s.collapsed !== undefined && typeof s.collapsed !== "boolean") invalid("Filtersatz " + s.key);
+              apply.filterSets.push({
+                key: s.key,
+                collapsed: s.collapsed === true,
+                selected: selection(s.key, s.selected, "Filtersatz " + s.key),
+              });
+            }
+          }
+        }
+
+        // table: view, grouping, columns, sort, column filters (REQ-006-AC6, REQ-009)
+        if (config.table !== undefined) {
+          const table = {};
+          if (!isPlainObject(config.table)) invalid("Tabelle");
+          else {
+            const t = config.table;
+            unknownFields(t, "table");
+            if (t.view === "single" || t.view === "grouped") table.view = t.view;
+            else if (t.view !== undefined) invalid("Tabellenansicht");
+            if (Array.isArray(t.groupBy)) {
+              table.groupBy = [];
+              for (const key of t.groupBy) {
+                if (typeof key !== "string" || key === "") invalid("Gruppierung");
+                else if (!has(key)) missing(key);
+                else if (!table.groupBy.includes(key) && table.groupBy.length < GROUP_LEVELS) table.groupBy.push(key);
+              }
+            } else if (t.groupBy !== undefined) invalid("Gruppierung");
+            if (Array.isArray(t.columns)) {
+              const list = [];
+              for (const c of t.columns) {
+                const key = typeof c === "string" ? c : isPlainObject(c) ? c.key : undefined;
+                if (typeof key !== "string" || key === "") invalid("Spalten");
+                else if (!has(key)) missing(key);
+                else list.push(c);
+              }
+              table.columns = normaliseColumns(list, null);
+            } else if (t.columns !== undefined) invalid("Spalten");
+            const columnKeys = new Set(table.columns ? table.columns.map((c) => c.key) : ctx.columns || []);
+            if (t.sort === null) table.sort = null;
+            else if (isPlainObject(t.sort) && typeof t.sort.key === "string" && (t.sort.dir === "asc" || t.sort.dir === "desc")) {
+              if (!has(t.sort.key)) missing(t.sort.key);
+              else if (!columnKeys.has(t.sort.key)) invalid("Sortierung");
+              else table.sort = { key: t.sort.key, dir: t.sort.dir };
+            } else if (t.sort !== undefined) invalid("Sortierung");
+            if (Array.isArray(t.columnFilters)) {
+              table.columnFilters = [];
+              for (const f of t.columnFilters) {
+                if (!isPlainObject(f) || typeof f.key !== "string" || f.key === "") {
+                  invalid("Spaltenfilter");
+                  continue;
+                }
+                const what = "Spaltenfilter " + f.key;
+                if (table.columnFilters.some((x) => x.key === f.key)) continue;
+                if (!has(f.key)) {
+                  missing(f.key);
+                  continue;
+                }
+                if (!columnKeys.has(f.key)) {
+                  invalid(what);
+                  continue;
+                }
+                if (f.type === "range") {
+                  const bound = (b) => (b === null || b === undefined ? null : typeof b === "number" && Number.isFinite(b) ? b : undefined);
+                  const min = bound(f.min);
+                  const max = bound(f.max);
+                  if (min === undefined || max === undefined || (min === null && max === null)) invalid(what);
+                  else table.columnFilters.push({ key: f.key, type: "range", min, max });
+                } else if (f.type === "values") {
+                  const values = selection(f.key, f.values, what);
+                  if (values.length) table.columnFilters.push({ key: f.key, type: "values", values });
+                } else invalid(what);
+              }
+            } else if (t.columnFilters !== undefined) invalid("Spaltenfilter");
+          }
+          apply.table = table;
+        }
+
+        // model display: ghost / hide, colouring property, section (REQ-005, REQ-009)
+        if (config.display !== undefined) {
+          const display = {};
+          if (!isPlainObject(config.display)) invalid("Modelldarstellung");
+          else {
+            const d = config.display;
+            unknownFields(d, "display");
+            if (d.mode === "ghost" || d.mode === "hide") display.mode = d.mode;
+            else if (d.mode !== undefined) invalid("Elemente au\u00dferhalb des Filters");
+            if (d.colourBy === null) display.colourBy = null;
+            else if (typeof d.colourBy === "string" && d.colourBy !== "") {
+              if (has(d.colourBy)) display.colourBy = d.colourBy;
+              else missing(d.colourBy);
+            } else if (d.colourBy !== undefined) invalid("F\u00e4rben nach");
+            const s = d.section;
+            if (s === null) display.section = null;
+            else if (
+              isPlainObject(s) &&
+              (s.axis === "X" || s.axis === "Y" || s.axis === "Z") &&
+              typeof s.offset === "number" &&
+              Number.isFinite(s.offset) &&
+              (s.flipped === undefined || typeof s.flipped === "boolean")
+            )
+              display.section = { axis: s.axis, offset: s.offset, flipped: s.flipped === true };
+            else if (s !== undefined) invalid("Schnitt");
+          }
+          apply.display = display;
+        }
+        return { apply, skipped };
+      }
+
+      /** True when applyConfig skipped anything (the notice is shown). */
+      export function configSkippedAnything(skipped) {
+        return Boolean(
+          skipped.properties.length || skipped.values.length || skipped.invalid.length || skipped.unknown.length,
+        );
+      }
+
+      /**
+       * German notice of a tolerant load (REQ-009-AC2): the properties and filter values missing from the loaded
+       * models, malformed and unknown entries; each list capped at NOTICE_LIST_LIMIT ("und n weitere").
+       * label(key) gives the property label for values (filter set / column title). null when nothing was skipped.
+       */
+      export function configNotice(skipped, label) {
+        if (!configSkippedAnything(skipped)) return null;
+        const name = label || ((key) => key);
+        const list = (items) => {
+          const shown = items.slice(0, NOTICE_LIST_LIMIT).join("; ");
+          const more = items.length - NOTICE_LIST_LIMIT;
+          return more > 0 ? shown + " und " + more.toLocaleString("de-DE") + " weitere" : shown;
+        };
+        const valueText = (v) =>
+          v === null ? EMPTY_LABEL : typeof v === "number" ? v.toLocaleString("de-DE", { maximumFractionDigits: 6 }) : v;
+        const lines = ["Konfiguration geladen. Nicht angewendet:"];
+        if (skipped.properties.length)
+          lines.push("Eigenschaften, die in den geladenen Modellen fehlen: " + list(skipped.properties) + ".");
+        if (skipped.values.length)
+          lines.push(
+            "Filterwerte, die in den geladenen Modellen fehlen: " +
+              list(skipped.values.map((s) => name(s.key) + " = " + valueText(s.value))) +
+              ".",
+          );
+        if (skipped.invalid.length) lines.push("Ung\u00fcltige Angaben: " + list(skipped.invalid) + ".");
+        if (skipped.unknown.length) lines.push("Unbekannte Angaben: " + list(skipped.unknown) + ".");
+        return lines.join("\n");
+      }
     </script>
 
     <!-- DOM: layout, model list, messages, progress and status (builder and viewer file). ASCII only. -->
     <script type="text/plain" id="cv-ui-src">
-      import { EMPTY_LABEL, coreInfo, formatCell, parseNumberInput } from "calc-core";
+      import { EMPTY_LABEL, coreInfo, formatCell, germanDate, parseNumberInput } from "calc-core";
 
       function el(tag, className, text) {
         const node = document.createElement(tag);
@@ -3256,6 +3818,7 @@
         unfold: '<path d="M7 9l5-5 5 5M7 15l5 5 5-5"/>',
         fold: '<path d="M7 4l5 5 5-5M7 20l5-5 5 5"/>',
         layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+        edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
       };
 
       function icon(name) {
@@ -3989,7 +4552,8 @@
        * (TASK-006b): setGroups with group rows (toggle, indentation by level), element rows indented under their
        * group and a sticky total row `Summe` at the bottom.
        * handlers: { sort(key), filter(key, button), move(key, toIndex), resize(key, width), rowClick(key),
-       * toggleGroup(id), groupClick(id) }.
+       * toggleGroup(id), groupClick(id) }. Selection (TASK-006c, REQ-007): setSelection marks the rows of the selected
+       * element keys and the selected group row (`cv-sel`, aria-selected); reveal scrolls a display row into view.
        */
       function createTable(container, handlers) {
         const scroll = el("div", "cv-tbl-scroll");
@@ -4030,6 +4594,8 @@
         const stats = { renders: 0, lastMs: 0, maxMs: 0 };
         let dragKey = null;
         let resizing = false;
+        let selKeys = null; // Set of selected element keys (REQ-007) or null
+        let selGroup = null; // id of the selected group row or null
 
         function layoutColumns() {
           offsets = [0];
@@ -4325,6 +4891,22 @@
           });
         }
 
+        /** Hides an unused cell and drops its column and text, so no hidden cell carries a stale value (D-a). */
+        function parkCell(cell) {
+          cell.hidden = true;
+          delete cell.dataset.col;
+          cell.removeAttribute("aria-colindex");
+          setCellText(cell, "");
+          cell.removeAttribute("title");
+        }
+
+        /** Drops the cells beyond the column count of every row (after columns were removed, D-a). */
+        function trimCells() {
+          for (const node of pool) {
+            while (node.cvCells.length > columns.length) node.cvCells.pop().remove();
+          }
+        }
+
         /** Renders the rows and columns near the visible window (on scroll, resize and every update). */
         function render() {
           const t0 = performance.now();
@@ -4381,6 +4963,13 @@
               node.dataset.group = item.group.id;
               node.dataset.level = String(item.group.level);
             }
+            const on = row ? selKeys !== null && selKeys.has(row.key) : selGroup !== null && item.group.id === selGroup;
+            if (node.cvSel !== on) {
+              node.cvSel = on;
+              node.classList.toggle("cv-sel", on);
+              if (on) node.setAttribute("aria-selected", "true");
+              else node.removeAttribute("aria-selected");
+            }
             if (item) {
               const level = item.type === "group" ? item.group.level : item.depth + 1;
               if (node.cvAriaLevel !== level) {
@@ -4419,7 +5008,8 @@
               setCellText(cell, formatCell(value));
               setCellNum(cell, typeof value === "number");
             }
-            for (; q < node.cvCells.length; q++) if (!node.cvCells[q].hidden) node.cvCells[q].hidden = true;
+            // cells of columns outside the visible width (or of removed columns, D-a) keep no stale column or text
+            for (; q < node.cvCells.length; q++) if (!node.cvCells[q].hidden) parkCell(node.cvCells[q]);
           }
           if (grouped) renderTotal();
           const ms = performance.now() - t0;
@@ -4473,6 +5063,7 @@
               headCells = columns.map(headCell);
               head.replaceChildren(...headCells);
               scroll.setAttribute("aria-colcount", String(columns.length));
+              trimCells();
             }
             columns.forEach((col, c) => setHeadState(headCells[c], col));
             layoutColumns();
@@ -4500,6 +5091,31 @@
             grouped = true;
             rowCount = items.length;
             setHeights(emptyText);
+          },
+          /**
+           * Selection (REQ-007): keys (iterable of element row keys) whose rows are marked, and the id of a selected
+           * group row (or null); the marks follow the rows through sort, scroll, column and view changes.
+           */
+          setSelection(keys, groupId) {
+            selKeys = keys ? new Set(keys) : null;
+            if (selKeys && !selKeys.size) selKeys = null;
+            selGroup = groupId === undefined ? null : groupId;
+            render();
+          },
+          /** Scrolls the least needed to show display row index fully between the sticky header and total row. */
+          reveal(index) {
+            if (!(index >= 0 && index < rowCount)) return;
+            const footHeight = grouped ? TABLE_ROW_HEIGHT : 0;
+            const view = Math.max(TABLE_ROW_HEIGHT, scroll.clientHeight - TABLE_HEAD_HEIGHT - footHeight);
+            const top = index * TABLE_ROW_HEIGHT;
+            if (top < scroll.scrollTop) scroll.scrollTop = top;
+            else if (top + TABLE_ROW_HEIGHT > scroll.scrollTop + view) scroll.scrollTop = top + TABLE_ROW_HEIGHT - view;
+            render();
+          },
+          /** Back to the first row (view switch `Einzelelemente` / `Gruppiert`, new grouping). */
+          scrollToTop() {
+            scroll.scrollTop = 0;
+            render();
           },
           /** Header cell of a column (anchor of its filter popup). */
           headerCell: (key) => headCells[indexOfKey(key)] || null,
@@ -4842,6 +5458,30 @@
         function clear() {
           body.replaceChildren(el("p", "cv-hint", placeholder));
           body.dataset.key = "";
+          delete body.dataset.group;
+        }
+        /**
+         * Group selection (REQ-007 "clicking a group row highlights all its elements"): info { id, kicker (grouping
+         * properties), title (group path), count, withoutGeometry }.
+         */
+        function showGroup(info) {
+          const head = el("div", "cv-det-head");
+          const text = el("div", "cv-det-head-text");
+          text.append(el("div", "cv-det-kicker", info.kicker), el("div", "cv-det-title", info.title));
+          const close = iconButton("close", "Auswahl aufheben", "cv-det-close");
+          close.addEventListener("click", onClear);
+          head.append(text, close);
+          const count = info.count.toLocaleString("de-DE");
+          const parts = [head, el("p", "cv-det-count", (info.count === 1 ? "1 Element" : count + " Elemente") + " ausgew\u00e4hlt")];
+          if (info.withoutGeometry) {
+            const hint = el("p", "cv-det-nogeo", "Davon ohne 3D-Geometrie: " + info.withoutGeometry.toLocaleString("de-DE"));
+            hint.setAttribute("role", "note");
+            parts.push(hint);
+          }
+          body.replaceChildren(...parts);
+          body.dataset.key = "";
+          body.dataset.group = info.id;
+          body.scrollTop = 0;
         }
         /** info: { row (spec 4.3), catalog (Map key -> entry), order (Map key -> catalogue position) }. */
         function show(info) {
@@ -4911,10 +5551,162 @@
           }
           body.replaceChildren(...parts);
           body.dataset.key = row.key;
+          delete body.dataset.group;
           body.scrollTop = 0;
         }
         clear();
-        return { show, clear };
+        return { show, showGroup, clear };
+      }
+
+      /** Name shown as title while there is neither a title nor a model (REQ-011 default: first model's Modell). */
+      const APP_NAME = "Calc Viewer Builder";
+
+      /**
+       * Dialog `Titel, Datum und Logo` (REQ-011, builder). current: { title (set title or null), titleDefault (first
+       * model's Modell or ""), date (set date or null), dateDefault (today), logo (data URL or null) }. handlers:
+       * { readLogo(file) -> Promise<{ dataUrl } | { error }>, apply({ title, date, logo }) }. An empty title or date
+       * field gives null (the default); `Uebernehmen` applies, `Abbrechen` / Escape / the backdrop close unchanged.
+       */
+      function openHeaderDialog(host, current, handlers) {
+        const backdrop = el("div", "cv-backdrop");
+        const dialog = el("div", "cv-dialog cv-header-dialog");
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("aria-labelledby", "cv-header-dialog-title");
+        const head = el("div", "cv-dialog-head");
+        const heading = el("div", "cv-dialog-title", "Titel, Datum und Logo");
+        heading.id = "cv-header-dialog-title";
+        const close = iconButton("close", "Schlie\u00dfen", "cv-dialog-close");
+        head.append(heading, close);
+        const body = el("div", "cv-dialog-body cv-form");
+
+        const titleLabel = el("label", "cv-field");
+        const titleInput = el("input");
+        titleInput.type = "text";
+        titleInput.id = "cv-hdr-title";
+        titleInput.maxLength = 200;
+        titleInput.value = current.title || "";
+        titleInput.placeholder = current.titleDefault || "";
+        titleLabel.append(
+          el("span", "cv-field-label", "Titel"),
+          titleInput,
+          el("span", "cv-hint", "Leer: Name des ersten Modells" + (current.titleDefault ? " (" + current.titleDefault + ")" : "") + "."),
+        );
+
+        const dateLabel = el("label", "cv-field");
+        const dateInput = el("input");
+        dateInput.type = "date";
+        dateInput.id = "cv-hdr-date";
+        dateInput.value = current.date || "";
+        dateLabel.append(
+          el("span", "cv-field-label", "Datum"),
+          dateInput,
+          el("span", "cv-hint", "Leer: heute (" + germanDate(current.dateDefault) + ")."),
+        );
+
+        const logoField = el("div", "cv-field");
+        const preview = el("div", "cv-logo-preview");
+        preview.id = "cv-hdr-logo-preview";
+        const logoInput = el("input");
+        logoInput.type = "file";
+        logoInput.id = "cv-hdr-logo";
+        logoInput.hidden = true;
+        logoInput.accept = ".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml";
+        const pick = el("button", "cv-btn cv-small", "Logo w\u00e4hlen");
+        pick.type = "button";
+        pick.id = "cv-hdr-logo-pick";
+        const remove = el("button", "cv-btn cv-small", "Logo entfernen");
+        remove.type = "button";
+        remove.id = "cv-hdr-logo-remove";
+        const logoRow = el("div", "cv-logo-row");
+        logoRow.append(preview, pick, remove, logoInput);
+        const error = el("p", "cv-field-error");
+        error.id = "cv-hdr-error";
+        error.setAttribute("role", "alert");
+        logoField.append(
+          el("span", "cv-field-label", "Logo"),
+          logoRow,
+          el("span", "cv-hint", "PNG, JPG oder SVG, h\u00f6chstens 1 MB."),
+          error,
+        );
+        body.append(titleLabel, dateLabel, logoField);
+
+        const foot = el("div", "cv-dialog-foot");
+        const cancel = el("button", "cv-btn", "Abbrechen");
+        cancel.type = "button";
+        const ok = el("button", "cv-btn cv-primary", "\u00dcbernehmen");
+        ok.type = "button";
+        ok.id = "cv-hdr-apply";
+        foot.append(cancel, ok);
+        dialog.append(head, body, foot);
+        backdrop.append(dialog);
+        host.append(backdrop);
+
+        let logo = current.logo || null;
+        let reading = 0;
+        function showLogo() {
+          if (logo) {
+            const image = el("img", "cv-logo-img");
+            image.alt = "Logo";
+            image.src = logo;
+            preview.replaceChildren(image);
+          } else preview.replaceChildren(el("span", "cv-hint", "Kein Logo"));
+          remove.disabled = !logo;
+        }
+        showLogo();
+
+        let open = true;
+        function finish() {
+          if (!open) return;
+          open = false;
+          document.removeEventListener("keydown", onKey, true);
+          backdrop.remove();
+        }
+        function onKey(event) {
+          if (event.key === "Escape") {
+            event.preventDefault(); // handled: Escape closes the dialog only (it does not clear the 3D selection)
+            finish();
+          } else if (event.key === "Enter" && event.target && event.target.tagName === "INPUT" && !ok.disabled) {
+            event.preventDefault();
+            ok.click();
+          }
+        }
+        document.addEventListener("keydown", onKey, true);
+        backdrop.addEventListener("click", (event) => {
+          if (event.target === backdrop) finish();
+        });
+        close.addEventListener("click", finish);
+        cancel.addEventListener("click", finish);
+        pick.addEventListener("click", () => logoInput.click());
+        remove.addEventListener("click", () => {
+          logo = null;
+          error.textContent = "";
+          showLogo();
+        });
+        logoInput.addEventListener("change", async () => {
+          const file = logoInput.files && logoInput.files[0];
+          logoInput.value = "";
+          if (!file) return; // cancelled file dialog: nothing changes
+          const ticket = ++reading;
+          ok.disabled = true;
+          error.textContent = "";
+          const result = await handlers.readLogo(file);
+          if (ticket !== reading || !open) return;
+          ok.disabled = false;
+          if (result.error) error.textContent = result.error;
+          else {
+            logo = result.dataUrl;
+            showLogo();
+          }
+        });
+        ok.addEventListener("click", () => {
+          if (ok.disabled) return;
+          const title = titleInput.value.trim();
+          finish();
+          handlers.apply({ title: title === "" ? null : title, date: dateInput.value || null, logo });
+        });
+        titleInput.focus();
+        return { close: finish, element: dialog };
       }
 
       /**
@@ -4934,12 +5726,19 @@
         logo.title = "Logo";
         logo.append(icon("cube"));
         const brand = el("div", "cv-brand");
-        const title = el("h1", "cv-title", options.title || "Calc Viewer Builder");
+        const title = el("h1", "cv-title", options.title || APP_NAME);
         title.id = "cv-title";
         const date = el("span", "cv-date", new Date().toLocaleDateString("de-DE"));
         date.id = "cv-date";
         brand.append(title, date);
         const actions = el("div", "cv-actions");
+        let headerEdit = null;
+        if (mode === "builder") {
+          // title, date and logo (REQ-011): edited in a dialog
+          headerEdit = iconButton("edit", "Titel, Datum und Logo bearbeiten", "cv-header-edit");
+          headerEdit.id = "cv-header-edit";
+          headerEdit.addEventListener("click", () => options.headerHandlers.edit());
+        }
         const fileInput = el("input");
         fileInput.type = "file";
         fileInput.accept = ".ifc";
@@ -4950,15 +5749,29 @@
         loadButton.id = "cv-load";
         loadButton.disabled = true;
         loadButton.addEventListener("click", () => fileInput.click());
-        if (mode === "builder") {
-          actions.append(fileInput, loadButton);
-          for (const label of ["Konfiguration speichern", "Konfiguration laden", "HTML exportieren"]) {
-            const button = el("button", "cv-btn", label);
-            button.disabled = true;
-            actions.append(button);
-          }
-        }
-        header.append(logo, brand, actions);
+        // configuration save / load (REQ-009, builder only); `HTML exportieren` follows in TASK-009
+        const configInput = el("input");
+        configInput.type = "file";
+        configInput.accept = ".json,application/json";
+        configInput.hidden = true;
+        configInput.id = "cv-config-input";
+        const saveButton = el("button", "cv-btn", "Konfiguration speichern");
+        saveButton.id = "cv-config-save";
+        saveButton.type = "button";
+        saveButton.disabled = true;
+        const openButton = el("button", "cv-btn", "Konfiguration laden");
+        openButton.id = "cv-config-load";
+        openButton.type = "button";
+        openButton.disabled = true;
+        openButton.addEventListener("click", () => configInput.click());
+        const htmlButton = el("button", "cv-btn", "HTML exportieren");
+        htmlButton.id = "cv-html-export";
+        htmlButton.type = "button";
+        htmlButton.disabled = true;
+        if (mode === "builder") actions.append(fileInput, loadButton, configInput, saveButton, openButton, htmlButton);
+        header.append(logo, brand);
+        if (headerEdit) header.append(headerEdit);
+        header.append(actions);
 
         const main = el("div", "cv-main");
         const filters = el("aside", "cv-panel cv-filters");
@@ -5146,11 +5959,43 @@
         detailsToggle.addEventListener("click", () => setDetailsCollapsed(!layout.detailsCollapsed));
 
         let busy = false;
+        let configLoadable = false;
         const removeButtons = [];
+
+        /**
+         * Header (REQ-011): { title (shown; "" -> app name), date ("YYYY-MM-DD", shown in German), logo (data URL or
+         * null -> the app icon) }. The logo is an <img> (an SVG in an <img> runs no script).
+         */
+        function setHeader(state) {
+          const text = state.title ? state.title : APP_NAME;
+          title.textContent = text;
+          title.title = text;
+          title.classList.toggle("cv-title-default", !state.title);
+          date.textContent = germanDate(state.date);
+          date.dataset.date = state.date;
+          if (state.logo) {
+            const image = el("img", "cv-logo-img");
+            image.alt = "Logo";
+            image.src = state.logo;
+            logo.replaceChildren(image);
+            logo.classList.add("cv-logo-custom");
+          } else if (logo.classList.contains("cv-logo-custom") || !logo.firstChild) {
+            logo.replaceChildren(icon("cube"));
+            logo.classList.remove("cv-logo-custom");
+          }
+        }
 
         return {
           fileInput,
           loadButton,
+          configInput,
+          saveButton,
+          openButton,
+          setHeader,
+          /** Opens the dialog `Titel, Datum und Logo` (see openHeaderDialog). */
+          openHeaderDialog(current, handlers) {
+            return openHeaderDialog(app, current, handlers);
+          },
           spacesToggle,
           viewport: canvasBox,
           layout,
@@ -5216,15 +6061,19 @@
             status.textContent = formatCount(shown) + " von " + formatCount(total) + " Elementen";
             statusModels.textContent = modelCount === 1 ? "1 Modell" : formatCount(modelCount) + " Modelle";
           },
-          /** Adds a persistent message (error) to the filter area; the user can close it. */
-          addMessage(text) {
-            const item = el("div", "cv-message");
+          /**
+           * Adds a persistent message to the filter area (kind "error" default, "notice" for a configuration load
+           * notice); the user can close it. Returns the message element.
+           */
+          addMessage(text, kind) {
+            const item = el("div", "cv-message" + (kind === "notice" ? " cv-notice" : ""));
             const close = el("button", "cv-message-close", "\u00d7");
             close.title = "Meldung schlie\u00dfen";
             close.setAttribute("aria-label", "Meldung schlie\u00dfen");
             close.addEventListener("click", () => item.remove());
             item.append(el("span", "cv-message-text", text), close);
             messages.append(item);
+            return item;
           },
           /** Lists the loaded models [{ id, name, elements }] with a remove button each (builder). */
           renderModels(models, onRemove) {
@@ -5256,8 +6105,19 @@
           setBusy(value) {
             busy = value;
             loadButton.disabled = value;
+            saveButton.disabled = value;
+            openButton.disabled = value || !configLoadable;
+            if (headerEdit) headerEdit.disabled = value;
             if (spacesToggle) spacesToggle.disabled = value;
             for (const button of removeButtons) button.disabled = value;
+          },
+          /** `Konfiguration laden` needs a loaded model (REQ-009 applies a configuration to the loaded models). */
+          setConfigLoadable(value) {
+            configLoadable = Boolean(value);
+            openButton.disabled = busy || !configLoadable;
+            openButton.title = configLoadable
+              ? "Konfiguration (JSON) auf die geladenen Modelle anwenden"
+              : "Zuerst ein IFC-Modell laden.";
           },
           /** Calls onFiles(files) for files dropped anywhere on the page (builder). */
           onDropFiles(onFiles) {
@@ -5483,6 +6343,13 @@
          * about 280 ms in software WebGL, delays the refresh results that wait for the main thread.
          */
         function updateView(force) {
+          if (!fragments.models.list.size) {
+            // no model left: update(true) would wait for a tile FINISH that never comes (see removeModel); a
+            // selection cleared or a display plan sent after the last model was removed must not hang the queue
+            fragments.update();
+            requestRender();
+            return Promise.resolve();
+          }
           // fragments.update skips calls within settings.maxUpdateRate (100 ms) of the previous one, e.g. of its own
           // refresh timer; a change made here is sent at once (the limit is read synchronously at the call)
           const rate = fragments.settings.maxUpdateRate;
@@ -5550,6 +6417,7 @@
         let selected = new Map(); // key -> { modelId, localId } highlighted as selection
         let appliedMode = "ghost";
         let lastAppliedAt = 0;
+        let lastSelectedAt = 0; // performance.now() when the last selection's engine calls were done
         let generation = 0;
         const ghostMaterial = {
           color: new THREE.Color(GHOST_COLOR),
@@ -5691,6 +6559,7 @@
             for (const [paint, ids] of w.paint) await model.highlight(ids, materialOf(paint));
             if (w.select.length) await model.highlight(w.select, selectionMaterial);
           }
+          lastSelectedAt = performance.now();
           await updateView(true);
         }
 
@@ -5923,6 +6792,10 @@
           },
           /** performance.now() when the last display plan's engine calls were done (perf measurements). */
           lastAppliedAt: () => lastAppliedAt,
+          /** performance.now() when the last selection highlight's engine calls were done (perf measurements). */
+          lastSelectedAt: () => lastSelectedAt,
+          /** Camera position and orbit target as [x, y, z] (test seam: a selection does not move the camera). */
+          camera: () => ({ position: camera.position.toArray(), target: controls.target.toArray() }),
           /** Times (performance.now) of the recent frames drawn because the view changed (perf measurements). */
           changeFrames: () => changeFrames.slice(),
           frames: () => frames,
@@ -5939,9 +6812,20 @@
       import { COUNT_COLUMN, GROUP_COLUMN, renderLayout, valueLabel } from "calc-ui";
       import { createEngine } from "calc-3d";
       import {
+        CONFIG_MAX_BYTES,
+        ConfigError,
         DEFAULT_COLUMNS,
         LoadError,
         allGroups,
+        applyConfig,
+        buildConfig,
+        classifyLogo,
+        configErrorMessage,
+        configNotice,
+        isIsoDate,
+        isoDate,
+        parseConfig,
+        safeFileName,
         buildCatalog,
         clampColumnWidth,
         colourLegend,
@@ -5953,6 +6837,7 @@
         filterRows,
         groupDisplayRows,
         groupRows,
+        groupsOfRow,
         loadErrorMessage,
         modelNameFromFile,
         moveItem,
@@ -5995,6 +6880,11 @@
        * total ({ count, cells } of the total row, or null in the single-element view); in the grouping view count is the
        * number of shown rows (group and element rows, total row excluded) and keys the element rows' keys. view and
        * groupBy are the configuration part (REQ-009, TASK-007): start().groupingState() / window.CalcTable.grouping().
+       * header (TASK-007, REQ-011): { title, date, logo } as shown (defaults applied), titleSet / dateSet (false while
+       * the default applies). config (TASK-007, REQ-009): { loads (finished `Konfiguration laden` actions, ok or not),
+       * saves, last ({ ok, fileName, errorClass, message, ms } | { ok, fileName, notice, skipped, ms }; ms = parse and
+       * apply time), lastSaved
+       * ({ fileName, text }) }; window.CalcConfig.state() is the configuration a save would write.
        */
       const hook = {
         phase: "starting",
@@ -6027,6 +6917,8 @@
         },
         layout: null,
         view: null,
+        header: null,
+        config: { loads: 0, saves: 0, last: null, lastSaved: null },
         test: { crashNextConversion: false, neverStartNextConversion: false, startTimeoutMs: null },
       };
       window.__calc = hook;
@@ -6056,6 +6948,8 @@
         let colourKey = null;
         let scheme = null; // colourScheme(store, colourKey) for the current row set
         let selectedKey = null;
+        // group selection (TASK-006c, REQ-007): { id, keys (row keys inside the filter), kicker, title } or null
+        let selectedGroup = null;
         let section = null; // { axis, offset, flipped }
         let rowIndex = new Map(); // row key -> index in store.rows
         let catalogOrder = new Map(); // property key -> catalogue position (details order)
@@ -6377,6 +7271,9 @@
           }
           store.retain(keysInUse());
           publishTable();
+          // a new view or grouping starts at its first row (TASK-006b follow-up)
+          ui.table.scrollToTop();
+          markTable();
           updateTable();
         }
         /** Spec of the column filter popup of key under the current filters (values / range under the others). */
@@ -6506,15 +7403,23 @@
             columns = columns.map((col) => (col.key === key ? { key, width: next } : col));
             publishTable();
           },
-          /** Row click: hook for the table -> 3D selection (TASK-006c); listeners from start().onRowClick. */
+          /**
+           * Row click: selects the element (3D highlight, details; REQ-007-AC3); the camera stays. Then the listeners
+           * from start().onRowClick.
+           */
           rowClick(key) {
+            select(key);
             for (const listener of rowClickListeners) listener(key);
           },
-          /** Group row click: hook for the group selection (TASK-006c); listener(id, element keys of the group). */
+          /**
+           * Group row click: selects all elements of the group (REQ-007 "clicking a group row highlights all its
+           * elements"); then the listeners from start().onGroupClick (id, element keys of the group).
+           */
           groupClick(id) {
             const group = allGroups(tree).find((g) => g.id === id);
             if (!group) return;
             const keys = Array.from(group.indices, (i) => store.rows[i].key);
+            selectGroup(group, keys);
             for (const listener of groupClickListeners) listener(id, keys);
           },
           /** `Einzelelemente | Gruppiert` (REQ-006). */
@@ -6615,31 +7520,121 @@
             const at = rowIndex.get(selectedKey);
             if (at === undefined || !inside[at]) select(null);
           }
+          if (selectedGroup !== null) {
+            // group selection: elements that left the filter (or the row set) leave the selection (as TASK-005)
+            const keys = selectedGroup.keys.filter((k) => {
+              const at = rowIndex.get(k);
+              return at !== undefined && inside[at] === 1;
+            });
+            if (!keys.length) select(null);
+            else if (keys.length !== selectedGroup.keys.length) applyGroupSelection({ ...selectedGroup, keys });
+          }
           publishView();
         }
 
         function publishView() {
-          hook.view = { mode: viewMode, colourKey, selected: selectedKey, section: section ? { ...section } : null };
+          hook.view = {
+            mode: viewMode,
+            colourKey,
+            selected: selectedKey,
+            selectedGroup: selectedGroup ? selectedGroup.id : null,
+            selectedKeys: selectedGroup ? selectedGroup.keys.slice() : selectedKey !== null ? [selectedKey] : [],
+            section: section ? { ...section } : null,
+          };
+        }
+
+        /** Display position of the first table row of element row index at (or -1 when not shown). */
+        function displayIndexOf(at) {
+          if (tableView === "grouped") return displayItems.findIndex((it) => it.type === "element" && it.index === at);
+          return order.indexOf(at);
         }
 
         /**
-         * Selects one element by row key (REQ-007; 3D pick, API, later the table in TASK-006c) or clears the
-         * selection (null): selection highlight in 3D (elements with geometry) and the details panel.
+         * Shows the row of a selected element in the table (REQ-007-AC2): in the grouping view the groups containing it
+         * are expanded first (several with a multi-valued grouping property, DEC-16); then it is scrolled into view.
          */
-        function select(key) {
+        function revealRow(at) {
+          if (tableView === "grouped" && tree) {
+            let opened = false;
+            for (const group of groupsOfRow(tree, at)) {
+              if (isExpanded(group)) continue;
+              if (toggled.has(group.id)) toggled.delete(group.id);
+              else toggled.add(group.id);
+              opened = true;
+            }
+            if (opened) refreshGroups();
+          }
+          const index = displayIndexOf(at);
+          if (index !== -1) ui.table.reveal(index);
+        }
+
+        /**
+         * Selects one element by row key (REQ-007) or clears the selection (null, also a group selection): selection
+         * highlight in 3D (elements with geometry), the marked table row(s) and the details panel. reveal (3D pick,
+         * API): the table shows its row (groups expanded, scrolled); a table row click does not move the table. The
+         * camera never moves (as the reference app).
+         */
+        function select(key, reveal) {
           const at = key === null || key === undefined ? undefined : rowIndex.get(key);
           if (at === undefined) {
-            if (selectedKey === null) return;
+            if (selectedKey === null && selectedGroup === null) return;
             selectedKey = null;
+            selectedGroup = null;
             engine.select([]);
             ui.details.clear();
+            ui.table.setSelection(null, null);
           } else {
             const row = store.rows[at];
             selectedKey = row.key;
+            selectedGroup = null;
             engine.select(row.geometry ? [row.key] : []);
             ui.details.show({ row, catalog, order: catalogOrder });
+            ui.table.setSelection([row.key], null);
+            if (reveal) revealRow(at);
           }
           publishView();
+        }
+
+        /** Group path label of a group (level 2: parent value / value). */
+        function groupPath(group) {
+          if (group.level === 1) return valueLabel(group.value);
+          const parent = tree ? tree.groups.find((g) => group.id.indexOf(g.id + "\u001f") === 0) : null;
+          return (parent ? valueLabel(parent.value) + " / " : "") + valueLabel(group.value);
+        }
+
+        /** Selects all elements of a group (keys: its rows inside the filter); the group row is marked. */
+        function selectGroup(group, keys) {
+          if (!keys.length) return select(null);
+          const kicker = "Gruppe: " + groupBy.slice(0, group.level).map(groupTitle).join(" / ");
+          selectedKey = null;
+          applyGroupSelection({ id: group.id, grouping: groupBy.join("\u0000"), keys, kicker, title: groupPath(group) });
+          publishView();
+        }
+
+        /**
+         * Marks the selection in the table: the selected element rows, and the selected group row while the table
+         * still shows that grouping (a group id means the same group only under the same grouping properties).
+         */
+        function markTable() {
+          if (selectedGroup) {
+            const same = tableView === "grouped" && selectedGroup.grouping === groupBy.join("\u0000");
+            ui.table.setSelection(selectedGroup.keys, same ? selectedGroup.id : null);
+          } else ui.table.setSelection(selectedKey !== null ? [selectedKey] : null, null);
+        }
+
+        function applyGroupSelection(next) {
+          selectedGroup = next;
+          const withGeometry = [];
+          for (const k of next.keys) if (store.rows[rowIndex.get(k)].geometry) withGeometry.push(k);
+          engine.select(withGeometry);
+          ui.details.showGroup({
+            id: next.id,
+            kicker: next.kicker,
+            title: next.title,
+            count: next.keys.length,
+            withoutGeometry: next.keys.length - withGeometry.length,
+          });
+          markTable();
         }
 
         function setColouring(key) {
@@ -6657,6 +7652,241 @@
           engine.setSection(section);
           publishView();
         }
+
+        // ---------- header and configuration (TASK-007, REQ-011 / REQ-009) ----------
+
+        // title / date set by the user or a configuration; null = default (first model's Modell / today)
+        const headerState = { title: null, date: null, logo: null };
+
+        /** Header as shown and saved: defaults applied (REQ-011). */
+        function effectiveHeader() {
+          return {
+            title: headerState.title !== null ? headerState.title : models.length ? models[0].name : "",
+            date: headerState.date !== null ? headerState.date : isoDate(new Date()),
+            logo: headerState.logo,
+          };
+        }
+
+        function publishHeader() {
+          const header = effectiveHeader();
+          ui.setHeader(header);
+          hook.header = { ...header, titleSet: headerState.title !== null, dateSet: headerState.date !== null };
+        }
+
+        /** Sets title, date and logo ({ title?, date?, logo? }; null title / date = default). */
+        function setHeader(next) {
+          if (next.title !== undefined) headerState.title = next.title === null ? null : String(next.title);
+          if (next.date !== undefined) headerState.date = isIsoDate(next.date) ? next.date : null;
+          if (next.logo !== undefined) headerState.logo = next.logo || null;
+          publishHeader();
+        }
+
+        /** The configuration a save writes now (REQ-009; buildConfig). */
+        function configState() {
+          return buildConfig({
+            header: effectiveHeader(),
+            filterSets: filterSets.map((s) => ({ key: s.key, collapsed: s.collapsed, selected: s.selected })),
+            table: tableState(),
+            grouping: groupingState(),
+            display: { mode: viewMode, colourKey, section },
+          });
+        }
+
+        /**
+         * Applies a parsed, valid configuration to the loaded models (REQ-009, tolerant: applyConfig). Parts the file
+         * does not define keep their current state. Returns { notice (German text or null), skipped }.
+         */
+        function applyConfiguration(config) {
+          const { apply, skipped } = applyConfig(config, {
+            has: (key) => catalog.has(key),
+            hasValue(key, value) {
+              const col = store.column(key);
+              return value === null ? col.empties : col.index.get(value) !== undefined;
+            },
+            columns: columns.map((c) => c.key),
+          });
+          closePopup();
+          if (apply.header) setHeader(apply.header);
+          if (apply.filterSets) {
+            const sets = apply.filterSets.map((s) => ({
+              id: s.key,
+              key: s.key,
+              collapsed: s.collapsed,
+              selected: s.selected.slice(),
+            }));
+            filterSets.splice(0, filterSets.length, ...sets);
+          }
+          const t = apply.table || {};
+          if (t.columns) columns = normaliseColumns(t.columns, catalog);
+          const columnKeys = new Set(columns.map((c) => c.key));
+          if (t.sort !== undefined) sort = t.sort && columnKeys.has(t.sort.key) ? { ...t.sort } : null;
+          else if (sort && !columnKeys.has(sort.key)) sort = null;
+          if (t.columnFilters) {
+            columnFilters.clear();
+            for (const f of t.columnFilters)
+              columnFilters.set(
+                f.key,
+                f.type === "range"
+                  ? { type: "range", min: f.min, max: f.max }
+                  : { type: "values", values: f.values.slice() },
+              );
+          }
+          for (const key of [...columnFilters.keys()]) if (!columnKeys.has(key)) columnFilters.delete(key);
+          if (t.view !== undefined || t.groupBy !== undefined) {
+            const next = normaliseGrouping(
+              { view: t.view !== undefined ? t.view : tableView, groupBy: t.groupBy !== undefined ? t.groupBy : groupBy },
+              catalog,
+            );
+            if (next.view === "grouped" && !next.groupBy.length) next.groupBy = ["Kategorie"];
+            if (next.groupBy.join("\u0000") !== groupBy.join("\u0000")) {
+              expandDefault = false;
+              toggled.clear();
+            }
+            tableView = next.view;
+            groupBy = next.groupBy;
+          }
+          const d = apply.display || {};
+          if (d.mode !== undefined) {
+            viewMode = d.mode;
+            ui.view.setMode(viewMode);
+          }
+          if (d.colourBy !== undefined) {
+            colourKey = d.colourBy;
+            scheme = colourKey ? colourScheme(store, colourKey) : null;
+            const entry = colourKey ? catalog.get(colourKey) : null;
+            ui.view.setColouring(entry ? entry.header : null);
+          }
+          if (d.section !== undefined) {
+            // a section needs 3D geometry on its axis (no model with geometry: not applied)
+            if (d.section && !engine.axisRange(d.section.axis)) skipped.invalid.push("Schnitt");
+            else setSection(d.section);
+          }
+          store.retain(keysInUse());
+          publishSets();
+          publishTable();
+          ui.table.scrollToTop();
+          markTable();
+          refresh();
+          const notice = configNotice(skipped, (key) => {
+            const entry = catalog.get(key);
+            return entry ? entry.label : key;
+          });
+          return { notice, skipped };
+        }
+
+        /** Offers text as a file download (builder; works from file:// as well). */
+        function download(text, fileName, type) {
+          const url = URL.createObjectURL(new Blob([text], { type }));
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = fileName;
+          link.hidden = true;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
+
+        /** `Konfiguration speichern` (REQ-009): JSON file `<Titel>_<YYYY-MM-DD>_Konfiguration.json`. */
+        function saveConfiguration() {
+          const config = configState();
+          const text = JSON.stringify(config, null, 2) + "\n";
+          const fileName = safeFileName(config.header.title, config.header.date, "_Konfiguration.json");
+          download(text, fileName, "application/json");
+          hook.config.saves++;
+          hook.config.lastSaved = { fileName, text };
+          return { fileName, text };
+        }
+
+        /**
+         * Applies a configuration file text (REQ-009): parse and validate (invalid-json, not-a-config,
+         * unsupported-version: German message, view unchanged), then the tolerant apply with its notice.
+         */
+        function loadConfigurationText(text, fileName) {
+          const t0 = performance.now();
+          let result;
+          try {
+            const config = parseConfig(text);
+            if (!models.length) throw new ConfigError("no-model");
+            const applied = applyConfiguration(config);
+            result = { ok: true, fileName, notice: applied.notice, skipped: applied.skipped };
+            if (applied.notice) ui.addMessage(applied.notice, "notice");
+          } catch (error) {
+            const configClass = error && error.configClass ? error.configClass : "unreadable";
+            const message =
+              configClass === "no-model"
+                ? "Zum Laden einer Konfiguration zuerst ein IFC-Modell laden."
+                : error && error.configClass
+                  ? error.message
+                  : configErrorMessage("unreadable") + (error && error.message ? " (" + error.message + ")" : "");
+            result = { ok: false, fileName, errorClass: configClass, message };
+            ui.addMessage(message);
+          }
+          result.ms = performance.now() - t0;
+          hook.config.last = result;
+          hook.config.loads++;
+          return result;
+        }
+
+        /** `Konfiguration laden` with a file: size check (too-large), read as UTF-8, then loadConfigurationText. */
+        async function loadConfigurationFile(file) {
+          if (file.size > CONFIG_MAX_BYTES) {
+            const error = new ConfigError("too-large");
+            ui.addMessage(error.message);
+            hook.config.last = { ok: false, fileName: file.name, errorClass: error.configClass, message: error.message };
+            hook.config.loads++;
+            return hook.config.last;
+          }
+          let text;
+          try {
+            text = await file.text();
+          } catch (error) {
+            text = null;
+            const message = configErrorMessage("unreadable") + (error && error.message ? " (" + error.message + ")" : "");
+            ui.addMessage(message);
+            hook.config.last = { ok: false, fileName: file.name, errorClass: "unreadable", message };
+            hook.config.loads++;
+            return hook.config.last;
+          }
+          return loadConfigurationText(text, file.name);
+        }
+
+        /** Reads a logo image file (REQ-011): type and size check, data URL, must decode as an image. */
+        async function readLogo(file) {
+          const head = new Uint8Array(await file.slice(0, 4096).arrayBuffer());
+          const kind = classifyLogo(file.name, file.size, head);
+          if (kind.error) return { error: kind.error };
+          const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(new Blob([file], { type: kind.mime }));
+          });
+          const decodes = await new Promise((resolve) => {
+            const image = new Image();
+            image.onload = () => resolve(true);
+            image.onerror = () => resolve(false);
+            image.src = dataUrl;
+          });
+          if (!decodes) return { error: file.name + " konnte nicht als Bild gelesen werden." };
+          return { dataUrl };
+        }
+
+        const headerHandlers = {
+          /** Dialog `Titel, Datum und Logo` (builder). */
+          edit() {
+            ui.openHeaderDialog(
+              {
+                title: headerState.title,
+                titleDefault: models.length ? models[0].name : "",
+                date: headerState.date,
+                dateDefault: isoDate(new Date()),
+                logo: headerState.logo,
+              },
+              { readLogo, apply: (next) => setHeader(next) },
+            );
+          },
+        };
 
         const viewHandlers = {
           mode(mode) {
@@ -6754,10 +7984,12 @@
           filterHandlers,
           viewHandlers,
           tableHandlers,
+          headerHandlers,
         });
         hook.layout = ui.layout;
         ui.overlay("3D-Ansicht wird gestartet ...");
-        const engine = createEngine(ui.viewport, options.workerUrl, { onPick: (key) => select(key) });
+        // a 3D pick selects the element and shows its table row (REQ-007-AC1/AC2); empty space clears (AC5)
+        const engine = createEngine(ui.viewport, options.workerUrl, { onPick: (key) => select(key, true) });
         ui.view.setMode(viewMode);
         ui.view.setColouring(null);
         ui.view.setSection(null, null);
@@ -6768,7 +8000,17 @@
         /** Test seam (spec 4.4) and selection hook for the table (TASK-006c). */
         window.CalcView = {
           state: () => engine.state(),
-          select: (key) => select(key),
+          /** Selects an element like a 3D pick (table row shown), null clears. */
+          select: (key) => select(key, true),
+          /** Selects all elements of a table group by group id (as a group row click); false if the group is not shown. */
+          selectGroup: (id) => {
+            const group = tree ? allGroups(tree).find((g) => g.id === id) : null;
+            if (!group) return false;
+            selectGroup(group, Array.from(group.indices, (i) => store.rows[i].key));
+            return true;
+          },
+          camera: () => engine.camera(),
+          lastSelectedAt: () => engine.lastSelectedAt(),
           whenIdle: () => engine.whenIdle(),
           frames: () => engine.frames(),
           lastFrameAt: () => engine.lastFrameAt(),
@@ -6778,6 +8020,15 @@
           engineVisible: (modelId, localIds) => engine.engineVisible(modelId, localIds),
           axisRange: (axis) => engine.axisRange(axis),
           contextState: () => engine.contextState(),
+        };
+        /**
+         * Configuration seam (TASK-007): state() = the object `Konfiguration speichern` writes; loadText(text, name)
+         * = `Konfiguration laden` with that file text; header() = title, date, logo as shown.
+         */
+        window.CalcConfig = {
+          state: () => configState(),
+          loadText: (text, fileName) => loadConfigurationText(text, fileName || "konfiguration.json"),
+          header: () => effectiveHeader(),
         };
         /** Table seam (TASK-006a): configuration part (state / setState, TASK-007) and render statistics. */
         window.CalcTable = {
@@ -6854,6 +8105,8 @@
           publishSets();
           publishTable();
           refresh();
+          publishHeader(); // the default title follows the first model (REQ-011)
+          ui.setConfigLoadable(models.length > 0);
           settleOverlay();
         }
 
@@ -6985,9 +8238,23 @@
             ui.fileInput.value = "";
             loadFiles(files);
           });
-          ui.onDropFiles((files) => loadFiles(files));
+          // a dropped .json is a configuration (applied after the IFC files of the same drop), the rest IFC
+          ui.onDropFiles(async (files) => {
+            const isJson = (f) => /\.json$/i.test(f.name);
+            const configFile = files.filter(isJson).pop();
+            const ifcFiles = files.filter((f) => !isJson(f));
+            if (ifcFiles.length) await loadFiles(ifcFiles);
+            if (configFile) await loadConfigurationFile(configFile);
+          });
           ui.spacesToggle.addEventListener("change", () => setIncludeSpaces(ui.spacesToggle.checked));
           ui.loadButton.disabled = false;
+          ui.saveButton.disabled = false;
+          ui.saveButton.addEventListener("click", () => saveConfiguration());
+          ui.configInput.addEventListener("change", () => {
+            const file = ui.configInput.files && ui.configInput.files[0];
+            ui.configInput.value = "";
+            if (file) loadConfigurationFile(file); // a cancelled dialog changes nothing
+          });
         }
         publish();
         hook.phase = "ready";
@@ -7001,8 +8268,8 @@
           onFilterChange(listener) {
             filterListeners.push(listener);
           },
-          /** Selects an element by row key, null clears (REQ-007; table selection in TASK-006c). */
-          select,
+          /** Selects an element by row key like a 3D pick (its table row is shown), null clears (REQ-007). */
+          select: (key) => select(key, true),
           /** Key of the selected element or null. */
           selected: () => selectedKey,
           /** Table configuration part (REQ-006-AC6): { columns, sort, columnFilters }; setTableState applies one. */
@@ -7019,6 +8286,13 @@
           onGroupClick(listener) {
             groupClickListeners.push(listener);
           },
+          /** Configuration (REQ-009): the object a save writes; apply a parsed one (viewer file start, TASK-009). */
+          configState,
+          applyConfiguration,
+          loadConfigurationText,
+          /** Header (REQ-011): { title, date, logo } as shown; setHeader({ title?, date?, logo? }). */
+          header: effectiveHeader,
+          setHeader,
         };
       }
 

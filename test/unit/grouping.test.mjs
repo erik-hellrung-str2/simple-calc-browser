@@ -9,7 +9,16 @@ import { readFileSync } from "node:fs";
 import { loadCore } from "../load-core.mjs";
 
 const core = await loadCore();
-const { GROUP_LEVELS, allGroups, createColumnStore, groupDisplayRows, groupRows, normaliseGrouping, sortRows } = core;
+const {
+  GROUP_LEVELS,
+  allGroups,
+  createColumnStore,
+  groupDisplayRows,
+  groupRows,
+  groupsOfRow,
+  normaliseGrouping,
+  sortRows,
+} = core;
 
 const fixtures = new URL("../fixtures/", import.meta.url);
 const REF = JSON.parse(readFileSync(new URL("reference-values.json", fixtures), "utf8"));
@@ -195,6 +204,35 @@ test("[unit] REQ-006-AC3 display rows: collapsed groups only; expanded level 1 s
     groupDisplayRows(null, () => true),
     [],
   );
+});
+
+test("[unit] REQ-007-AC2 groupsOfRow: the groups to expand for a selected element (both levels, every group of a multi-value)", () => {
+  const store = createColumnStore(ROWS);
+  const ids = (tree, i) => groupsOfRow(tree, i).map((g) => [g.level, g.value]);
+  const two = groupRows(store, all(ROWS.length), { levels: ["Kat", "Geschoss"], columns: COLUMNS });
+  assert.deepEqual(ids(two, 2), [
+    [1, "Decke"],
+    [2, "EG"],
+  ]);
+  assert.deepEqual(ids(two, 5), [
+    [1, "Tuer"],
+    [2, null],
+  ]);
+  // multi-valued level 1 (DEC-16): row a is in Beton and Putz
+  const mat = groupRows(store, all(ROWS.length), { levels: ["Mat", "Kat"], columns: COLUMNS });
+  assert.deepEqual(ids(mat, 0), [
+    [1, "Beton"],
+    [2, "Wand"],
+    [1, "Putz"],
+    [2, "Wand"],
+  ]);
+  // a row outside the grouped rows (filtered out) and an empty tree: no groups
+  const some = groupRows(store, Uint32Array.from([0, 1]), { levels: ["Kat"], columns: COLUMNS });
+  assert.deepEqual(ids(some, 3), []);
+  assert.deepEqual(groupsOfRow(null, 0), []);
+  // the ids are those of allGroups, so the app can expand them
+  const known = new Set(allGroups(two).map((g) => g.id));
+  for (const g of groupsOfRow(two, 1)) assert.ok(known.has(g.id));
 });
 
 test("[unit] REQ-009 grouping configuration part: view and up to two distinct known keys", () => {

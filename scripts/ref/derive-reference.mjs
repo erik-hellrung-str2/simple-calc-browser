@@ -526,12 +526,83 @@ function groupingDuplexSection() {
   };
 }
 
+/**
+ * REQ-007-AC1/AC2/AC3 (TASK-006c): AC20-FZK-Haus grouped by Kategorie then Geschoss; the group rows used for group
+ * selection: all IfcWallStandardCase elements and those on the ground floor (level-2 group), with their GlobalIds and
+ * whether the STEP text gives them a representation (only those can be highlighted in 3D). The reference wall #21966
+ * with its groups (expanded for a 3D pick in the grouping view).
+ */
+function selectionSection() {
+  const m = read(FIX + "AC20-FZK-Haus.ifc");
+  const els = m.elements.map((id) => ({ id, e: m.element(id) }));
+  const ground = m.storeys.map((s) => s.args).find((a) => a[9] === 0)[2];
+  const KAT = "IfcWallStandardCase";
+  const walls = els.filter(({ e }) => e.Kategorie === KAT);
+  const ids = (list) => list.map(({ e }) => e.GlobalId).sort();
+  const withRep = (list) => ids(list.filter(({ e }) => e.hasRepresentation));
+  const groundWalls = walls.filter(({ e }) => e.Geschoss === ground);
+  const wall = m.element(21966);
+  return {
+    file: "AC20-FZK-Haus.ifc",
+    levels: ["Kategorie", "Geschoss"],
+    group: { Kategorie: KAT, count: walls.length, globalIds: ids(walls), withRepresentation: withRep(walls) },
+    subGroup: {
+      Kategorie: KAT,
+      Geschoss: ground,
+      count: groundWalls.length,
+      globalIds: ids(groundWalls),
+      withRepresentation: withRep(groundWalls),
+    },
+    wall: {
+      stepId: 21966,
+      GlobalId: wall.GlobalId,
+      Kategorie: wall.Kategorie,
+      Geschoss: wall.Geschoss,
+      Name: wall.Name,
+    },
+    note: "Group selection (REQ-007): a group row selects every element of the group inside the filter; 3D highlights those with geometry. Kategorie = IFC class, Geschoss = nearest IfcBuildingStorey name (REQ-002 rules).",
+  };
+}
+
+/**
+ * REQ-009-AC2 and the configuration robustness tests (TASK-007): which properties and filter values of the Duplex
+ * fixture are absent from AC20-FZK-Haus, so a configuration saved with both models (or hand-written) and loaded with
+ * FZK alone must skip and name them. Only classes the extractor always lists as rows count (CONDITIONAL left out).
+ * absentProperty: the Duplex-only property with the most elements (ties: name order); absentKategorie: the first
+ * Duplex-only Kategorie in name order; present: a Kategorie of FZK with its element count (the part that is applied).
+ */
+function configSection() {
+  const load = (file) => {
+    const m = read(FIX + file);
+    return m.elements.map((id) => m.element(id)).filter((e) => !CONDITIONAL.includes(e.Kategorie));
+  };
+  const fzk = load("AC20-FZK-Haus.ifc");
+  const duplex = load("Ifc2x3_Duplex_Architecture.ifc");
+  const fzkKeys = new Set(fzk.flatMap((e) => Object.keys(e.props)));
+  const counts = new Map();
+  for (const e of duplex)
+    for (const k of Object.keys(e.props)) if (!fzkKeys.has(k)) counts.set(k, (counts.get(k) ?? 0) + 1);
+  const [absentProperty, absentPropertyElements] = [...counts].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0];
+  const fzkKategorien = new Set(fzk.map((e) => e.Kategorie));
+  const duplexOnly = [...new Set(duplex.map((e) => e.Kategorie))].filter((k) => !fzkKategorien.has(k)).sort();
+  const present = "IfcWallStandardCase";
+  return {
+    files: ["AC20-FZK-Haus.ifc", "Ifc2x3_Duplex_Architecture.ifc"],
+    absentProperty,
+    absentPropertyElementsInDuplex: absentPropertyElements,
+    absentKategorie: duplexOnly[0],
+    absentKategorieElementsInDuplex: duplex.filter((e) => e.Kategorie === duplexOnly[0]).length,
+    present: { Kategorie: present, elementsInFzk: fzk.filter((e) => e.Kategorie === present).length },
+    note: "Property keys '<Pset>.<Property>' (occurrence over type) of elements of row classes (IfcAnnotation, IfcOpeningElement, IfcVirtualElement, IfcDistributionPort, IfcSpace left out). absentProperty and absentKategorie exist in the Duplex fixture and not in AC20-FZK-Haus.",
+  };
+}
+
 const existing = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : {};
 const fzk = fzkSection();
 const out = {
   meta: {
     purpose:
-      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10 and NFR-001 (spec Testing -> Test data)",
+      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-009-AC2 and NFR-001 (spec Testing -> Test data)",
     generatedBy: "node scripts/ref/derive-reference.mjs",
     method:
       "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
@@ -546,6 +617,8 @@ const out = {
   "REQ-006-AC9": rangeSection(),
   "REQ-006-grouping-fzk": groupingFzkSection(),
   "REQ-006-grouping-duplex": groupingDuplexSection(),
+  "REQ-007-selection": selectionSection(),
+  "REQ-009-config": configSection(),
   "REQ-002-AC7": castleSection() ?? existing["REQ-002-AC7"] ?? null,
   "REQ-006-AC1": mep2000Section()?.["REQ-006-AC1"] ?? existing["REQ-006-AC1"] ?? null,
   "NFR-001-name-filter": nameFilterSection() ?? existing["NFR-001-name-filter"] ?? null,

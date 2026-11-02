@@ -301,20 +301,27 @@ test("@e2e @acceptance @REQ-006-AC9 numeric column filter `von` 2 `bis` 5 is inc
     expect((await viewState(page)).opaque).toEqual(await geometryKeysOf(page, guids));
   };
 
-  await typeBound(page, key, "min", "2");
-  await typeBound(page, key, "max", "5");
-  await expectRows(ref["von 2 bis 5"].expectedGlobalIds);
-  // the bounds are in the rows, their neighbours and the empty cells are not
+  const range = ref["von 2 bis 5"];
+  await typeBound(page, key, "min", String(range.min));
+  await typeBound(page, key, "max", String(range.max));
+  await expectRows(range.expectedGlobalIds);
+  // the bounds are in the rows, their neighbours and the empty cells are not (D-b: texts from the reference values)
   const values = (await allTableRows(page)).map((r) => r.cells[key]);
-  expect(sorted(values)).toEqual(sorted(["2", "2,5", "3,5", "5"]));
-  expect(await tableState(page)).toMatchObject({ columnFilters: [{ key, type: "range", min: 2, max: 5 }] });
+  expect(sorted(values)).toEqual(sorted(range.expectedGlobalIds.map((g) => de3(ref.byGlobalId[g]))));
+  expect(values).toContain(de3(range.min));
+  expect(values).toContain(de3(range.max));
+  expect(await tableState(page)).toMatchObject({
+    columnFilters: [{ key, type: "range", min: range.min, max: range.max }],
+  });
   await expect(header(page, key).locator(".cv-th-filter")).toHaveAttribute("aria-pressed", "true");
 
   // D2: German decimal comma; empty `bis` = no bound
   await typeBound(page, key, "min", ref["von 2,5"].input);
   await typeBound(page, key, "max", "");
   await expectRows(ref["von 2,5"].expectedGlobalIds);
-  expect(await tableState(page)).toMatchObject({ columnFilters: [{ key, type: "range", min: 2.5, max: null }] });
+  expect(await tableState(page)).toMatchObject({
+    columnFilters: [{ key, type: "range", min: ref["von 2,5"].min, max: ref["von 2,5"].max }],
+  });
   // invalid input: German hint, input ignored (filter unchanged)
   await typeBound(page, key, "max", "fünf");
   const popup = await openColumnFilter(page, key);
@@ -324,16 +331,16 @@ test("@e2e @acceptance @REQ-006-AC9 numeric column filter `von` 2 `bis` 5 is inc
   await expect(popup.locator('input[data-bound="max"]')).toHaveAttribute("aria-invalid", "true");
   await expectRows(ref["von 2,5"].expectedGlobalIds);
   // a decimal point is accepted as well; the hint disappears
-  await typeBound(page, key, "max", "5.0");
+  await typeBound(page, key, "max", range.max.toFixed(1)); // "5.0"
   await expect(popup.getByRole("status")).toBeHidden();
   await expect
     .poll(async () => (await tableState(page)).columnFilters)
-    .toEqual([{ key, type: "range", min: 2.5, max: 5 }]);
+    .toEqual([{ key, type: "range", min: ref["von 2,5"].min, max: range.max }]);
   // reopened, the popup shows the applied bounds in German format
   await page.keyboard.press("Escape");
   const again = await openColumnFilter(page, key);
-  await expect(again.locator('input[data-bound="min"]')).toHaveValue("2,5");
-  await expect(again.locator('input[data-bound="max"]')).toHaveValue("5");
+  await expect(again.locator('input[data-bound="min"]')).toHaveValue(de3(ref["von 2,5"].min));
+  await expect(again.locator('input[data-bound="max"]')).toHaveValue(de3(range.max));
   // `Filter zuruecksetzen` clears it
   await again.getByRole("button", { name: "Filter zurücksetzen" }).click();
   await expect(status(page)).toHaveText(`${de(total)} von ${de(total)} Elementen`);
@@ -499,4 +506,42 @@ test("@e2e @acceptance @REQ-006 the column filter popup closes with Escape witho
   await page.locator(".cv-tr:not([hidden])").first().click();
   expect(errors).toEqual([]);
   await filterSet(page, "Kategorie").scrollIntoViewIfNeeded();
+});
+
+test("@e2e @REQ-006-AC6 D-a removing a column leaves no hidden cell with its column or text in any row", async ({
+  page,
+}) => {
+  const errors = await openWith(page, FZK);
+  await addColumn(page, "NetVolume", VOLUME);
+  const cells = () =>
+    page.evaluate(() => {
+      const columns = document.querySelectorAll("#cv-tbl-scroll .cv-th").length;
+      const out = { columns, maxCells: 0, cols: new Set(), staleText: 0 };
+      for (const row of document.querySelectorAll("#cv-tbl-scroll .cv-tbl-body .cv-tr")) {
+        const list = row.querySelectorAll(".cv-td");
+        out.maxCells = Math.max(out.maxCells, list.length);
+        for (const cell of list) {
+          if (cell.dataset.col) out.cols.add(cell.dataset.col);
+          if (cell.hidden && (cell.dataset.col || cell.textContent)) out.staleText++;
+        }
+      }
+      return { ...out, cols: [...out.cols].sort() };
+    });
+  // the volume column is rendered in the rows (some rows have a value)
+  expect((await cells()).cols).toContain(VOLUME);
+  expect((await allTableRows(page)).some((r) => r.cells[VOLUME] !== "")).toBe(true);
+  await page.locator("#cv-columns").click();
+  const dialog = page.getByRole("dialog", { name: "Spalten" });
+  await dialog.getByRole("button", { name: `Spalte entfernen: ${VOLUME}`, exact: false }).click();
+  await dialog.getByRole("button", { name: "Schließen" }).click();
+  const after = await cells();
+  expect(after.cols).toEqual(sorted(DEFAULT_COLUMNS));
+  expect(after.maxCells).toBeLessThanOrEqual(after.columns);
+  expect(after.staleText).toBe(0);
+  // scrolling (pool rows reused) keeps it so
+  await allTableRows(page);
+  const scrolled = await cells();
+  expect(scrolled.cols).toEqual(sorted(DEFAULT_COLUMNS));
+  expect(scrolled.staleText).toBe(0);
+  expect(errors).toEqual([]);
 });

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10 and NFR-001 (spec Testing -> Test data)",
+    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-009-AC2 and NFR-001 (spec Testing -> Test data)",
     "generatedBy": "node scripts/ref/derive-reference.mjs",
     "method": "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
     "reviewedBy": "fresh-context tester (not the TASK-002 implementer)",
@@ -1176,6 +1176,97 @@
       "IfcWallStandardCase": 49
     },
     "note": "Material = sorted distinct IfcMaterial names (REQ-002). Each material group lists its elements by Kategorie with count and sum of PSet_Revit_Dimensions.Volume (m³; Neumaier sum, rounded to 12 significant digits; null = none has a volume). An element with n materials is in n groups; totalByKategorie counts and sums each element once. Tests leave out the classes the extractor does not list as rows."
+  },
+  "REQ-007-selection": {
+    "file": "AC20-FZK-Haus.ifc",
+    "levels": [
+      "Kategorie",
+      "Geschoss"
+    ],
+    "group": {
+      "Kategorie": "IfcWallStandardCase",
+      "count": 13,
+      "globalIds": [
+        "0knNIAVBPBFvBy_m5QVHsU",
+        "1$wmdwWPjDYuku_ghVkynE",
+        "16DNNqzfP2thtfaOflvsKA",
+        "1bzfVsJqn8De5PukCrqylz",
+        "25OWQvmXj5BPgyergP43tY",
+        "25fsbPyk15VvuXI$yNKenK",
+        "2XPyKWY018sA1ygZKgQPtU",
+        "2ptk1k7qn8_Qk22vjh$0DE",
+        "3PfS__Y_DBAfq5naM6zD2Z",
+        "3Ttjr$59XEWfWN1WUHjelZ",
+        "3VCarUKgH1buLo22Ozxe6J",
+        "3jjW3rL656ex34Gws22EfM",
+        "3rPX_Juz59peXXY6wDJl18"
+      ],
+      "withRepresentation": [
+        "0knNIAVBPBFvBy_m5QVHsU",
+        "1$wmdwWPjDYuku_ghVkynE",
+        "16DNNqzfP2thtfaOflvsKA",
+        "1bzfVsJqn8De5PukCrqylz",
+        "25OWQvmXj5BPgyergP43tY",
+        "25fsbPyk15VvuXI$yNKenK",
+        "2XPyKWY018sA1ygZKgQPtU",
+        "2ptk1k7qn8_Qk22vjh$0DE",
+        "3PfS__Y_DBAfq5naM6zD2Z",
+        "3Ttjr$59XEWfWN1WUHjelZ",
+        "3VCarUKgH1buLo22Ozxe6J",
+        "3jjW3rL656ex34Gws22EfM",
+        "3rPX_Juz59peXXY6wDJl18"
+      ]
+    },
+    "subGroup": {
+      "Kategorie": "IfcWallStandardCase",
+      "Geschoss": "Erdgeschoss",
+      "count": 9,
+      "globalIds": [
+        "1$wmdwWPjDYuku_ghVkynE",
+        "16DNNqzfP2thtfaOflvsKA",
+        "1bzfVsJqn8De5PukCrqylz",
+        "25fsbPyk15VvuXI$yNKenK",
+        "2XPyKWY018sA1ygZKgQPtU",
+        "2ptk1k7qn8_Qk22vjh$0DE",
+        "3PfS__Y_DBAfq5naM6zD2Z",
+        "3jjW3rL656ex34Gws22EfM",
+        "3rPX_Juz59peXXY6wDJl18"
+      ],
+      "withRepresentation": [
+        "1$wmdwWPjDYuku_ghVkynE",
+        "16DNNqzfP2thtfaOflvsKA",
+        "1bzfVsJqn8De5PukCrqylz",
+        "25fsbPyk15VvuXI$yNKenK",
+        "2XPyKWY018sA1ygZKgQPtU",
+        "2ptk1k7qn8_Qk22vjh$0DE",
+        "3PfS__Y_DBAfq5naM6zD2Z",
+        "3jjW3rL656ex34Gws22EfM",
+        "3rPX_Juz59peXXY6wDJl18"
+      ]
+    },
+    "wall": {
+      "stepId": 21966,
+      "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+      "Kategorie": "IfcWallStandardCase",
+      "Geschoss": "Erdgeschoss",
+      "Name": "Wand-Ext-ERDG-1"
+    },
+    "note": "Group selection (REQ-007): a group row selects every element of the group inside the filter; 3D highlights those with geometry. Kategorie = IFC class, Geschoss = nearest IfcBuildingStorey name (REQ-002 rules)."
+  },
+  "REQ-009-config": {
+    "files": [
+      "AC20-FZK-Haus.ifc",
+      "Ifc2x3_Duplex_Architecture.ifc"
+    ],
+    "absentProperty": "PSet_Revit_Other.AssetIdentifier",
+    "absentPropertyElementsInDuplex": 211,
+    "absentKategorie": "IfcCovering",
+    "absentKategorieElementsInDuplex": 13,
+    "present": {
+      "Kategorie": "IfcWallStandardCase",
+      "elementsInFzk": 13
+    },
+    "note": "Property keys '<Pset>.<Property>' (occurrence over type) of elements of row classes (IfcAnnotation, IfcOpeningElement, IfcVirtualElement, IfcDistributionPort, IfcSpace left out). absentProperty and absentKategorie exist in the Duplex fixture and not in AC20-FZK-Haus."
   },
   "REQ-002-AC7": {
     "file": "Ifc2x3_SampleCastle.ifc",

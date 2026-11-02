@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- calc-viewer-builder test logo -->
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="32" viewBox="0 0 96 32">
+  <rect width="96" height="32" rx="6" fill="#35383a"/>
+  <circle cx="16" cy="16" r="9" fill="#d72622"/>
+  <rect x="32" y="12" width="52" height="8" rx="4" fill="#ffffff"/>
+</svg>

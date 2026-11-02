@@ -338,8 +338,8 @@ Every task: read `AGENTS.md`, this spec §2 entries it implements, §4; done whe
 | TASK-005 | 3D coupling: ghost/hide, colouring + legend, section, `CalcView.state()`, picking and details panel | REQ-005, REQ-007-AC1/AC4/AC5 (3D side) | 004 | cv-3d, cv-ui | done |
 | TASK-006a | Table single-element view: virtualisation, column chooser/order/width/remove, sort, column filter UI; full filter coupling table + 3D | REQ-006 (AC1, AC4–AC6, AC9), REQ-004-AC1/AC4 (table + 3D), REQ-001-AC3/AC4 (full) | 004, 005 | cv-ui, cv-core | done |
 | TASK-006b | Grouping view: 2 levels, `Gruppe`/`Anzahl`/sums, `(leer)`, multi-valued, expand/collapse, total row | REQ-006 (AC2, AC3, AC7, AC8, AC10) | 006a | cv-core, cv-ui | done |
-| TASK-006c | Selection both directions: table ↔ 3D, group row selection, expand on selection | REQ-007-AC2/AC3 | 005, 006b | cv-ui, cv-3d | todo |
-| TASK-007 | Title/date/logo, configuration save/load with schema and tolerant apply | REQ-011, REQ-009 | 005, 006b | cv-core, cv-builder, cv-ui | todo |
+| TASK-006c | Selection both directions: table ↔ 3D, group row selection, expand on selection | REQ-007-AC2/AC3 | 005, 006b | cv-ui, cv-3d | done |
+| TASK-007 | Title/date/logo, configuration save/load with schema and tolerant apply | REQ-011, REQ-009 | 005, 006b | cv-core, cv-builder, cv-ui | done |
 | TASK-008 | CSV and XLSX export of the current table view incl. file names | REQ-008 | 007 | cv-core, cv-ui | todo |
 | TASK-009 | Viewer file export: skeleton, payloads, bootstrap, viewer mode, offline start | REQ-010, NFR-003, NFR-005 | 006c, 008 | cv-builder, cv-viewer-bootstrap, cv-app | todo |
 | TASK-010 | Performance and robustness pass: volume and 100 MB sets, NFR measurements, fixes | NFR-001..004, T7 | 009 | all | todo |

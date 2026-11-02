@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { ifc4x3Header, minimalPdf, truncatedIfc } from "../../scripts/make-error-fixtures.mjs";
+import { configErrorFixtures, logoPng, logoSvg } from "../../scripts/make-config-fixtures.mjs";
 import { ifcGuidFromSeed, splitRecords, synthesize, validateStep } from "../../scripts/lib/ifc-synth.mjs";
 
 const dir = new URL("../fixtures/", import.meta.url);
@@ -28,6 +29,24 @@ test("[unit] error fixtures are reproduced byte-identically by scripts/make-erro
   assert.ok(minimalPdf().startsWith("%PDF-1.4\n") && minimalPdf().endsWith("%%EOF\n"));
   assert.match(ifc4x3Header(), /FILE_SCHEMA\(\('IFC4X3_ADD2'\)\);/);
   assert.doesNotMatch(truncatedIfc(fzk).toString("latin1"), /ENDSEC;\s*END-ISO/);
+});
+
+test("[unit] configuration and logo fixtures are reproduced byte-identically by scripts/make-config-fixtures.mjs", () => {
+  const configs = configErrorFixtures();
+  assert.deepEqual(
+    Object.values(configs)
+      .map((c) => c.errorClass)
+      .sort(),
+    ["invalid-json", "not-a-config", "not-a-config", "unsupported-version"],
+  );
+  for (const [name, { text }] of Object.entries(configs))
+    assert.equal(readFileSync(new URL(name, dir), "utf8"), text, name);
+  assert.throws(() => JSON.parse(configs["config-invalid-json.json"].text));
+  assert.equal(JSON.parse(configs["config-no-schema.json"].text).schema, undefined);
+  assert.equal(JSON.parse(configs["config-unsupported-version.json"].text).schema, "calc-viewer-config/2");
+  assert.deepEqual(readFileSync(new URL("logo-test.png", dir)), logoPng());
+  assert.equal(readFileSync(new URL("logo-test.svg", dir), "utf8"), logoSvg());
+  assert.deepEqual([...logoPng().subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 });
 
 test("[unit] ifcGuidFromSeed gives deterministic, distinct 22-char IFC GlobalIds", () => {
