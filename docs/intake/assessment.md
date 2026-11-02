@@ -25,8 +25,8 @@ relates_to: [C00, C02, C04, C05, C08, C09, C11, F-01, F-02, F-03, F-04]
 
 - Tier by total: M
 - Escalations applied: none (no dimension = 3, D10 < 2)
-- **Tier: M → track: standard**
-- Override: none
+- **Tier: S → track: lean** (user override of proposed M)
+- Override: proposed M (total 11); user chose S on 2026-11-02 ("Tier S (leichter)"). No escalation minimum applies (no dimension = 3, D10 < 2), so no risk confirmation is required. Accepted trade-off: one `docs/spec.md` instead of separate requirements/architecture/plan, one increment, verification once before testing; re-scoring at end of spec and on every capability-adding change (`calibration/complexity.md` §6).
 - Modifiers: `ui` (graphical UI), `brownfield` (D10 = 1: as-is analysis of html-modelviewer at design start)
 - Autonomy: autonomous (C11)
 
@@ -35,19 +35,18 @@ relates_to: [C00, C02, C04, C05, C08, C09, C11, F-01, F-02, F-03, F-04]
 | Phase | Included | Human gate | Notes |
 |---|---|---|---|
 | intake | yes | yes | |
-| requirements | yes | agent | incl. UI requirements (modifier `ui`) |
-| design | yes | agent | starts with as-is (`brownfield`); risky points as time-boxed spikes recommended (extraction, Excel, size) |
-| planning | yes | agent | |
-| implementation | yes | agent | per increment |
-| verification | yes | agent | independent reviews |
-| testing | yes | agent | 7 core test types at M depth |
+| spec | yes | agent | `docs/spec.md` incl. UI section (`ui`) and as-is notes (`brownfield`) |
+| implementation | yes | agent | one increment |
+| verification | yes | agent | once: spec–code sync + review |
+| testing | yes | agent | 7 core test types at S depth |
 | release | yes | yes | |
 
-- Detail topics: functional (L, boosted by D1 = 2), ui (M, part A), data (M), integrations (M), security (M, light: D2 = 1), quality (M), operations (M), brownfield (M), stack (M) → target ~18–22 questions in ~5–6 rounds; ceiling 33 (30 + 3 for one boosted topic)
-- Increment estimate: 3 (INC-1 load + facets + model; INC-2 table, grouping, export CSV/Excel; INC-3 config save/load + offline HTML export)
+- Detail topics (tier S, levels XS+S; functional boosted to M by D1 = 2): functional (M), ui (S, part A), data (S), integrations (S), security (S, light), quality (S), operations (S), brownfield (S), stack (S) → target 8–12 questions; ceiling 18 (15 + 3 for the boosted topic)
+- Increment estimate: 1
 - Assumptions made during scoring: D6 normal expectations until QLT-01 is answered
 
 ## Re-assessments
 
 | Date | Trigger | Changed scores | Tier before → after |
 |---|---|---|---|
+| 2026-11-02 | user override at tier confirmation | none | M (proposed) → S |

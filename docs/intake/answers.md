@@ -51,8 +51,20 @@ Source: `user` | `user-confirmed` | `inferred` | `delegated` | `unknown`.
 | C10 | HTML Model Viewer stack | user | |
 | C11 | autonomous | user | |
 
+## Topic: functional (depth M, boosted)
+
+| ID | Answer | Source | Notes |
+|---|---|---|---|
+| FUN-02 | Within one filter set several values = OR; between filter sets = AND | user (proposal) | |
+| FUN-x1 | Facet values without hits in the current combination are hidden; counts recomputed under the other filters; sibling values in the own set stay visible | user (proposal) | |
+| FUN-x2 | Elements outside the filter in 3D: switchable hide / ghost (X-ray), default ghost | user (proposal) | |
+
+## Tier
+- Proposed M (11/30) → user chose **S** (lean). Detail questions so far: 3 / ceiling 18.
+
 ## Interview progress
 - Last completed: C00
 - Last completed: round 1 (summary, basis, users, autonomy)
 - Last completed: round 2 (export, save/load, multiple models, lifetime)
-- Next: as-is analysis of html-modelviewer → assessment → tier confirmation + detail rounds
+- Last completed: detail round 1 (tier, FUN-02, facets, model behaviour)
+- Next: detail round 2 (FUN-01 use cases, DAT-01 columns/properties, grouping aggregation, QLT-01 model size)
