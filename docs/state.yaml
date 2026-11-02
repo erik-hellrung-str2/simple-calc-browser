@@ -1,0 +1,30 @@
+# Process state. Owner: orchestrator (sole writer). Update after every unit of work.
+project: Calc Viewer Builder
+created: 2026-11-02
+tier: S
+track: lean
+autonomy: autonomous
+modifiers: [ui, brownfield]
+cycle: 1
+
+current_phase: intake
+current_increment: null
+resume_after: null
+
+phases:
+  - {id: intake,         status: awaiting_approval, gate: human}
+  - {id: spec,           status: todo, gate: agent}
+  - {id: implementation, status: todo, gate: agent}
+  - {id: verification,   status: todo, gate: agent}
+  - {id: testing,        status: todo, gate: agent}
+  - {id: release,        status: todo, gate: human}
+
+increments: []
+blocking_questions: []
+active_changes: []
+pending_release: []
+reserved_ids: {}
+next_action: "After intake approval: write docs/spec.md (lean) from docs/intake/answers.md, assessment.md and modelviewer-analysis.md, incl. UI section, as-is notes, test strategy for T1-T7, task checklist; fill AGENTS.md §4."
+
+history:
+  - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}

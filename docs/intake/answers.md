@@ -1,6 +1,6 @@
 ---
 status: draft
-relates_to: [C00]
+relates_to: [C00, C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11, C99]
 ---
 # Intake answers
 
@@ -39,16 +39,16 @@ Source: `user` | `user-confirmed` | `inferred` | `delegated` | `unknown`.
 
 | ID | Answer | Source | Notes / follow-up |
 |---|---|---|---|
-| C01 | | | |
+| C01 | Calc Viewer Builder — browser tool that turns IFC models into a filterable 3D view with configurable quantity tables, exports them (CSV/Excel) and as offline HTML for colleagues | inferred (F-02 "Calc Viewer Builder") | name to be confirmed with the intake approval |
 | C02 | Fachleute (BIM-Koordinatoren, Kalkulatoren, Projektbeteiligte); one role, no login; HTML file shared via mail/drive and opened locally. Second audience: "Kollegen ohne näheres Verständnis" who receive the export | user (option) + user (round-1 summary answer) | |
-| C03 | see description | user | to confirm |
+| C03 | Use cases 1–9 (FUN-01); out of scope for release 1: nothing explicitly named | user-confirmed | |
 | C04 | New standalone browser app in this repo (`simple-calc-browser`), same stack as HTML Model Viewer; works as a "Calc Viewer Builder": produces an exported view for colleagues | user | |
 | C05 | IFC model(s); several loaded together, "Modell" is its own filter/column/grouping property; no personal data stated | user | model size/volume open |
-| C06 | | | |
-| C07 | | | |
+| C06 | None at runtime; IFC files as input; builder loads libraries from jsDelivr CDN (as html-modelviewer) | inferred (modelviewer-analysis.md) | |
+| C07 | No login, no regulations; models up to ~100 MB, interactions < ~0.5 s (QLT-01) | inferred (C02) + user (QLT-01) | |
 | C08 | New app, same stack as `html-modelviewer` (code/style reused, not the builder extended) | user | |
 | C09 | Long-lived tool, used in daily work and developed further by the user; success = real projects (quantity overviews) built and shared; no fixed deadline | user | |
-| C10 | HTML Model Viewer stack | user | |
+| C10 | HTML Model Viewer stack, plain JS single HTML file (STK-01) | user | |
 | C11 | autonomous | user | |
 
 ## Topic: functional (depth M, boosted)
@@ -88,12 +88,39 @@ Source: `user` | `user-confirmed` | `inferred` | `delegated` | `unknown`.
 |---|---|---|---|
 | QLT-01 | Typical models up to ~100 MB IFC, several 10,000 elements, also several models together; filtering/table should feel instant (< ~0.5 s) | user-confirmed | |
 
+## Closing (C99)
+"Nein, das ist alles" + "Titel/Logo im Export" → project title, date and logo customizable in the exported file (as `The M Bouwkundig 2026-08-12`); nothing else. Priority not stated → ASM-002.
+
+## Coverage
+
+Required needs for tier S (XS+S; functional at M): 17 · covered: 17 · detail questions asked: 11 / ceiling 18
+
+| Need ID | Status | Where |
+|---|---|---|
+| FUN-01 | confirmed | FUN-01 |
+| FUN-02 | answered | FUN-02, FUN-x1, FUN-x2, FUN-x3 |
+| FUN-03 | delegated (ASM-003) | acceptance examples derived in the spec |
+| FUN-04 | confirmed | FUN-04 |
+| FUN-05 | n/a — no objects with states; configuration files only | |
+| FUN-06 | answered | filter/sort/column filters (FUN-01), exports (FUN-01, FUN-x4); no notifications, no administration (C02) |
+| UI-01 | confirmed | UI-01 |
+| UI-02 | answered | F-01, UI-02 |
+| DAT-01 | confirmed | DAT-01; config JSON + embedded models (F-03, F-04) |
+| INT-01 | inferred | C06 |
+| INT-02 | inferred | IFC/files only; CDN fetch at build time, no auth |
+| SEC-01 | n/a — no login, single role (C02) | |
+| QLT-01 | confirmed | QLT-01 |
+| STK-01 | answered | STK-01; xlsx writer → ASM-004 |
+| BRF-01 | answered | C08: reuse code/style of html-modelviewer, that repo stays unchanged |
+| BRF-02 | inferred, shown to user | modelviewer-analysis.md |
+| C99 | answered | Closing |
+
 ## Tier
-- Proposed M (11/30) → user chose **S** (lean). Detail questions so far: 11 / ceiling 18.
+- Proposed M (11/30) → user chose **S** (lean). Detail questions asked: 11 / ceiling 18.
 
 ## Interview progress
 - Last completed: C00
 - Last completed: round 1 (summary, basis, users, autonomy)
 - Last completed: round 2 (export, save/load, multiple models, lifetime)
-- Last completed: detail round 3 (UI-01/02, FUN-04, CSV format, STK-01)
-- Next: closing C99, coverage, state.yaml
+- Last completed: closing C99 — interview complete
+- Next: intake gate approval, then spec
