@@ -6,7 +6,8 @@ import { test, expect } from "../support/network-guard.mjs";
 
 const FZK = fileURLToPath(new URL("../fixtures/AC20-FZK-Haus.ifc", import.meta.url));
 const BACKGROUND = [0xec, 0xee, 0xf0]; // --cv-bg-3d behind the transparent WebGL canvas
-const CANVAS_ONLY = { style: "#cv-overlay { visibility: hidden !important; }" }; // screenshot the canvas, not the hint box
+// screenshot the canvas only, not the hint box or the 3D view controls / legend drawn over it (TASK-005)
+const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend { visibility: hidden !important; }" };
 
 /** Share of pixels in a PNG screenshot that differ clearly from the empty 3D background (decoded in the page). */
 async function nonBackgroundShare(page, png) {

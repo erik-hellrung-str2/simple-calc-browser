@@ -523,6 +523,40 @@
         color: var(--cv-ink);
         font-size: 13px;
       }
+      /* clear button of the search fields in the UI-02 muted ink (Chromium default is a dark-blue cross) */
+      .cv-search input::-webkit-search-cancel-button {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        background-color: var(--cv-muted);
+        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4l8 8M12 4l-8 8' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E")
+          center / 14px 14px no-repeat;
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4l8 8M12 4l-8 8' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E")
+          center / 14px 14px no-repeat;
+        cursor: pointer;
+      }
+      .cv-search input::-webkit-search-cancel-button:hover {
+        background-color: var(--cv-ink);
+      }
+      /*
+       * Data text (values, model names, property keys, search input, table, details) keeps the exact characters of the model: no
+       * contextual alternates or ligatures (Inter, a common system-ui font, renders "2x3" with a multiplication sign).
+       */
+      .cv-fs-label,
+      .cv-fs-title,
+      .cv-model-name,
+      .cv-cat-name,
+      .cv-cat-group,
+      .cv-search input,
+      .cv-table,
+      .cv-details-body {
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        font-variant-ligatures: none;
+      }
       .cv-vlist {
         position: relative;
         overflow-y: auto;
@@ -685,6 +719,266 @@
       .cv-cat-info {
         margin: 0;
         font-size: 12px;
+      }
+
+      /* 3D view controls (REQ-005): top right of the model; legend at the bottom */
+      .cv-view-bar {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 6px;
+        pointer-events: none;
+        z-index: 2;
+      }
+      .cv-view-group,
+      .cv-view-btn {
+        pointer-events: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 8px;
+        border: 1px solid var(--cv-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 1px 3px rgba(23, 24, 26, 0.08);
+        color: var(--cv-ink);
+        font: inherit;
+        font-size: 13px;
+      }
+      .cv-view-btn {
+        cursor: pointer;
+      }
+      .cv-view-btn:hover {
+        border-color: var(--cv-muted);
+      }
+      .cv-colour-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      .cv-colour-btn .cv-icon {
+        width: 16px;
+        height: 16px;
+        color: var(--cv-muted);
+      }
+      .cv-view-group.cv-on {
+        border-color: var(--cv-accent);
+      }
+      .cv-view-btn .cv-icon,
+      .cv-view-label .cv-icon {
+        width: 16px;
+        height: 16px;
+        color: var(--cv-muted);
+      }
+      .cv-view-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--cv-muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .cv-colour-text {
+        max-width: 240px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        font-variant-ligatures: none;
+      }
+      .cv-view-group .cv-icon-btn {
+        width: 24px;
+        height: 24px;
+      }
+      .cv-seg {
+        display: inline-flex;
+        border: 1px solid var(--cv-line);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .cv-seg-btn {
+        min-width: 28px;
+        height: 24px;
+        padding: 0 8px;
+        border: 0;
+        background: #fff;
+        color: var(--cv-ink-2);
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .cv-seg-btn + .cv-seg-btn {
+        border-left: 1px solid var(--cv-line);
+      }
+      .cv-seg-btn:hover {
+        background: var(--cv-hover);
+      }
+      .cv-seg-btn.cv-on {
+        background: var(--cv-accent);
+        color: #fff;
+      }
+      .cv-seg-btn:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: -2px;
+      }
+      .cv-section-slider {
+        width: 120px;
+        accent-color: var(--cv-accent);
+      }
+      .cv-section-flip.cv-on {
+        color: var(--cv-accent);
+      }
+      .cv-legend {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        max-width: calc(100% - 20px);
+        max-height: 34%;
+        overflow: auto;
+        padding: 8px 10px;
+        border: 1px solid var(--cv-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 1px 3px rgba(23, 24, 26, 0.08);
+        font-size: 12px;
+        z-index: 2;
+      }
+      .cv-legend-title {
+        margin-bottom: 4px;
+        color: var(--cv-ink-2);
+        font-weight: 600;
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        font-variant-ligatures: none;
+      }
+      .cv-legend-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px 14px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .cv-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 260px;
+      }
+      .cv-legend-label {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        font-variant-ligatures: none;
+      }
+      .cv-legend-count {
+        color: var(--cv-muted);
+      }
+
+      /* Element details (REQ-007) */
+      .cv-details-body {
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        font-variant-ligatures: none;
+      }
+      .cv-det-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 4px 0 8px;
+      }
+      .cv-det-head-text {
+        flex: 1;
+        min-width: 0;
+      }
+      .cv-det-kicker {
+        color: var(--cv-muted);
+        font-size: 12px;
+      }
+      .cv-det-title {
+        font-size: 14px;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+      .cv-det-nogeo {
+        margin: 0 0 8px;
+        padding: 6px 8px;
+        border-left: 3px solid var(--cv-accent);
+        background: var(--cv-accent-soft);
+        font-size: 12px;
+      }
+      .cv-det-group {
+        border-top: 1px solid var(--cv-line);
+      }
+      .cv-det-group-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        padding: 6px 0;
+        border: 0;
+        background: none;
+        color: var(--cv-ink-2);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        text-align: left;
+        cursor: pointer;
+      }
+      .cv-det-group-head .cv-icon {
+        width: 14px;
+        height: 14px;
+        transform: rotate(90deg);
+        transition: transform 0.12s;
+      }
+      .cv-det-group.cv-collapsed .cv-det-group-head .cv-icon {
+        transform: none;
+      }
+      .cv-det-group-name {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .cv-det-group-count {
+        color: var(--cv-faint);
+        font-weight: 400;
+      }
+      .cv-det-props {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 2px 10px;
+        margin: 0 0 8px;
+        font-size: 12px;
+      }
+      .cv-det-name {
+        color: var(--cv-muted);
+        overflow-wrap: anywhere;
+      }
+      .cv-det-value {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      .cv-det-value.cv-num {
+        text-align: right;
       }
 
       @media (max-width: 1279px) {
@@ -1943,6 +2237,157 @@
           })
           .map((e) => e.item);
       }
+
+      // ---------------------------------------------------------------------------------------------------------
+      // Colouring (TASK-005; REQ-005 "Faerben nach", DEC-15; ref computeColoring / distinctHex / scaleHex)
+      // ---------------------------------------------------------------------------------------------------------
+
+      /** Text values with an own colour (as ref DISTINCT_COLOR_COUNT); further values share COLOUR_OTHER. */
+      export const COLOUR_DISTINCT_COUNT = 120;
+      /** Steps of the numeric scale min -> max (as ref SCALE_STEPS). */
+      export const COLOUR_SCALE_STEPS = 24;
+      /** Base colour of the numeric scale (light tint for small values, full colour for large values). */
+      export const COLOUR_SCALE_BASE = "#1f6fd1";
+      const COLOUR_SCALE_MIN_STRENGTH = 0.12; // smallest value: 12 % of the scale colour on white (ref)
+      /** Grey of the empty value "(leer)". */
+      export const COLOUR_EMPTY = "#c4c7ca";
+      /** Neutral colour of elements with several values ("mehrere Werte"). */
+      export const COLOUR_MULTI = "#6e6259";
+      /** Shared colour of the text values beyond COLOUR_DISTINCT_COUNT ("Sonstige"). */
+      export const COLOUR_OTHER = "#8f9aa6";
+      export const MULTI_LABEL = "mehrere Werte";
+      export const OTHER_LABEL = "Sonstige";
+
+      const hex2 = (x) =>
+        Math.round(Math.min(255, Math.max(0, x)))
+          .toString(16)
+          .padStart(2, "0");
+
+      /** sRGB hex of HSL (h, s, l in 0..1). */
+      function hslHex(h, s, l) {
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        const channel = (t) => {
+          let x = t;
+          if (x < 0) x += 1;
+          if (x > 1) x -= 1;
+          if (x < 1 / 6) return p + (q - p) * 6 * x;
+          if (x < 1 / 2) return q;
+          if (x < 2 / 3) return p + (q - p) * 6 * (2 / 3 - x);
+          return p;
+        };
+        return "#" + hex2(channel(h + 1 / 3) * 255) + hex2(channel(h) * 255) + hex2(channel(h - 1 / 3) * 255);
+      }
+
+      /** Distinct colour number index (0 .. COLOUR_DISTINCT_COUNT - 1): golden-angle hues, alternating lightness (ref). */
+      export function distinctColour(index) {
+        const i = index % COLOUR_DISTINCT_COUNT;
+        return hslHex(((i * 137.508) % 360) / 360, 0.65, i % 2 ? 0.42 : 0.58);
+      }
+
+      /** Colour of step 0 .. COLOUR_SCALE_STEPS - 1 of the numeric scale (tint of COLOUR_SCALE_BASE, ref scaleHex). */
+      export function scaleColour(step) {
+        const t = COLOUR_SCALE_STEPS > 1 ? step / (COLOUR_SCALE_STEPS - 1) : 1;
+        const amount = COLOUR_SCALE_MIN_STRENGTH + (1 - COLOUR_SCALE_MIN_STRENGTH) * t;
+        const base = parseInt(COLOUR_SCALE_BASE.slice(1), 16);
+        return (
+          "#" + [(base >> 16) & 255, (base >> 8) & 255, base & 255].map((c) => hex2(255 + (c - 255) * amount)).join("")
+        );
+      }
+
+      const formatNumber = (n) => n.toLocaleString("de-DE", { maximumFractionDigits: 3 });
+
+      /**
+       * Colour scheme of property key over all rows of the store (REQ-005, DEC-15), stable while the row set is the
+       * same (colours do not change when the filter changes, so legend and filter-set dots always agree). Text (or
+       * mixed) values: one distinct colour per value in value order up to COLOUR_DISTINCT_COUNT, the rest share
+       * `Sonstige`. Only numbers: COLOUR_SCALE_STEPS equal ranges min -> max (last range closed). A row with several
+       * distinct values gets `mehrere Werte`, an empty row `(leer)`. Returns { key, numeric, entries [{ kind: 'value' |
+       * 'range' | 'other' | 'multi' | 'empty', label, colour, value?, min?, max? }], rowEntry(i), rowColour(i),
+       * valueColour(value) }.
+       */
+      export function colourScheme(source, key) {
+        const store = asStore(source);
+        const col = store.column(key);
+        const n = col.emptyCode; // distinct non-empty values, in compareValues order
+        let numeric = n > 0;
+        for (let c = 0; c < n && numeric; c++) if (typeof col.values[c] !== "number") numeric = false;
+        const entries = [];
+        const codeEntry = new Int32Array(n);
+        if (numeric) {
+          const min = col.values[0];
+          const max = col.values[n - 1];
+          const steps = max > min ? COLOUR_SCALE_STEPS : 1;
+          const width = (max - min) / steps;
+          for (let b = 0; b < steps; b++) {
+            const lo = min + b * width;
+            const hi = b === steps - 1 ? max : min + (b + 1) * width;
+            entries.push({
+              kind: "range",
+              min: lo,
+              max: hi,
+              colour: scaleColour(steps === 1 ? COLOUR_SCALE_STEPS - 1 : b),
+              label: steps === 1 ? formatNumber(lo) : formatNumber(lo) + " \u2013 " + formatNumber(hi),
+            });
+          }
+          for (let c = 0; c < n; c++)
+            codeEntry[c] = width > 0 ? Math.min(steps - 1, Math.floor((col.values[c] - min) / width)) : 0;
+        } else {
+          const own = Math.min(n, COLOUR_DISTINCT_COUNT);
+          for (let c = 0; c < own; c++) {
+            const value = col.values[c];
+            entries.push({
+              kind: "value",
+              value,
+              colour: distinctColour(c),
+              label: typeof value === "number" ? formatNumber(value) : String(value),
+            });
+            codeEntry[c] = c;
+          }
+          if (n > own) {
+            const other = entries.length;
+            entries.push({ kind: "other", label: OTHER_LABEL, colour: COLOUR_OTHER });
+            for (let c = own; c < n; c++) codeEntry[c] = other;
+          }
+        }
+        const multi = entries.length;
+        entries.push({ kind: "multi", label: MULTI_LABEL, colour: COLOUR_MULTI });
+        const empty = entries.length;
+        entries.push({ kind: "empty", label: EMPTY_LABEL, colour: COLOUR_EMPTY });
+        const rowEntry = (i) => {
+          const s = col.start[i];
+          if (col.start[i + 1] - s > 1) return multi;
+          const code = col.flat[s];
+          return code === col.emptyCode ? empty : codeEntry[code];
+        };
+        return {
+          key,
+          numeric,
+          entries,
+          rowEntry,
+          rowColour: (i) => entries[rowEntry(i)].colour,
+          /** Colour of one value as listed in a filter set (null = "(leer)"); undefined for an unknown value. */
+          valueColour(value) {
+            if (value === null || value === undefined) return COLOUR_EMPTY;
+            const code = col.index.get(value);
+            return code === undefined || code === col.emptyCode ? undefined : entries[codeEntry[code]].colour;
+          },
+        };
+      }
+
+      /**
+       * Legend of a colour scheme over the rows at indices (the elements inside the filter, REQ-005): the entries that
+       * occur, in scheme order (`mehrere Werte` and `(leer)` last), each with its element count.
+       */
+      export function colourLegend(scheme, indices) {
+        const counts = new Uint32Array(scheme.entries.length);
+        for (const i of indices) counts[scheme.rowEntry(i)]++;
+        const out = [];
+        scheme.entries.forEach((entry, e) => {
+          if (counts[e]) out.push({ ...entry, count: counts[e] });
+        });
+        return out;
+      }
     </script>
 
     <!-- DOM: layout, model list, messages, progress and status (builder and viewer file). ASCII only. -->
@@ -1968,6 +2413,12 @@
         search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
         cube: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
         panelRight: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
+        fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+        palette:
+          '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.6-1.3-.6-2.1 0-.9.7-1.5 1.6-1.5H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/>',
+        scissors:
+          '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/>',
+        flip: '<path d="M7 4v16M7 4l-3 3M7 4l3 3M17 20V4M17 20l-3-3M17 20l3-3"/>',
       };
 
       function icon(name) {
@@ -2244,6 +2695,47 @@
           for (const set of sets.values()) set.root.classList.remove("cv-drop-before", "cv-drop-after", "cv-dragging");
         }
 
+        /*
+         * Auto-scroll while a set is dragged: the pointer within EDGE px of the top/bottom edge of the scrolling
+         * panel scrolls it (faster closer to the edge), so a target scrolled out of view can be reached. Driven by
+         * dragover (fired repeatedly during a drag); stops on dragend/drop or when dragover events stop.
+         */
+        const EDGE = 48;
+        const MAX_STEP = 18; // px per frame at the very edge
+        const auto = { scroller: null, step: 0, last: 0, frame: 0 };
+        function scrollerOf(node) {
+          for (let n = node.parentElement; n; n = n.parentElement) {
+            const style = getComputedStyle(n);
+            if (/(auto|scroll)/.test(style.overflowY) && n.scrollHeight > n.clientHeight) return n;
+          }
+          return null;
+        }
+        function autoTick() {
+          auto.frame = 0;
+          if (dragId === null || !auto.scroller || auto.step === 0 || performance.now() - auto.last > 400) return;
+          auto.scroller.scrollTop += auto.step;
+          auto.frame = requestAnimationFrame(autoTick);
+        }
+        function autoScroll(event) {
+          if (dragId === null || !auto.scroller) return;
+          const box = auto.scroller.getBoundingClientRect();
+          const top = event.clientY - box.top;
+          const bottom = box.bottom - event.clientY;
+          let step = 0;
+          if (top >= 0 && top < EDGE) step = -Math.ceil(((EDGE - top) / EDGE) * MAX_STEP);
+          else if (bottom >= 0 && bottom < EDGE) step = Math.ceil(((EDGE - bottom) / EDGE) * MAX_STEP);
+          auto.step = step;
+          auto.last = performance.now();
+          if (step !== 0 && !auto.frame) auto.frame = requestAnimationFrame(autoTick);
+        }
+        function stopAutoScroll() {
+          if (auto.frame) cancelAnimationFrame(auto.frame);
+          if (auto.scroller) auto.scroller.removeEventListener("dragover", autoScroll);
+          auto.scroller = null;
+          auto.step = 0;
+          auto.frame = 0;
+        }
+
         function wireDrag(set) {
           set.head.addEventListener("dragstart", (event) => {
             dragId = set.id;
@@ -2251,9 +2743,13 @@
             event.dataTransfer.setData(DRAG_TYPE, set.id);
             event.dataTransfer.setData("text/plain", set.id);
             set.root.classList.add("cv-dragging");
+            stopAutoScroll();
+            auto.scroller = scrollerOf(container);
+            if (auto.scroller) auto.scroller.addEventListener("dragover", autoScroll);
           });
           set.head.addEventListener("dragend", () => {
             dragId = null;
+            stopAutoScroll();
             clearDropMarks();
           });
           set.root.addEventListener("dragover", (event) => {
@@ -2275,6 +2771,7 @@
             const before = event.clientY < box.top + box.height / 2;
             const source = dragId;
             dragId = null;
+            stopAutoScroll();
             clearDropMarks();
             if (source === set.id) return;
             const from = order.indexOf(source);
@@ -2329,14 +2826,14 @@
        * catalogue orders them) with their element counts, virtualised for thousands of entries. entries: catalogue
        * entries in order; used: Set of keys that already have a filter set; onPick(key).
        */
-      function openCatalogue(host, entries, used, onPick) {
+      function openCatalogue(host, entries, used, onPick, titleText) {
         const backdrop = el("div", "cv-backdrop");
         const dialog = el("div", "cv-dialog cv-catalogue");
         dialog.setAttribute("role", "dialog");
         dialog.setAttribute("aria-modal", "true");
         dialog.setAttribute("aria-labelledby", "cv-catalogue-title");
         const head = el("div", "cv-dialog-head");
-        const title = el("div", "cv-dialog-title", "Filtersatz hinzuf\u00fcgen");
+        const title = el("div", "cv-dialog-title", titleText || "Filtersatz hinzuf\u00fcgen");
         title.id = "cv-catalogue-title";
         const close = iconButton("close", "Schlie\u00dfen", "cv-dialog-close");
         head.append(title, close);
@@ -2419,7 +2916,9 @@
         }
 
         function onKey(event) {
-          if (event.key === "Escape") finish();
+          if (event.key !== "Escape") return;
+          event.preventDefault(); // handled: Escape closes the dialog only (it does not clear the 3D selection)
+          finish();
         }
         function finish() {
           document.removeEventListener("keydown", onKey, true);
@@ -2441,6 +2940,254 @@
         build();
         input.focus();
         return { close: finish, element: dialog };
+      }
+
+      /**
+       * 3D view controls (REQ-005; top right of the model): `Elemente ausserhalb des Filters: Geist | Ausblenden`,
+       * `Faerben nach`, `Schnitt` (axis X / Y / Z, slider, flip, remove) and `Ansicht einpassen`; legend at the bottom.
+       * handlers: { mode(m), pickColour(), clearColour(), section(axis | null), sectionOffset(value), flip(), fit() }.
+       */
+      function createViewControls(viewport, handlers) {
+        const bar = el("div", "cv-view-bar");
+        bar.id = "cv-view-bar";
+
+        const modeBox = el("div", "cv-view-group");
+        const modeLabel = el("span", "cv-view-label", "Elemente au\u00dferhalb des Filters:");
+        modeLabel.id = "cv-mode-label";
+        const seg = el("div", "cv-seg");
+        seg.setAttribute("role", "radiogroup");
+        seg.setAttribute("aria-labelledby", "cv-mode-label");
+        const modeButtons = {};
+        for (const [value, text] of [
+          ["ghost", "Geist"],
+          ["hide", "Ausblenden"],
+        ]) {
+          const button = el("button", "cv-seg-btn", text);
+          button.type = "button";
+          button.dataset.mode = value;
+          button.setAttribute("role", "radio");
+          button.addEventListener("click", () => handlers.mode(value));
+          modeButtons[value] = button;
+          seg.append(button);
+        }
+        modeBox.append(modeLabel, seg);
+
+        const colourBox = el("div", "cv-view-group");
+        const colourButton = el("button", "cv-colour-btn");
+        colourButton.type = "button";
+        colourButton.id = "cv-colour";
+        const colourText = el("span", "cv-colour-text");
+        colourButton.append(icon("palette"), colourText);
+        colourButton.addEventListener("click", () => handlers.pickColour());
+        const colourClear = iconButton("close", "F\u00e4rbung entfernen", "cv-colour-clear");
+        colourClear.id = "cv-colour-clear";
+        colourClear.addEventListener("click", () => handlers.clearColour());
+        colourBox.append(colourButton, colourClear);
+
+        const sectionBox = el("div", "cv-view-group cv-section");
+        const sectionLabel = el("span", "cv-view-label", "Schnitt");
+        sectionLabel.id = "cv-section-label";
+        sectionLabel.prepend(icon("scissors"));
+        const axisSeg = el("div", "cv-seg");
+        axisSeg.setAttribute("role", "radiogroup");
+        axisSeg.setAttribute("aria-labelledby", "cv-section-label");
+        const axisButtons = {};
+        for (const axis of ["X", "Y", "Z"]) {
+          const button = el("button", "cv-seg-btn", axis);
+          button.type = "button";
+          button.setAttribute("role", "radio");
+          button.setAttribute("aria-label", "Schnitt " + axis);
+          button.addEventListener("click", () => handlers.section(axis));
+          axisButtons[axis] = button;
+          axisSeg.append(button);
+        }
+        const slider = el("input", "cv-section-slider");
+        slider.type = "range";
+        slider.id = "cv-section-slider";
+        slider.setAttribute("aria-label", "Schnittposition");
+        slider.addEventListener("input", () => handlers.sectionOffset(Number(slider.value)));
+        const flip = iconButton("flip", "Schnitt umkehren", "cv-section-flip");
+        flip.id = "cv-section-flip";
+        flip.addEventListener("click", () => handlers.flip());
+        const sectionOff = iconButton("close", "Schnitt entfernen", "cv-section-off");
+        sectionOff.id = "cv-section-off";
+        sectionOff.addEventListener("click", () => handlers.section(null));
+        sectionBox.append(sectionLabel, axisSeg, slider, flip, sectionOff);
+
+        const fit = el("button", "cv-view-btn cv-fit");
+        fit.type = "button";
+        fit.id = "cv-fit";
+        fit.append(icon("fit"), document.createTextNode("Ansicht einpassen"));
+        fit.addEventListener("click", () => handlers.fit());
+
+        bar.append(modeBox, colourBox, sectionBox, fit);
+
+        const legend = el("div", "cv-legend");
+        legend.id = "cv-legend";
+        legend.hidden = true;
+        const legendTitle = el("div", "cv-legend-title");
+        const legendList = el("ul", "cv-legend-list");
+        legend.append(legendTitle, legendList);
+        viewport.append(bar, legend);
+
+        return {
+          element: bar,
+          setMode(mode) {
+            for (const [value, button] of Object.entries(modeButtons)) {
+              button.setAttribute("aria-checked", String(value === mode));
+              button.classList.toggle("cv-on", value === mode);
+            }
+          },
+          /** Label of the colouring property, or null (no colouring). */
+          setColouring(label) {
+            colourText.textContent = label ? "F\u00e4rben nach: " + label : "F\u00e4rben nach";
+            colourButton.title = colourText.textContent;
+            colourButton.setAttribute("aria-label", colourText.textContent);
+            colourBox.classList.toggle("cv-on", Boolean(label));
+            colourClear.hidden = !label;
+          },
+          /** Section { axis, offset, flipped } | null with the slider range { min, max } of the axis. */
+          setSection(section, range) {
+            for (const [axis, button] of Object.entries(axisButtons)) {
+              const on = Boolean(section) && section.axis === axis;
+              button.setAttribute("aria-checked", String(on));
+              button.classList.toggle("cv-on", on);
+            }
+            sectionBox.classList.toggle("cv-on", Boolean(section));
+            slider.hidden = flip.hidden = sectionOff.hidden = !section;
+            if (section && range) {
+              slider.min = String(range.min);
+              slider.max = String(range.max);
+              slider.step = String((range.max - range.min) / 1000 || 0.001);
+              slider.value = String(section.offset);
+              flip.setAttribute("aria-pressed", String(section.flipped));
+              flip.classList.toggle("cv-on", section.flipped);
+            }
+          },
+          /**
+           * Legend under the model: { title, entries [{ label, colour, count, kind }] } or null. Values are text
+           * (labels from the model are set with textContent).
+           */
+          setLegend(data) {
+            legend.hidden = !data;
+            legendList.replaceChildren();
+            if (!data) return;
+            legendTitle.textContent = data.title;
+            for (const entry of data.entries) {
+              const item = el("li", "cv-legend-item");
+              item.dataset.colour = entry.colour;
+              item.dataset.kind = entry.kind;
+              const dot = el("span", "cv-dot cv-dot-on");
+              dot.style.background = entry.colour;
+              dot.setAttribute("aria-hidden", "true");
+              const label = el("span", "cv-legend-label", entry.label);
+              label.title = entry.label;
+              label.classList.toggle("cv-empty-value", entry.kind === "empty" || entry.kind === "multi");
+              item.append(dot, label, el("span", "cv-legend-count", formatCount(entry.count)));
+              legendList.append(item);
+            }
+            if (!data.entries.length) legendList.append(el("li", "cv-hint", "Keine Elemente im Filter."));
+          },
+        };
+      }
+
+      /** Text of a property value in the details panel: numbers in German format (up to 3 decimals) with unit. */
+      function detailText(value, entry) {
+        if (Array.isArray(value)) return value.map((v) => detailText(v, entry)).join(", ");
+        if (typeof value === "number") {
+          const text = value.toLocaleString("de-DE", { maximumFractionDigits: 3 });
+          return entry && entry.kind === "number" && entry.unit && entry.unit !== "gemischt" ? text + " " + entry.unit : text;
+        }
+        if (value === null || value === undefined) return "";
+        return String(value);
+      }
+
+      /** Rank of a details group: `Allgemein` first, then psets, then type psets (`Typ: ...`; REQ-007). */
+      const groupRank = (group) => (group === "Allgemein" ? 0 : group.indexOf("Typ: ") === 0 ? 2 : 1);
+
+      /**
+       * Details panel body (REQ-007 `Element-Details`): all properties of one element, grouped (attributes and special
+       * properties, then psets, then type psets), groups collapsible (state kept per group name).
+       */
+      function createDetails(body, onClear) {
+        const collapsed = new Set();
+        const placeholder = "Klick auf ein Element zeigt seine Eigenschaften.";
+        function clear() {
+          body.replaceChildren(el("p", "cv-hint", placeholder));
+          body.dataset.key = "";
+        }
+        /** info: { row (spec 4.3), catalog (Map key -> entry), order (Map key -> catalogue position) }. */
+        function show(info) {
+          const row = info.row;
+          const values = row.values;
+          const head = el("div", "cv-det-head");
+          const text = el("div", "cv-det-head-text");
+          text.append(
+            el("div", "cv-det-kicker", values.Kategorie || "Element"),
+            el("div", "cv-det-title", values.Name !== undefined ? String(values.Name) : values.Kategorie || ""),
+          );
+          const close = iconButton("close", "Auswahl aufheben", "cv-det-close");
+          close.addEventListener("click", onClear);
+          head.append(text, close);
+          const parts = [head];
+          if (!row.geometry) {
+            const hint = el("p", "cv-det-nogeo", "Dieses Element hat keine 3D-Geometrie.");
+            hint.setAttribute("role", "note");
+            parts.push(hint);
+          }
+          const groups = new Map();
+          for (const key of Object.keys(values)) {
+            const value = values[key];
+            if (value === undefined || value === null || (Array.isArray(value) && !value.length)) continue;
+            const entry = info.catalog.get(key);
+            const dot = key.indexOf(".");
+            const group = entry ? entry.group : dot > 0 ? key.slice(0, dot) : "Allgemein";
+            if (!groups.has(group)) groups.set(group, []);
+            groups.get(group).push({ key, value, entry });
+          }
+          const pos = (key) => (info.order.has(key) ? info.order.get(key) : Infinity);
+          const ordered = [...groups.entries()].sort(
+            (a, b) =>
+              groupRank(a[0]) - groupRank(b[0]) ||
+              Math.min(...a[1].map((p) => pos(p.key))) - Math.min(...b[1].map((p) => pos(p.key))) ||
+              (a[0] < b[0] ? -1 : 1),
+          );
+          for (const [group, props] of ordered) {
+            props.sort((a, b) => pos(a.key) - pos(b.key) || (a.key < b.key ? -1 : 1));
+            const section = el("section", "cv-det-group");
+            section.dataset.group = group;
+            const toggle = el("button", "cv-det-group-head");
+            toggle.type = "button";
+            toggle.append(icon("chevron"), el("span", "cv-det-group-name", group), el("span", "cv-det-group-count", String(props.length)));
+            const table = el("dl", "cv-det-props");
+            for (const prop of props) {
+              const pset = group.indexOf("Typ: ") === 0 ? group.slice(5) : group;
+              const name = prop.key.indexOf(pset + ".") === 0 ? prop.key.slice(pset.length + 1) : prop.key;
+              const dt = el("dt", "cv-det-name", name);
+              dt.title = prop.key;
+              const dd = el("dd", "cv-det-value", detailText(prop.value, prop.entry));
+              dd.title = dd.textContent;
+              dd.classList.toggle("cv-num", typeof prop.value === "number");
+              table.append(dt, dd);
+            }
+            const setCollapsed = (on) => {
+              section.classList.toggle("cv-collapsed", on);
+              table.hidden = on;
+              toggle.setAttribute("aria-expanded", String(!on));
+              if (on) collapsed.add(group);
+              else collapsed.delete(group);
+            };
+            toggle.addEventListener("click", () => setCollapsed(!section.classList.contains("cv-collapsed")));
+            setCollapsed(collapsed.has(group));
+            section.append(toggle, table);
+            parts.push(section);
+          }
+          body.replaceChildren(...parts);
+          body.dataset.key = row.key;
+          body.scrollTop = 0;
+        }
+        clear();
+        return { show, clear };
       }
 
       /**
@@ -2526,6 +3273,7 @@
         overlayBox.append(overlayText, progressBar);
         overlay.append(overlayBox);
         viewport.append(overlay);
+        const viewControls = createViewControls(viewport, options.viewHandlers);
         const splitter = el("div", "cv-splitter");
         splitter.id = "cv-splitter";
         splitter.tabIndex = 0;
@@ -2546,8 +3294,9 @@
         detailsToggle.id = "cv-details-toggle";
         detailsHead.append(el("h2", "", "Element-Details"), detailsToggle);
         const detailsBody = el("div", "cv-details-body");
-        detailsBody.append(el("p", "cv-hint", "Klick auf ein Element zeigt seine Eigenschaften."));
+        detailsBody.id = "cv-details-body";
         details.append(detailsHead, detailsBody);
+        const detailsPanel = createDetails(detailsBody, () => options.viewHandlers.clearSelection());
         main.append(filters, center, details);
 
         const statusline = el("footer", "cv-statusline");
@@ -2614,9 +3363,11 @@
           viewport,
           layout,
           filters: filterArea,
-          /** Opens the property catalogue dialog; onPick(key) adds a filter set. */
-          openCatalogue(entries, used, onPick) {
-            return openCatalogue(app, entries, used, onPick);
+          view: viewControls,
+          details: detailsPanel,
+          /** Opens the property catalogue dialog (title default `Filtersatz hinzufuegen`); onPick(key). */
+          openCatalogue(entries, used, onPick, titleText) {
+            return openCatalogue(app, entries, used, onPick, titleText);
           },
           /** Shows a message over the 3D view (isError: error style); null hides it. */
           overlay(text, isError) {
@@ -2712,12 +3463,38 @@
 
       const VIEW_DIRECTION = new THREE.Vector3(1, 0.75, 1).normalize();
       const FIT_PADDING = 1.2;
+      const CLICK_TOLERANCE_PX = 4; // a pointer that moved more than this is an orbit drag, not a pick (ref)
+      // Selection highlight (ref HIGHLIGHT_COLOR) and X-ray ghost (ref GHOST_COLOR / GHOST_OPACITY, REQ-005).
+      const SELECTION_COLOR = "#d72622";
+      const GHOST_COLOR = "#a4a8ac";
+      const GHOST_OPACITY = 0.12;
+      const COALESCE_MS = 150; // longest wait for other models' refreshes before a changed view is drawn
+      const GHOST = "ghost"; // paint of a ghost in the display mirror; colours are "#rrggbb"
+      /**
+       * Section axes in IFC terms (REQ-005 `Schnitt` X / Y / Z): Fragments shows IFC Z-up models Y-up, so IFC X = three
+       * x, IFC Y = -three z, IFC Z = three y. dir: the IFC axis as a three vector.
+       */
+      const AXES = {
+        X: new THREE.Vector3(1, 0, 0),
+        Y: new THREE.Vector3(0, 0, -1),
+        Z: new THREE.Vector3(0, 1, 0),
+      };
 
       /**
        * Starts three + Fragments in container. workerUrl: Blob URL of the classic Fragments worker (classic, because
-       * module workers from Blob URLs fail under file:// and in opaque-origin frames; spec CON-002).
+       * module workers from Blob URLs fail under file:// and in opaque-origin frames; spec CON-002). options:
+       * { onPick(key | null) } is called after a click on the canvas (key of the picked element, null for empty space).
+       *
+       * Rendering is on demand (TASK-004 verification P1): a frame is drawn only when the camera, the controls, the
+       * view (Fragments tiles), visibility, highlight or clipping change, never in an idle loop.
+       *
+       * Display (spec 4.4, as ref L1180-1265): cv-3d keeps a mirror of the calls it made to the Fragments engine per
+       * element (visible, paint = ghost | colour) plus the selection, and state() is derived from that mirror. Only
+       * elements of the current row set with geometry are managed; other items (e.g. IfcSpace while the option is off,
+       * process-log 2026-11-02) are never shown by display calls.
        */
-      export function createEngine(container, workerUrl) {
+      export function createEngine(container, workerUrl, options) {
+        const onPick = (options && options.onPick) || (() => {});
         const scene = new THREE.Scene();
         scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f94, 2.2));
         const sun = new THREE.DirectionalLight(0xffffff, 1.6);
@@ -2735,6 +3512,131 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
+        // ---------- render on demand ----------
+        let frameRequested = false;
+        let frames = 0;
+        let lastFrameAt = 0;
+        let frameWaiters = [];
+        function renderFrame() {
+          frameRequested = false;
+          controls.update(); // with damping this emits "change" while the camera still moves -> next frame
+          renderer.render(scene, camera);
+          frames++;
+          lastFrameAt = performance.now();
+          if (changePending) {
+            changePending = false;
+            changeFrames.push(lastFrameAt);
+            if (changeFrames.length > 64) changeFrames = changeFrames.slice(-32);
+          }
+          const waiters = frameWaiters;
+          frameWaiters = [];
+          for (const resolve of waiters) resolve(lastFrameAt);
+        }
+        function requestRender() {
+          if (frameRequested) return;
+          frameRequested = true;
+          requestAnimationFrame(renderFrame);
+        }
+        /*
+         * Fragments refreshes its view on a timer (about every 100 ms, also when idle) and reports each refresh with
+         * onViewUpdated, while tile updates (highlight, visibility, LOD) change the tile meshes in place without an
+         * own event. So after each refresh the tiles' render-relevant state (visibility, material, draw groups, buffer
+         * versions) is compared with the last drawn one, and a frame is drawn only if it changed. New or removed tiles
+         * are always drawn. changeFrames: times of frames drawn because the view changed (perf measurements).
+         */
+        const signatures = new Map(); // model -> signature of its tiles at the last refresh
+        let changePending = false;
+        let changeFrames = [];
+        function tileSignature(model) {
+          let sig = 0;
+          const mix = (x) => {
+            sig = (Math.imul(sig, 31) + (x | 0)) | 0;
+          };
+          for (const tile of model.tiles.values()) {
+            mix(tile.visible ? 1 : 2);
+            const materials = Array.isArray(tile.material) ? tile.material : [tile.material];
+            for (const m of materials) mix(m ? m.id : 0);
+            const g = tile.geometry;
+            if (!g) continue;
+            mix(g.drawRange.start);
+            mix(g.drawRange.count === Infinity ? -1 : g.drawRange.count);
+            for (const group of g.groups) {
+              mix(group.start);
+              mix(group.count);
+              mix(group.materialIndex);
+            }
+            if (g.index) {
+              mix(g.index.version);
+              mix(g.index.count);
+            }
+            for (const name in g.attributes) mix(g.attributes[name].version);
+          }
+          return sig;
+        }
+        /*
+         * A changed view is drawn once every model has finished its refresh (one complete frame instead of one per
+         * model; a frame costs about 280 ms in headless software WebGL), waiting at most COALESCE_MS.
+         */
+        let coalesceSince = 0;
+        let coalesceTimer = 0;
+        function drawWhenSettled() {
+          coalesceTimer = 0;
+          const busy = [...models.values()].some((m) => m.isBusy);
+          if (busy && performance.now() - coalesceSince < COALESCE_MS) {
+            coalesceTimer = setTimeout(drawWhenSettled, 8);
+            return;
+          }
+          coalesceSince = 0;
+          requestRender();
+        }
+        function viewChanged() {
+          changePending = true;
+          if (!coalesceSince) coalesceSince = performance.now();
+          if (!coalesceTimer) drawWhenSettled();
+        }
+        const refreshCount = new Map(); // model -> finished view refreshes (onViewUpdated)
+        let refreshWaiters = [];
+        function onViewRefreshed(model) {
+          refreshCount.set(model, (refreshCount.get(model) || 0) + 1);
+          const sig = tileSignature(model);
+          if (sig !== signatures.get(model)) {
+            signatures.set(model, sig);
+            viewChanged();
+          }
+          const waiters = refreshWaiters;
+          refreshWaiters = [];
+          for (const check of waiters) check();
+        }
+        /**
+         * Resolves after every model has finished two view refreshes from now (the second one started after this
+         * call, so it carries every engine call made before; fragments.update is rate-limited and may skip a call),
+         * or after timeoutMs.
+         */
+        function refreshedTwice(timeoutMs) {
+          const start = new Map([...models.values()].map((m) => [m, refreshCount.get(m) || 0]));
+          return new Promise((resolve) => {
+            const timer = setTimeout(resolve, timeoutMs);
+            const check = () => {
+              for (const [m, n] of start)
+                if (models.has(m.modelId) && (refreshCount.get(m) || 0) < n + 2) {
+                  refreshWaiters.push(check);
+                  return;
+                }
+              clearTimeout(timer);
+              resolve();
+            };
+            check();
+            fragments.update(true);
+          });
+        }
+        /** Resolves with the time (performance.now) of the next drawn frame; requests one. */
+        function nextFrame() {
+          return new Promise((resolve) => {
+            frameWaiters.push(resolve);
+            requestRender();
+          });
+        }
+
         const fragments = new FRAGS.FragmentsModels(workerUrl, { classicWorker: true });
         // Avoid z-fighting between coplanar faces (as the reference app and the That Open examples).
         fragments.models.materials.list.onItemSet.add(({ value: material }) => {
@@ -2744,7 +3646,24 @@
             material.polygonOffsetFactor = Math.random();
           }
         });
-        controls.addEventListener("change", () => fragments.update());
+        /**
+         * Lets Fragments refresh its view (tiles, LOD, culling); the refresh draws a frame if the tiles changed
+         * (onViewRefreshed). No frame is requested here: a frame drawn before the refresh shows nothing new and, at
+         * about 280 ms in software WebGL, delays the refresh results that wait for the main thread.
+         */
+        function updateView(force) {
+          // fragments.update skips calls within settings.maxUpdateRate (100 ms) of the previous one, e.g. of its own
+          // refresh timer; a change made here is sent at once (the limit is read synchronously at the call)
+          const rate = fragments.settings.maxUpdateRate;
+          fragments.settings.maxUpdateRate = 0;
+          const done = fragments.update(Boolean(force));
+          fragments.settings.maxUpdateRate = rate;
+          return done;
+        }
+        controls.addEventListener("change", () => {
+          fragments.update();
+          requestRender();
+        });
 
         function resize() {
           const width = container.clientWidth;
@@ -2753,20 +3672,23 @@
           renderer.setSize(width, height, false);
           camera.aspect = width / height;
           camera.updateProjectionMatrix();
-          fragments.update();
+          requestRender();
+          updateView(false);
         }
         new ResizeObserver(resize).observe(container);
         resize();
-        renderer.setAnimationLoop(() => {
-          controls.update();
-          renderer.render(scene, camera);
-        });
 
         const models = new Map();
 
-        function fit() {
+        function sceneBox() {
           const box = new THREE.Box3();
           for (const model of models.values()) box.union(model.box);
+          return box;
+        }
+
+        /** `Ansicht einpassen`: camera on all models along the default view direction. */
+        function fit() {
+          const box = sceneBox();
           if (box.isEmpty()) return;
           const sphere = box.getBoundingSphere(new THREE.Sphere());
           const fov = THREE.MathUtils.degToRad(camera.fov / 2);
@@ -2777,6 +3699,282 @@
           camera.far = distance * 100;
           camera.updateProjectionMatrix();
           controls.update();
+          requestRender();
+          updateView(true);
+        }
+
+        // ---------- serialised engine calls ----------
+        let chain = Promise.resolve();
+        let pending = 0;
+        let queuedPlan = null; // display plan waiting in the queue (replaced by newer plans)
+        function enqueue(task) {
+          pending++;
+          const run = chain.then(task).finally(() => pending--);
+          chain = run.catch((error) => console.error(error));
+          return run;
+        }
+
+        // ---------- display mirror (spec 4.4) ----------
+        const mirror = new Map(); // modelId -> Map(localId -> { key, vis, paint })
+        let selected = new Map(); // key -> { modelId, localId } highlighted as selection
+        let appliedMode = "ghost";
+        let lastAppliedAt = 0;
+        let generation = 0;
+        const ghostMaterial = {
+          color: new THREE.Color(GHOST_COLOR),
+          renderedFaces: FRAGS.RenderedFaces.ONE,
+          opacity: GHOST_OPACITY,
+          transparent: true,
+          depthWrite: false,
+        };
+        const selectionMaterial = {
+          color: new THREE.Color(SELECTION_COLOR),
+          renderedFaces: FRAGS.RenderedFaces.TWO,
+          opacity: 1,
+          transparent: false,
+        };
+        const colourMaterials = new Map();
+        function materialOf(paint) {
+          if (paint === GHOST) return ghostMaterial;
+          let material = colourMaterials.get(paint);
+          if (!material) {
+            material = { ...selectionMaterial, color: new THREE.Color(paint) };
+            colourMaterials.set(paint, material);
+          }
+          return material;
+        }
+        function groupBy(map, paint, id) {
+          let ids = map.get(paint);
+          if (!ids) map.set(paint, (ids = []));
+          ids.push(id);
+        }
+
+        /**
+         * Applies a display plan: plan = { rows (row set, spec 4.3), inside (Uint8Array, 1 = row passes the filter),
+         * mode ('ghost' | 'hide'), colourOf(i) -> '#rrggbb' | null (colouring), context [{ model, ids }] (geometry
+         * that is no element row, e.g. the IfcSite terrain), filterActive }. Elements inside the filter are
+         * opaque (coloured if colourOf gives a colour); outside they are ghosts (transparent highlight, not pickable) or
+         * hidden (setVisible false). Precedence (DEC-15): selection > colour > ghost / hide. Only differences to the
+         * mirror are sent to the engine, grouped (one setVisible per direction, one highlight per paint and model).
+         */
+        async function applyDisplay(plan) {
+          const gen = ++generation;
+          const work = new Map(); // modelId -> { show, hide, reset, paint: Map(paint -> ids) }
+          const workOf = (modelId) => {
+            let w = work.get(modelId);
+            if (!w) work.set(modelId, (w = { show: [], hide: [], reset: [], paint: new Map() }));
+            return w;
+          };
+          const rows = plan.rows;
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row.geometry) continue;
+            const items = mirror.get(row.model);
+            if (!items) continue; // model not (or no longer) in the scene
+            let entry = items.get(row.localId);
+            if (!entry) items.set(row.localId, (entry = { key: row.key, vis: true, paint: null, gen }));
+            entry.gen = gen;
+            entry.key = row.key;
+            const inside = plan.inside[i] === 1;
+            const vis = inside || plan.mode === "ghost";
+            const paint = inside ? (plan.colourOf && plan.colourOf(i)) || null : plan.mode === "ghost" ? GHOST : null;
+            if (entry.vis !== vis) (vis ? workOf(row.model).show : workOf(row.model).hide).push(row.localId);
+            if (entry.paint !== paint && !selected.has(row.key)) {
+              const w = workOf(row.model);
+              if (entry.paint !== null) w.reset.push(row.localId);
+              if (paint !== null) groupBy(w.paint, paint, row.localId);
+            }
+            entry.vis = vis;
+            entry.paint = paint;
+          }
+          // context geometry: like elements outside the filter while a filter is active, else as loaded; not in state()
+          for (const { model: modelId, ids } of plan.context || []) {
+            const items = mirror.get(modelId);
+            if (!items) continue;
+            const vis = !plan.filterActive || plan.mode === "ghost";
+            const paint = plan.filterActive && plan.mode === "ghost" ? GHOST : null;
+            for (const localId of ids) {
+              let entry = items.get(localId);
+              if (!entry || entry.key !== null)
+                items.set(localId, (entry = { key: null, vis: entry ? entry.vis : true, paint: entry ? entry.paint : null }));
+              entry.gen = gen;
+              if (entry.vis !== vis) (vis ? workOf(modelId).show : workOf(modelId).hide).push(localId);
+              if (entry.paint !== paint) {
+                const w = workOf(modelId);
+                if (entry.paint !== null) w.reset.push(localId);
+                if (paint !== null) groupBy(w.paint, paint, localId);
+              }
+              entry.vis = vis;
+              entry.paint = paint;
+            }
+          }
+          // elements that left the row set (IfcSpace option off): drop their paint, keep their visibility as set
+          for (const [modelId, items] of mirror) {
+            for (const [localId, entry] of items) {
+              if (entry.gen === gen) continue;
+              if (entry.paint !== null || selected.has(entry.key)) workOf(modelId).reset.push(localId);
+              selected.delete(entry.key);
+              items.delete(localId);
+            }
+          }
+          for (const [modelId, w] of work) {
+            const model = models.get(modelId);
+            if (!model) continue;
+            if (w.hide.length) await model.setVisible(w.hide, false);
+            if (w.show.length) await model.setVisible(w.show, true);
+            if (w.reset.length) await model.resetHighlight(w.reset);
+            for (const [paint, ids] of w.paint) await model.highlight(ids, materialOf(paint));
+          }
+          appliedMode = plan.mode;
+          lastAppliedAt = performance.now();
+          await updateView(true);
+        }
+
+        /** Selection highlight (applied last, wins over colour and ghost): keys of managed elements. */
+        async function applySelection(keys) {
+          const next = new Map();
+          for (const [modelId, items] of mirror)
+            for (const [localId, entry] of items) if (keys.has(entry.key)) next.set(entry.key, { modelId, localId });
+          const work = new Map();
+          const workOf = (modelId) => {
+            let w = work.get(modelId);
+            if (!w) work.set(modelId, (w = { reset: [], paint: new Map(), select: [] }));
+            return w;
+          };
+          for (const [key, { modelId, localId }] of selected) {
+            if (next.has(key)) continue;
+            const w = workOf(modelId);
+            w.reset.push(localId);
+            const entry = mirror.get(modelId) && mirror.get(modelId).get(localId);
+            if (entry && entry.paint !== null) groupBy(w.paint, entry.paint, localId);
+          }
+          for (const [key, { modelId, localId }] of next) if (!selected.has(key)) workOf(modelId).select.push(localId);
+          selected = next;
+          for (const [modelId, w] of work) {
+            const model = models.get(modelId);
+            if (!model) continue;
+            if (w.reset.length) await model.resetHighlight(w.reset);
+            for (const [paint, ids] of w.paint) await model.highlight(ids, materialOf(paint));
+            if (w.select.length) await model.highlight(w.select, selectionMaterial);
+          }
+          await updateView(true);
+        }
+
+        // ---------- section (REQ-005 `Schnitt`) ----------
+        const sectionPlane = new THREE.Plane();
+        let section = null; // { axis, offset, flipped }
+        /** Model extent along an IFC axis: { min, max } or null without models. */
+        function axisRange(axis) {
+          const box = sceneBox();
+          if (box.isEmpty()) return null;
+          const dir = AXES[axis];
+          const a = dir.dot(box.min);
+          const b = dir.dot(box.max);
+          return { min: Math.min(a, b), max: Math.max(a, b) };
+        }
+        /**
+         * Sets the section plane: { axis 'X' | 'Y' | 'Z', offset (IFC coordinate in m along the axis), flipped } or
+         * null. Not flipped keeps the part below the offset (coordinate <= offset), flipped keeps the part above.
+         */
+        function setSection(next) {
+          section = next ? { axis: next.axis, offset: next.offset, flipped: Boolean(next.flipped) } : null;
+          if (section) {
+            const dir = AXES[section.axis];
+            // THREE keeps points with normal . p + constant >= 0
+            if (section.flipped) sectionPlane.set(dir.clone(), -section.offset);
+            else sectionPlane.set(dir.clone().negate(), section.offset);
+            renderer.clippingPlanes = [sectionPlane];
+          } else renderer.clippingPlanes = [];
+          requestRender(); // clipping is renderer state, not tile state
+          return updateView(true);
+        }
+
+        // ---------- picking (REQ-007) ----------
+        /** The managed, visible, non-ghost element at client position (x, y) nearest to the camera, or null. */
+        async function pickAt(clientX, clientY) {
+          const mouse = new THREE.Vector2(clientX, clientY);
+          let best = null;
+          for (const [modelId, model] of models) {
+            // all hits along the ray: ghosts are skipped, so elements behind them stay pickable (ref)
+            const hits = await model.raycastAll({ camera, mouse, dom: renderer.domElement });
+            const items = mirror.get(modelId);
+            for (const hit of hits || []) {
+              const entry = items && items.get(hit.localId);
+              if (!entry || entry.key === null || !entry.vis || entry.paint === GHOST) continue;
+              if (!best || hit.distance < best.distance) best = { key: entry.key, distance: hit.distance };
+            }
+          }
+          return best ? best.key : null;
+        }
+        let downAt = null;
+        renderer.domElement.addEventListener("pointerdown", (event) => {
+          downAt = event.button === 0 ? { x: event.clientX, y: event.clientY } : null;
+        });
+        renderer.domElement.addEventListener("pointerup", (event) => {
+          if (!downAt || event.button !== 0) return;
+          const moved = Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y);
+          downAt = null;
+          if (moved > CLICK_TOLERANCE_PX) return;
+          enqueue(() => pickAt(event.clientX, event.clientY)).then(
+            (key) => onPick(key),
+            (error) => console.error(error),
+          );
+        });
+
+        /** Page position of a managed element's bounding box (8 corners projected): { left, top, right, bottom, x, y }. */
+        async function screenBox(key) {
+          for (const [modelId, items] of mirror) {
+            for (const [localId, entry] of items) {
+              if (entry.key !== key) continue;
+              const [box] = await models.get(modelId).getBoxes([localId]);
+              const rect = renderer.domElement.getBoundingClientRect();
+              const out = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+              const p = new THREE.Vector3();
+              for (let c = 0; c < 8; c++) {
+                p.set(c & 1 ? box.max.x : box.min.x, c & 2 ? box.max.y : box.min.y, c & 4 ? box.max.z : box.min.z);
+                p.project(camera);
+                const x = rect.left + ((p.x + 1) / 2) * rect.width;
+                const y = rect.top + ((1 - p.y) / 2) * rect.height;
+                out.left = Math.min(out.left, x);
+                out.right = Math.max(out.right, x);
+                out.top = Math.min(out.top, y);
+                out.bottom = Math.max(out.bottom, y);
+              }
+              box.getCenter(p).project(camera);
+              out.x = rect.left + ((p.x + 1) / 2) * rect.width;
+              out.y = rect.top + ((1 - p.y) / 2) * rect.height;
+              return out;
+            }
+          }
+          return null;
+        }
+
+        /**
+         * Test seam (spec 4.4): { mode, opaque, ghost, hidden (Set of keys), colours (Map key -> '#rrggbb'), selected
+         * (Set), section ({ axis, offset, flipped } | null) }, derived from the calls made to the engine.
+         */
+        function state() {
+          const out = {
+            mode: appliedMode,
+            opaque: new Set(),
+            ghost: new Set(),
+            hidden: new Set(),
+            colours: new Map(),
+            selected: new Set(selected.keys()),
+            section: section ? { ...section } : null,
+          };
+          for (const items of mirror.values()) {
+            for (const entry of items.values()) {
+              if (entry.key === null) continue; // context geometry, no element
+              if (!entry.vis) out.hidden.add(entry.key);
+              else if (entry.paint === GHOST) out.ghost.add(entry.key);
+              else {
+                out.opaque.add(entry.key);
+                if (entry.paint !== null) out.colours.set(entry.key, entry.paint);
+              }
+            }
+          }
+          return out;
         }
 
         return {
@@ -2787,32 +3985,99 @@
           async loadModel(bytes, modelId) {
             const model = await fragments.load(bytes, { modelId });
             model.useCamera(camera);
+            // the worker respects the section plane in culling and raycasting (ref)
+            model.getClippingPlanesEvent = () => renderer.clippingPlanes;
+            model.onViewUpdated.add(onViewRefreshed);
+            model.tiles.onItemSet.add(viewChanged);
+            model.tiles.onItemDeleted.add(viewChanged);
             scene.add(model.object);
             models.set(modelId, model);
+            mirror.set(modelId, new Map());
             await fragments.update(true);
             fit();
-            await fragments.update(true);
+            await updateView(true);
             const withGeometry = await model.getItemsIdsWithGeometry();
             return { modelId, model, withGeometry };
           },
           /** Removes a model from scene and memory. */
-          async removeModel(modelId) {
-            const model = models.get(modelId);
-            if (!model) return;
-            models.delete(modelId);
-            scene.remove(model.object);
-            await fragments.disposeModel(modelId);
-            // Not update(true): its fence waits for a tile FINISH at the last dispatched request number, which never
-            // arrives when no model is left (observed: removing the last model hung intermittently).
-            fragments.update();
+          removeModel(modelId) {
+            return enqueue(async () => {
+              const model = models.get(modelId);
+              if (!model) return;
+              models.delete(modelId);
+              const items = mirror.get(modelId);
+              mirror.delete(modelId);
+              if (items) for (const entry of items.values()) selected.delete(entry.key);
+              scene.remove(model.object);
+              await fragments.disposeModel(modelId);
+              // Not update(true): its fence waits for a tile FINISH at the last dispatched request number, which
+              // never arrives when no model is left (observed: removing the last model hung intermittently).
+              fragments.update();
+              requestRender();
+            });
           },
-          /** Shows or hides items of one model (e.g. IfcSpace by option, DEC-13). */
-          async setItemsVisible(modelId, localIds, visible) {
-            const model = models.get(modelId);
-            if (!model || !localIds.length) return;
-            await model.setVisible(localIds, visible);
-            await fragments.update(true);
+          /** Shows or hides items of one model outside the display plan (IfcSpace by option, DEC-13). */
+          setItemsVisible(modelId, localIds, visible) {
+            return enqueue(async () => {
+              const model = models.get(modelId);
+              if (!model || !localIds.length) return;
+              await model.setVisible(localIds, visible);
+              await updateView(true);
+            });
           },
+          /** Applies a display plan (see applyDisplay); a plan waiting in the queue is replaced by a newer one. */
+          display(plan) {
+            if (queuedPlan) {
+              queuedPlan.plan = plan;
+              return queuedPlan.run;
+            }
+            const slot = { plan, run: null };
+            queuedPlan = slot;
+            slot.run = enqueue(() => {
+              queuedPlan = null;
+              return applyDisplay(slot.plan);
+            });
+            return slot.run;
+          },
+          /** Highlights exactly the elements with these keys as selection (others lose the selection highlight). */
+          select(keys) {
+            const set = new Set(keys);
+            return enqueue(() => applySelection(set));
+          },
+          setSection(next) {
+            return enqueue(() => setSection(next));
+          },
+          axisRange,
+          fit,
+          state,
+          screenBox: (key) => enqueue(() => screenBox(key)),
+          /** Visibility of items as the Fragments engine reports it (model.getVisible; test seam). */
+          engineVisible(modelId, localIds) {
+            return enqueue(async () => {
+              const model = models.get(modelId);
+              return model ? model.getVisible(localIds) : null;
+            });
+          },
+          /**
+           * Resolves (with the frame time) when every queued engine call is done, Fragments has refreshed the view
+           * with them and a frame showing the result has been drawn.
+           */
+          async whenIdle() {
+            for (;;) {
+              const current = chain;
+              await current;
+              if (current !== chain || pending !== 0) continue;
+              await refreshedTwice(3000);
+              if (current === chain && pending === 0) break;
+            }
+            return nextFrame();
+          },
+          /** performance.now() when the last display plan's engine calls were done (perf measurements). */
+          lastAppliedAt: () => lastAppliedAt,
+          /** Times (performance.now) of the recent frames drawn because the view changed (perf measurements). */
+          changeFrames: () => changeFrames.slice(),
+          frames: () => frames,
+          lastFrameAt: () => lastFrameAt,
           modelCount() {
             return fragments.models.list.size;
           },
@@ -2827,6 +4092,8 @@
       import {
         LoadError,
         buildCatalog,
+        colourLegend,
+        colourScheme,
         createColumnStore,
         evaluateFilters,
         facetCounts,
@@ -2843,7 +4110,7 @@
       /**
        * Test hook (read-only for tests except `test`): phase "starting" | "ready" | "loading" | "error"; error (fatal
        * start error only, else null; load errors are in loadErrors); models [{ id, name (file name), modell, elements,
-       * withGeometry (visible rows with 3D geometry) }]; rows (visible element rows, spec 4.3); catalog (property
+       * withGeometry (visible rows with 3D geometry), spaceIds (localIds of the IfcSpace items) }]; rows (visible element rows, spec 4.3); catalog (property
        * catalogue entries in order); loadErrors [{ fileName, loadClass, message }]; progress (last { file, step,
        * percent } or null); queued (files dropped during a running action, loaded after it); loads (number of
        * finished load, remove or option actions, for waiting; a batch with queued files counts once); options
@@ -2853,7 +4120,9 @@
        * REQ-003-AC2), active (normalised core filters), count (rows passing all filters), total, keys (row keys passing
        * all filters, ascending row order; the set 3D and table follow), facets ({ id -> { total, checkedCount, values
        * [{ value, count, checked }] } }), updates (number of filter evaluations), lastMs (duration of the last
-       * evaluation incl. filter-area update) }. layout: { split (model share in %), detailsCollapsed }.
+       * evaluation incl. filter-area update) }. layout: { split (model share in %), detailsCollapsed }. view (TASK-005):
+       * { mode 'ghost' | 'hide', colourKey, selected (row key or null), section }; the 3D state itself is
+       * window.CalcView.state() (spec 4.4).
        */
       const hook = {
         phase: "starting",
@@ -2870,6 +4139,7 @@
         options: { includeSpaces: false },
         filter: { sets: [], active: [], count: 0, total: 0, keys: [], facets: {}, updates: 0, lastMs: 0 },
         layout: null,
+        view: null,
         test: { crashNextConversion: false, neverStartNextConversion: false, startTimeoutMs: null },
       };
       window.__calc = hook;
@@ -2894,6 +4164,15 @@
         let store = createColumnStore([]);
         let view = { evaluation: null, indices: new Uint32Array(0), facets: new Map() };
         const filterListeners = [];
+        // 3D coupling (TASK-005, REQ-005 / REQ-007): display mode, colouring, section, selection.
+        let viewMode = "ghost";
+        let colourKey = null;
+        let scheme = null; // colourScheme(store, colourKey) for the current row set
+        let selectedKey = null;
+        let section = null; // { axis, offset, flipped }
+        let rowIndex = new Map(); // row key -> index in store.rows
+        let catalogOrder = new Map(); // property key -> catalogue position (details order)
+        let inside = new Uint8Array(0); // 1 = row passes all filters
 
         const setById = (id) => filterSets.find((s) => s.id === id);
         const coreFilters = () => filterSets.map((s) => ({ id: s.id, key: s.key, type: "values", values: s.selected }));
@@ -2929,7 +4208,17 @@
           const indices = filterRows(evaluation);
           const facets = facetCounts(evaluation, null, filterSets.map((s) => ({ id: s.id, key: s.key })));
           view = { evaluation, indices, facets };
+          inside = new Uint8Array(store.size);
+          for (const i of indices) inside[i] = 1;
+          if (scheme) {
+            // colour dots in the filter set of the colouring property (REQ-005-AC2)
+            for (const set of filterSets) {
+              if (set.key !== colourKey || !facets.get(set.id)) continue;
+              for (const item of facets.get(set.id).values) item.colour = scheme.valueColour(item.value) || "";
+            }
+          }
           ui.filters.update(facets, evaluation.filters.length > 0);
+          sync3d();
           ui.status(indices.length, store.size, hook.modelCount);
           const rows = store.rows;
           let keys = null;
@@ -2967,6 +4256,108 @@
           publishSets();
           refresh();
         }
+
+        /** Keys of the cached columns still in use: filter sets and the colouring property. */
+        const keysInUse = () => filterSets.map((s) => s.key).concat(colourKey ? [colourKey] : []);
+
+        /**
+         * Sends the display plan for the current filter result to cv-3d (ghost / hide, colours) and updates the legend;
+         * a selected element that left the filter (or the row set) is deselected.
+         */
+        function sync3d() {
+          engine.display({
+            rows: store.rows,
+            inside,
+            mode: viewMode,
+            colourOf: scheme ? (i) => scheme.rowColour(i) : null,
+            context: models.map((m) => ({ model: m.id, ids: m.contextIds })),
+            filterActive: view.evaluation !== null && view.evaluation.filters.length > 0,
+          });
+          const entry = colourKey ? catalog.get(colourKey) : null;
+          ui.view.setLegend(
+            scheme
+              ? { title: entry ? entry.header : colourKey, entries: colourLegend(scheme, view.indices) }
+              : null,
+          );
+          if (selectedKey !== null) {
+            const at = rowIndex.get(selectedKey);
+            if (at === undefined || !inside[at]) select(null);
+          }
+          publishView();
+        }
+
+        function publishView() {
+          hook.view = { mode: viewMode, colourKey, selected: selectedKey, section: section ? { ...section } : null };
+        }
+
+        /**
+         * Selects one element by row key (REQ-007; 3D pick, API, later the table in TASK-006c) or clears the
+         * selection (null): selection highlight in 3D (elements with geometry) and the details panel.
+         */
+        function select(key) {
+          const at = key === null || key === undefined ? undefined : rowIndex.get(key);
+          if (at === undefined) {
+            if (selectedKey === null) return;
+            selectedKey = null;
+            engine.select([]);
+            ui.details.clear();
+          } else {
+            const row = store.rows[at];
+            selectedKey = row.key;
+            engine.select(row.geometry ? [row.key] : []);
+            ui.details.show({ row, catalog, order: catalogOrder });
+          }
+          publishView();
+        }
+
+        function setColouring(key) {
+          colourKey = key && catalog.has(key) ? key : null;
+          scheme = colourKey ? colourScheme(store, colourKey) : null;
+          const entry = colourKey ? catalog.get(colourKey) : null;
+          ui.view.setColouring(entry ? entry.header : null);
+          store.retain(keysInUse());
+          refresh();
+        }
+
+        function setSection(next) {
+          section = next;
+          ui.view.setSection(section, section ? engine.axisRange(section.axis) : null);
+          engine.setSection(section);
+          publishView();
+        }
+
+        const viewHandlers = {
+          mode(mode) {
+            if (mode === viewMode) return;
+            viewMode = mode;
+            ui.view.setMode(mode);
+            sync3d();
+          },
+          pickColour() {
+            ui.openCatalogue([...catalog.values()], new Set(), (key) => setColouring(key), "F\u00e4rben nach");
+          },
+          clearColour() {
+            setColouring(null);
+          },
+          section(axis) {
+            if (!axis) return setSection(null);
+            const range = engine.axisRange(axis);
+            if (!range) return;
+            setSection({ axis, offset: (range.min + range.max) / 2, flipped: false });
+          },
+          sectionOffset(offset) {
+            if (section) setSection({ ...section, offset });
+          },
+          flip() {
+            if (section) setSection({ ...section, flipped: !section.flipped });
+          },
+          fit() {
+            engine.fit();
+          },
+          clearSelection() {
+            select(null);
+          },
+        };
 
         const filterHandlers = {
           add() {
@@ -3011,7 +4402,7 @@
             const at = filterSets.findIndex((s) => s.id === id);
             if (at === -1) return;
             filterSets.splice(at, 1);
-            store.retain(filterSets.map((s) => s.key));
+            store.retain(keysInUse());
             changed();
           },
           collapse(id, collapsed) {
@@ -3022,11 +4413,31 @@
           },
         };
 
-        const ui = renderLayout(options.root, { mode: options.mode, title: options.title, filterHandlers });
+        const ui = renderLayout(options.root, { mode: options.mode, title: options.title, filterHandlers, viewHandlers });
         hook.layout = ui.layout;
         ui.overlay("3D-Ansicht wird gestartet ...");
-        const engine = createEngine(ui.viewport, options.workerUrl);
-        const models = []; // { id, name, fileName, rows, properties, spaceProperties, spaceIds, fragBytes }
+        const engine = createEngine(ui.viewport, options.workerUrl, { onPick: (key) => select(key) });
+        ui.view.setMode(viewMode);
+        ui.view.setColouring(null);
+        ui.view.setSection(null, null);
+        // Esc clears the selection (REQ-007-AC5); an Escape handled by a dialog is marked defaultPrevented.
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && !event.defaultPrevented) select(null);
+        });
+        /** Test seam (spec 4.4) and selection hook for the table (TASK-006c). */
+        window.CalcView = {
+          state: () => engine.state(),
+          select: (key) => select(key),
+          whenIdle: () => engine.whenIdle(),
+          frames: () => engine.frames(),
+          lastFrameAt: () => engine.lastFrameAt(),
+          lastAppliedAt: () => engine.lastAppliedAt(),
+          changeFrames: () => engine.changeFrames(),
+          screenBox: (key) => engine.screenBox(key),
+          engineVisible: (modelId, localIds) => engine.engineVisible(modelId, localIds),
+          axisRange: (axis) => engine.axisRange(axis),
+        };
+        const models = []; // { id, name, fileName, rows, properties, spaceProperties, spaceIds, contextIds, fragBytes }
         const queued = []; // files dropped while an action runs; loaded right after it
         let nextId = 1;
         let busy = false;
@@ -3046,7 +4457,16 @@
           hook.rows = rows;
           catalog = buildCatalog(rows, models);
           hook.catalog = [...catalog.values()];
+          catalogOrder = new Map(hook.catalog.map((entry, i) => [entry.key, i]));
           store = createColumnStore(rows); // new row set: new column store (TASK-003)
+          rowIndex = new Map(rows.map((row, i) => [row.key, i]));
+          // colouring follows the new row set (dropped if its property is gone)
+          if (colourKey && !catalog.has(colourKey)) {
+            colourKey = null;
+            ui.view.setColouring(null);
+          }
+          scheme = colourKey ? colourScheme(store, colourKey) : null;
+          if (section) ui.view.setSection(section, engine.axisRange(section.axis));
           hook.models = models.map((m) => {
             const visible = visibleRows(m.rows, includeSpaces);
             return {
@@ -3055,6 +4475,7 @@
               modell: m.name,
               elements: visible.length,
               withGeometry: visible.filter((row) => row.geometry).length,
+              spaceIds: m.spaceIds.slice(),
             };
           });
           hook.modelCount = engine.modelCount();
@@ -3095,6 +4516,10 @@
               (fraction) => progress(file.name, "Extraktion", fraction),
             );
             if (!hook.options.includeSpaces) await engine.setItemsVisible(id, data.spaceIds, false);
+            // geometry that is no element row (e.g. the IfcSite terrain): context, shown like elements outside the
+            // filter while a filter is active
+            const rowIds = new Set(data.rows.map((row) => row.localId));
+            const contextIds = Array.from(loaded.withGeometry).filter((localId) => !rowIds.has(localId));
             models.push({
               id,
               name,
@@ -3103,6 +4528,7 @@
               properties: data.properties,
               spaceProperties: data.spaceProperties,
               spaceIds: data.spaceIds,
+              contextIds,
               fragBytes: converted.bytes,
             });
             publish();
@@ -3207,6 +4633,10 @@
           onFilterChange(listener) {
             filterListeners.push(listener);
           },
+          /** Selects an element by row key, null clears (REQ-007; table selection in TASK-006c). */
+          select,
+          /** Key of the selected element or null. */
+          selected: () => selectedKey,
         };
       }
 

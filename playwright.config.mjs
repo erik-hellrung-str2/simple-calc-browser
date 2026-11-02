@@ -2,10 +2,12 @@
 // Select a test type with --grep @<tag>; every spec imports { test } from test/support/network-guard.mjs.
 import { defineConfig } from "@playwright/test";
 
-const PORT = Number(process.env.CV_TEST_PORT ?? 4173); // override for parallel runs
+const PORT = Number(process.env.CV_TEST_PORT ?? 4173); // override for parallel runs (scripts/check.mjs picks a free one)
+const OUTPUT = process.env.CV_TEST_OUTPUT ?? "test-results"; // per-run output directory (scripts/check.mjs)
 export default defineConfig({
   testDir: "test",
   testMatch: "**/*.spec.mjs",
+  outputDir: OUTPUT,
   timeout: 60_000,
   forbidOnly: true,
   retries: 0, // a flaky test is a bug (process/calibration/testing.md §4)

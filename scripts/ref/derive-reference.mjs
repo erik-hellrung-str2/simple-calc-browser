@@ -77,6 +77,12 @@ function fzkSection() {
   const core = count(onGround.filter((e) => !CONDITIONAL.includes(e.Kategorie)));
   const conditional = count(onGround.filter((e) => CONDITIONAL.includes(e.Kategorie)));
   const virtual = els.filter((e) => e.Kategorie === "IfcVirtualElement");
+  const byGeschoss = {};
+  for (const e of els) if (e.Geschoss !== null) (byGeschoss[e.Geschoss] ??= []).push(e);
+  const carriers = (key) => {
+    const list = els.filter((e) => key in e.props);
+    return { count: list.length, byKategorie: count(list) };
+  };
 
   const Q = (...k) => k;
   const elements = [
@@ -111,7 +117,7 @@ function fzkSection() {
       Q("BaseQuantities.Width", "BaseQuantities.Area"),
     ),
     refElement(m, 60012, "wall on the upper storey (storey via containment)", Q("BaseQuantities.Length")),
-    refElement(m, 35169, "member without type object: Typ empty", []),
+    refElement(m, 35169, "member whose type object has no Name (IfcMemberType #35265, Name $): Typ empty", []),
   ];
   return {
     file: "AC20-FZK-Haus.ifc",
@@ -122,6 +128,15 @@ function fzkSection() {
     elementsInStepText: els.length,
     elementsInStepTextByKategorie: count(els),
     storeys: m.storeys.map((s) => ({ Name: s.args[2], GlobalId: s.args[0], elevation: s.args[9] })),
+    elementsByGeschossAndKategorie: Object.fromEntries(
+      Object.keys(byGeschoss)
+        .sort()
+        .map((g) => [g, count(byGeschoss[g])]),
+    ),
+    propertyCarriers: {
+      note: "Elements whose properties contain the key (occurrence or type), per Kategorie; the catalogue count of a property is the sum over the classes the extractor lists as rows",
+      "BaseQuantities.Length": carriers("BaseQuantities.Length"),
+    },
     elements,
     conditionalElements: virtual.map((e) => ({
       why: "IfcVirtualElement: no storey, no material, no representation in the IFC. Assert only if the extractor lists IfcVirtualElement as rows; then Geschoss, Material empty and Geometrie = Nein",
@@ -150,6 +165,80 @@ function fzkSection() {
         note: "With Geschoss = ground floor checked, the Kategorie filter set lists exactly kategorieCountsOnGroundFloor, plus each class of kategorieCountsOnGroundFloorConditional that the extractor lists as rows (IfcSpace only with the IfcSpace option on; the ground floor aggregates 6 IfcSpace).",
       },
     },
+  };
+}
+
+const countByKategorie = (list) => {
+  const c = {};
+  for (const e of list) c[e.Kategorie] = (c[e.Kategorie] ?? 0) + 1;
+  return Object.fromEntries(Object.entries(c).sort(([a], [b]) => a.localeCompare(b)));
+};
+
+function duplexSection() {
+  const m = read(FIX + "Ifc2x3_Duplex_Architecture.ifc");
+  const els = m.elements.map((id) => m.element(id));
+  return {
+    file: "Ifc2x3_Duplex_Architecture.ifc",
+    schema: m.schema,
+    elementsInStepText: els.length,
+    elementsInStepTextByKategorie: countByKategorie(els),
+    note: "Row count of the model = elementsInStepText minus the classes of elementsInStepTextByKategorie the extractor does not list as rows (IfcOpeningElement; REQ-001-AC1 Modell set)",
+  };
+}
+
+/**
+ * REQ-005-AC4 (TASK-005): an element of the committed Duplex fixture with exactly two materials (lowest STEP id among
+ * those with a representation), for `Faerben nach` = Material -> `mehrere Werte`.
+ */
+function multiMaterialSection() {
+  const m = read(FIX + "Ifc2x3_Duplex_Architecture.ifc");
+  const els = m.elements.map((id) => ({ id, e: m.element(id) }));
+  const candidates = els.filter(({ e }) => e.Material.length === 2 && e.hasRepresentation).sort((a, b) => a.id - b.id);
+  const { id, e } = candidates[0];
+  return {
+    file: "Ifc2x3_Duplex_Architecture.ifc",
+    element: { stepId: id, GlobalId: e.GlobalId, Kategorie: e.Kategorie, Name: e.Name, Material: e.Material },
+    elementsWithSeveralMaterials: els.filter(({ e }) => e.Material.length > 1).length,
+    note: "Material = sorted distinct IfcMaterial names (layer set usage); this element has two, so colouring by Material gives it the `mehrere Werte` colour",
+  };
+}
+
+/**
+ * NFR-001 robustness (TASK-004): Revit MEP + SampleCastle loaded together. One Name value with a few elements, all of
+ * them of a class the extractor always lists as rows; picked deterministically (median of the sorted candidates).
+ */
+function nameFilterSection() {
+  const files = ["Ifc4_Revit_MEP.ifc", "Ifc2x3_SampleCastle.ifc"];
+  if (!files.every((f) => existsSync(CACHE + f))) return null;
+  const all = files.flatMap((f) => {
+    const m = read(CACHE + f);
+    return m.elements.map((id) => m.element(id));
+  });
+  const byName = new Map();
+  for (const e of all) {
+    if (!byName.has(e.Name)) byName.set(e.Name, []);
+    byName.get(e.Name).push(e);
+  }
+  const candidates = [...byName]
+    .filter(
+      ([n, list]) =>
+        typeof n === "string" &&
+        n.trim() !== "" &&
+        list.length >= 2 &&
+        list.length <= 50 &&
+        list.every((e) => !CONDITIONAL.includes(e.Kategorie)),
+    )
+    .map(([n]) => n)
+    .sort();
+  const name = candidates[Math.floor(candidates.length / 2)];
+  const hits = byName.get(name);
+  return {
+    files,
+    filter: { Name: [name] },
+    expectedCount: hits.length,
+    expectedGlobalIds: hits.map((e) => e.GlobalId).sort(),
+    byKategorie: countByKategorie(hits),
+    note: "Name value chosen as the median of the sorted Name values that have 2..50 elements, none of a conditional class",
   };
 }
 
@@ -265,7 +354,8 @@ const existing = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : {};
 const fzk = fzkSection();
 const out = {
   meta: {
-    purpose: "Reference values for REQ-002-AC1/AC6/AC7, REQ-004-AC1/AC2 and REQ-006-AC1 (spec Testing -> Test data)",
+    purpose:
+      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1 and NFR-001 (spec Testing -> Test data)",
     generatedBy: "node scripts/ref/derive-reference.mjs",
     method:
       "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
@@ -275,8 +365,11 @@ const out = {
   "AC20-FZK-Haus": fzk,
   "fzk-feet": feetSection(fzk),
   "fzk-unit-a-b": unitPairSection(),
+  Ifc2x3_Duplex_Architecture: duplexSection(),
+  "REQ-005-AC4": multiMaterialSection(),
   "REQ-002-AC7": castleSection() ?? existing["REQ-002-AC7"] ?? null,
   "REQ-006-AC1": mep2000Section()?.["REQ-006-AC1"] ?? existing["REQ-006-AC1"] ?? null,
+  "NFR-001-name-filter": nameFilterSection() ?? existing["NFR-001-name-filter"] ?? null,
 };
 const json = JSON.stringify(out, null, 2) + "\n";
 if (process.argv.includes("--check")) {

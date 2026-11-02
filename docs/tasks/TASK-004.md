@@ -132,3 +132,33 @@ Each fix has a `[unit]` test that was run first and failed on the old code. The 
 ## Independent verification (orchestrator record, 2026-11-02)
 Verdict: all TASK-004 acceptance items PASS (fresh context; visual review at 1280x800 and 1920x1080 against UI-02; usability and performance probes). FAIL only on tooling: two checks started at the same moment collide on c8 `coverage/tmp` (A1).
 Follow-ups (fix pass before TASK-005): A1 per-run c8 temp/report dirs; W1–W4 replace product-vs-product assertions by reference-derived values; V1 disable `calt` on data text (`2x3` shown as `2×3`); V2 style search clear button; drag auto-scroll of the filter panel. P1 (3D renders every frame, ~300 ms per frame headless) → render on demand in TASK-005; NFR-001 tests measure until the next drawn frame.
+
+## Follow-up fixes (verification items A1, W1-W4, V1, V2, drag auto-scroll; 2026-11-02)
+
+| Item | Fix | Evidence |
+|---|---|---|
+| A1 parallel checks | `scripts/check.mjs` gives every run its own c8 directories (`--temp-directory=coverage/tmp-<pid>`, `--report-dir=coverage/run-<pid>`), its own Playwright output directory (`CV_TEST_OUTPUT` = `test-results/run-<pid>`, read by `playwright.config.mjs` as `outputDir`) and, unless `CV_TEST_PORT` is set, a free port for the test server. The per-run directories are removed afterwards (the Playwright output only on green, so failure traces stay). The run id, port and c8 directory are printed first. | Two `node scripts/check.mjs` started in the same second (12:47:19, pids 21162 and 21163, ports 41181 and 38889): both exit 0, each 63/63 unit, c8 100 % lines / 92.94 % branches, 17/17 `@integration`; `coverage/` empty afterwards. |
+| W1 Duplex count | `derive-reference.mjs` derives a section `Ifc2x3_Duplex_Architecture` (STEP reader `scripts/ref/*`): 268 elements, per Kategorie. REQ-001-AC1 asserts the Modell counts `{FZK 99, Duplex 218}` = reference minus IfcOpeningElement, the status line `317 von 317`, and the Kategorie counts per model (Modell = FZK, then Modell = Duplex) against the reference. `countBy` over `__calc.rows` is no longer used. | `@REQ-001-AC1` pass (file, http) |
+| W2 catalogue count | New `AC20-FZK-Haus.propertyCarriers["BaseQuantities.Length"]` (14: IfcWallStandardCase 13, IfcBeam 1). REQ-003-AC1 asserts the catalogue count and the `(leer)` count (99 - 14) of the added set against it, not against `__calc.catalog`. | `@REQ-003-AC1` pass |
+| W3 IfcSlab on the top storey | New `AC20-FZK-Haus.elementsByGeschossAndKategorie`; REQ-004-AC3 asserts the shown rows and the IfcSlab count against `Dachgeschoss.IfcSlab` (3). | `@REQ-004-AC3` pass |
+| W4 robustness count and time | New section `NFR-001-name-filter` (needs the fetched fixtures): a Name value of Revit MEP + SampleCastle picked deterministically from the STEP text (`geveldrager`, 6 elements, GlobalIds listed). The test searches it, asserts the shown count, then checks it: `filter.count`, the filtered GlobalIds and the status line equal the reference. Besides `filter.lastMs` it now measures in the page from the click to the next animation frame (includes the 3D frame) and asserts both < 500 ms. | pass; filter 10.6-13.8 ms, click-to-frame 274 ms (one worker) and 397-403 ms (two workers) |
+| V1 `calt` | CSS rule: `font-feature-settings: "calt" 0, "liga" 0; font-variant-ligatures: none` on value labels, set titles, model names, catalogue names and groups, search inputs, table and details body. The search input was added because typing `2x3` showed `2×3` there too (screenshot). | New `@e2e @UI data text keeps its characters ...`: computed style on each kind of data text; fails with `"calt" 1`. |
+| V2 clear button | `.cv-search input::-webkit-search-cancel-button`: own cross (CSS mask, inline SVG data URI) in `--cv-muted`, `--cv-ink` on hover. | Same test: screenshot of the button area, decoded in the page; every ink pixel is grey (channel spread < 24) and not darker than the muted ink. Without the rule it fails (pixel `134,171,213`, Chromium blue). |
+| Drag auto-scroll | `createFilterArea`: while a set is dragged, `dragover` on the scrolling panel within 48 px of its top/bottom edge scrolls it per animation frame (up to 18 px, faster nearer the edge); stops on `dragend`/`drop` or when no `dragover` arrives for 400 ms. | New `@e2e @acceptance @REQ-003-AC2 dragging a set near the panel edge ...`: six sets, the target `BaseQuantities.Length` below the visible part; real pointer drag of Kategorie held at the bottom edge until the target is in view, drop on its lower half -> Kategorie last; then a drag held at the top edge scrolls back up and Escape cancels without a change. Fails with `EDGE = 0` (no scroll within 15 s). |
+
+Other changes:
+- `derive-reference.mjs` now writes the `why` text of element #35169 that the committed JSON already had ("member whose type object has no Name ..."), so `node scripts/ref/derive-reference.mjs --check` is green again (it reported a difference before this fix pass).
+- The reference JSON is generated only by `node scripts/ref/derive-reference.mjs`; no number was typed by hand.
+
+Commands run:
+- `node scripts/ref/derive-reference.mjs --check`: up to date.
+- `npx playwright test --grep "@acceptance|@e2e|@robustness|@smoke"` (projects file + http): 56 passed (5.9 min).
+- Two parallel `node scripts/check.mjs` (above) and a final single `node scripts/check.mjs`: all steps green.
+
+Open points:
+- Click-to-frame in the robustness test is ~400 ms with two Playwright workers, because the 3D view draws every frame (~300 ms per frame in headless software rendering). The 500 ms budget holds, but with little margin; P1 (render on demand) in TASK-005 removes it.
+
+## Orchestrator verification (follow-up fix pass)
+- Independent recheck in fresh context: A1, W1-W4, V1, V2 and drag auto-scroll all PASS (two parallel `check` runs exited 0; `derive-reference.mjs --check` up to date; filter specs 22/22 on both projects).
+- Observation carried to TASK-006a: in a scrolled filter panel, long value labels and the search field's right border are cut off at the right edge of the 280 px panel (F1).
+- TASK-004 done.

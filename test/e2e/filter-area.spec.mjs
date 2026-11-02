@@ -5,7 +5,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test, expect } from "../support/network-guard.mjs";
-import { REF, countBy, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
+import { REF, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
 import {
   addFilterSet,
   filterSet,
@@ -19,10 +19,16 @@ import {
 const FZK = fixture("AC20-FZK-Haus.ifc");
 const DUPLEX = fixture("Ifc2x3_Duplex_Architecture.ifc");
 const fzkRef = REF["AC20-FZK-Haus"];
+const duplexRef = REF.Ifc2x3_Duplex_Architecture;
 // every STEP element is a row except IfcOpeningElement (not an importer element class; TASK-002)
-const FZK_ROWS_BY_KATEGORIE = { ...fzkRef.elementsInStepTextByKategorie };
-delete FZK_ROWS_BY_KATEGORIE.IfcOpeningElement;
-const FZK_TOTAL = Object.values(FZK_ROWS_BY_KATEGORIE).reduce((a, b) => a + b, 0);
+const NOT_ROWS = ["IfcOpeningElement"];
+const rowsByKategorie = (byKategorie) =>
+  Object.fromEntries(Object.entries(byKategorie).filter(([k]) => !NOT_ROWS.includes(k)));
+const sum = (byKategorie) => Object.values(byKategorie).reduce((a, b) => a + b, 0);
+const FZK_ROWS_BY_KATEGORIE = rowsByKategorie(fzkRef.elementsInStepTextByKategorie);
+const FZK_TOTAL = sum(FZK_ROWS_BY_KATEGORIE);
+const DUPLEX_ROWS_BY_KATEGORIE = rowsByKategorie(duplexRef.elementsInStepTextByKategorie);
+const DUPLEX_TOTAL = sum(DUPLEX_ROWS_BY_KATEGORIE);
 const GROUND = fzkRef.filters["REQ-004-AC2"].groundFloorStorey.Name;
 const TOP = fzkRef.storeys.find((s) => s.Name !== GROUND).Name;
 
@@ -85,7 +91,10 @@ test("@e2e @acceptance @REQ-003-AC1 catalogue search `Length` adds `BaseQuantiti
   await dialog.getByRole("searchbox", { name: "Eigenschaft suchen" }).fill("Length");
   const entry = dialog.locator('.cv-cat-entry[data-key="BaseQuantities.Length"]');
   await expect(entry).toBeVisible();
-  const expectedCount = catalog.find((e) => e.key === "BaseQuantities.Length").count;
+  // reference: elements carrying BaseQuantities.Length (STEP text), restricted to the classes listed as rows
+  const lengthCarriers = rowsByKategorie(fzkRef.propertyCarriers["BaseQuantities.Length"].byKategorie);
+  const expectedCount = sum(lengthCarriers);
+  expect(expectedCount).toBeGreaterThan(0);
   await expect(entry.locator(".cv-cat-count")).toHaveText(de(expectedCount));
   const found = await dialog.locator(".cv-cat-entry:not([hidden])").evaluateAll((n) => n.map((e) => e.dataset.key));
   expect(found).toContain("BaseQuantities.Length");
@@ -99,8 +108,8 @@ test("@e2e @acceptance @REQ-003-AC1 catalogue search `Length` adds `BaseQuantiti
   await expect(set.locator(".cv-fs-unit")).toHaveText("(m)");
   const values = await shownValues(page, "BaseQuantities.Length");
   expect(values.length).toBeGreaterThan(1);
-  expect(values.reduce((sum, v) => sum + v.count, 0)).toBe(FZK_TOTAL); // single-valued: every row counted once
-  expect(values.at(-1).label).toBe("(leer)");
+  expect(values.reduce((n, v) => n + v.count, 0)).toBe(FZK_TOTAL); // single-valued: every row counted once
+  expect(values.at(-1)).toEqual({ label: "(leer)", count: FZK_TOTAL - expectedCount, checked: false });
 
   // Escape and the close button dismiss the dialog without adding anything
   await page.locator("#cv-add-filterset").click();
@@ -161,6 +170,69 @@ test("@e2e @acceptance @REQ-003-AC2 move up/down (buttons and drag and drop), co
   await expect(status(page)).toHaveText(`${de(FZK_TOTAL)} von ${de(FZK_TOTAL)} Elementen`);
 });
 
+test("@e2e @acceptance @REQ-003-AC2 dragging a set near the panel edge scrolls the filter panel to a target out of view", async ({
+  page,
+}) => {
+  await openBuilder(page);
+  await loadFiles(page, FZK);
+  await addFilterSet(page, "Name", "Name");
+  await addFilterSet(page, "Typ", "Typ");
+  await addFilterSet(page, "Length", "BaseQuantities.Length");
+  const panel = page.locator("#cv-filters");
+  const metrics = () =>
+    panel.evaluate((n) => ({ top: n.scrollTop, height: n.clientHeight, scrollHeight: n.scrollHeight }));
+  const m0 = await metrics();
+  expect(m0.top).toBe(0);
+  expect(m0.scrollHeight, "the sets overflow the panel").toBeGreaterThan(m0.height + 200);
+  const panelBox = await panel.boundingBox();
+  const target = filterSet(page, "BaseQuantities.Length");
+  const outOfView = async () => (await target.boundingBox()).y > panelBox.y + panelBox.height;
+  expect(await outOfView(), "target below the visible part of the panel").toBe(true);
+
+  // drag Kategorie (first) with real pointer moves; hold it near the bottom edge until the target is in view
+  const source = await filterSet(page, "Kategorie").locator(".cv-fs-head").boundingBox();
+  await page.mouse.move(source.x + 60, source.y + source.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(source.x + 60, source.y + source.height / 2 + 20, { steps: 4 });
+  const x = panelBox.x + 140;
+  const edgeY = panelBox.y + panelBox.height - 10;
+  const t0 = Date.now();
+  let wiggle = 0;
+  for (;;) {
+    await page.mouse.move(x + (wiggle++ % 2), edgeY); // dragover events keep the auto-scroll going
+    const box = await target.boundingBox();
+    if (box.y + box.height <= panelBox.y + panelBox.height - 12) break;
+    expect(Date.now() - t0, "panel scrolls while dragging near the bottom edge").toBeLessThan(15_000);
+    await page.waitForTimeout(50);
+  }
+  expect((await metrics()).top).toBeGreaterThan(0);
+  // drop on the lower half of the target: Kategorie becomes last
+  const box = await target.boundingBox();
+  await page.mouse.move(x, box.y + box.height - 6, { steps: 3 });
+  await page.mouse.move(x + 1, box.y + box.height - 6);
+  await page.mouse.up();
+  const order = ["Geschoss", "Material", "Name", "Typ", "BaseQuantities.Length", "Kategorie"];
+  expect(await page.evaluate(() => window.__calc.filter.sets.map((s) => s.key))).toEqual(order);
+  await expect(page.locator(".cv-fs.cv-dragging, .cv-fs.cv-drop-before, .cv-fs.cv-drop-after")).toHaveCount(0);
+
+  // near the top edge it scrolls back up
+  const head = await filterSet(page, "Kategorie").locator(".cv-fs-head").boundingBox();
+  await page.mouse.move(head.x + 60, head.y + head.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(head.x + 60, head.y + head.height / 2 - 20, { steps: 4 });
+  const before = (await metrics()).top;
+  const t1 = Date.now();
+  for (;;) {
+    await page.mouse.move(x + (wiggle++ % 2), panelBox.y + 8);
+    if ((await metrics()).top < before - 100) break;
+    expect(Date.now() - t1, "panel scrolls up while dragging near the top edge").toBeLessThan(15_000);
+    await page.waitForTimeout(50);
+  }
+  await page.keyboard.press("Escape"); // cancel the drag: order unchanged
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.__calc.filter.sets.map((s) => s.key))).toEqual(order);
+});
+
 test("@e2e @acceptance @REQ-004-AC1 @REQ-004-AC2 @REQ-004-AC3 @REQ-004-AC4 checking values filters the rows (filter sets)", async ({
   page,
 }) => {
@@ -206,7 +278,10 @@ test("@e2e @acceptance @REQ-004-AC1 @REQ-004-AC2 @REQ-004-AC3 @REQ-004-AC4 check
     const byKey = new Map(window.__calc.rows.map((r) => [r.key, r.values]));
     return window.__calc.filter.keys.map((k) => byKey.get(k));
   });
-  expect(shown.length).toBe(kat.find((v) => v.label === "IfcSlab").count);
+  const slabsOnTop = fzkRef.elementsByGeschossAndKategorie[TOP].IfcSlab; // reference, STEP text
+  expect(slabsOnTop).toBeGreaterThan(0);
+  expect(shown.length).toBe(slabsOnTop);
+  expect(kat.find((v) => v.label === "IfcSlab").count).toBe(slabsOnTop);
   for (const v of shown) expect([v.Kategorie, v.Geschoss]).toEqual(["IfcSlab", TOP]);
   await expect(status(page)).toHaveText(`${de(shown.length)} von ${de(FZK_TOTAL)} Elementen`);
   await shot(page, "03-checked-zero-ac3");
@@ -229,15 +304,21 @@ test("@e2e @acceptance @REQ-001-AC1 two models: a filter set `Modell` lists both
   await loadFiles(page, [FZK, DUPLEX]);
   expect(await page.evaluate(() => window.__calc.modelCount)).toBe(2);
   await addFilterSet(page, "Modell", "Modell");
-  const counts = await shownCounts(page, "Modell");
-  const perModel = await countBy(page, "Modell");
-  expect(Object.keys(counts)).toEqual(["AC20-FZK-Haus", "Ifc2x3_Duplex_Architecture"]);
-  expect(counts["AC20-FZK-Haus"]).toBe(FZK_TOTAL); // reference value
-  expect(counts.Ifc2x3_Duplex_Architecture).toBe(perModel.Ifc2x3_Duplex_Architecture);
+  // both counts are reference values (STEP text, scripts/ref): rows = STEP elements minus IfcOpeningElement
+  expect(await shownCounts(page, "Modell")).toEqual({
+    "AC20-FZK-Haus": FZK_TOTAL,
+    Ifc2x3_Duplex_Architecture: DUPLEX_TOTAL,
+  });
   await expect(page.locator("#cv-status-models")).toHaveText("2 Modelle");
-  const total = FZK_TOTAL + perModel.Ifc2x3_Duplex_Architecture;
+  const total = FZK_TOTAL + DUPLEX_TOTAL;
+  await expect(status(page)).toHaveText(`${de(total)} von ${de(total)} Elementen`);
   await toggleValue(page, "Modell", "AC20-FZK-Haus");
   await expect(status(page)).toHaveText(`${de(FZK_TOTAL)} von ${de(total)} Elementen`);
+  expect(await shownCounts(page, "Kategorie")).toEqual(FZK_ROWS_BY_KATEGORIE);
+  await toggleValue(page, "Modell", "AC20-FZK-Haus");
+  await toggleValue(page, "Modell", "Ifc2x3_Duplex_Architecture");
+  await expect(status(page)).toHaveText(`${de(DUPLEX_TOTAL)} von ${de(total)} Elementen`);
+  expect(await shownCounts(page, "Kategorie")).toEqual(DUPLEX_ROWS_BY_KATEGORIE);
   await shot(page, "04-two-models-modell-set");
 });
 
@@ -322,6 +403,78 @@ test("@e2e @UI screen layout: header, filter area ~280 px, details ~320 px colla
     "rgb(236, 238, 240)",
   );
   await expect(page.locator("#cv-load")).toHaveCSS("background-color", "rgb(215, 38, 34)");
+});
+
+/** Pixels [r, g, b] of a PNG, decoded in the page (no image library in the test tooling). */
+function pixelsOf(page, png) {
+  return page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = "data:image/png;base64," + b64;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, img.width, img.height).data;
+    const out = [];
+    for (let i = 0; i < data.length; i += 4) out.push([data[i], data[i + 1], data[i + 2]]);
+    return out;
+  }, png.toString("base64"));
+}
+
+test("@e2e @UI data text keeps its characters (no calt/liga); search clear button in the UI-02 muted ink", async ({
+  page,
+}) => {
+  await openBuilder(page);
+  await loadFiles(page, FZK);
+  await addFilterSet(page, "Name", "Name");
+  // V1: contextual alternates and ligatures off on every kind of data text
+  for (const sel of [
+    ".cv-fs-label",
+    ".cv-fs-title",
+    ".cv-model-name",
+    ".cv-search input",
+    "#cv-table",
+    "#cv-details .cv-details-body",
+  ]) {
+    const style = await page
+      .locator(sel)
+      .first()
+      .evaluate((n) => {
+        const s = getComputedStyle(n);
+        return { features: s.fontFeatureSettings, ligatures: s.fontVariantLigatures };
+      });
+    expect(style, sel).toEqual({ features: '"calt" 0, "liga" 0', ligatures: "none" });
+  }
+  await page.locator("#cv-add-filterset").click();
+  const dialog = page.getByRole("dialog", { name: "Filtersatz hinzufügen" });
+  for (const sel of [".cv-cat-name", ".cv-cat-group"])
+    expect(
+      await dialog
+        .locator(sel)
+        .first()
+        .evaluate((n) => getComputedStyle(n).fontFeatureSettings),
+      sel,
+    ).toBe('"calt" 0, "liga" 0');
+  await page.keyboard.press("Escape");
+
+  // V2: the clear button of a search field (shown once it has text) is drawn in grey ink, not the Chromium blue
+  const search = filterSet(page, "Name").locator(".cv-search");
+  await search.getByRole("searchbox").fill("2x3");
+  await search.getByRole("searchbox").focus();
+  const box = await search.boundingBox();
+  const png = await page.screenshot({
+    clip: { x: box.x + box.width - 28, y: box.y + 4, width: 24, height: box.height - 8 },
+  });
+  if (process.env.CV_SHOT_DIR) await search.screenshot({ path: join(process.env.CV_SHOT_DIR, "08-search-clear.png") });
+  const ink = (await pixelsOf(page, png)).filter(([r, g, b]) => Math.min(r, g, b) < 200);
+  expect(ink.length, "clear button drawn").toBeGreaterThan(10);
+  for (const [r, g, b] of ink)
+    expect(Math.max(r, g, b) - Math.min(r, g, b), `grey pixel ${r},${g},${b}`).toBeLessThan(24);
+  const darkest = Math.min(...ink.map(([r, g, b]) => r + g + b));
+  expect(darkest / 3, "muted ink (#6b6f73), not black").toBeGreaterThan(0x5a);
+  await search.getByRole("searchbox").fill("");
 });
 
 test("@e2e @UI the builder with FZK loaded and filters active (screenshots for review)", async ({ page }) => {

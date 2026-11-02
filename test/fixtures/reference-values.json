@@ -1,6 +1,6 @@
 {
   "meta": {
-    "purpose": "Reference values for REQ-002-AC1/AC6/AC7, REQ-004-AC1/AC2 and REQ-006-AC1 (spec Testing -> Test data)",
+    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1 and NFR-001 (spec Testing -> Test data)",
     "generatedBy": "node scripts/ref/derive-reference.mjs",
     "method": "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
     "reviewedBy": "fresh-context tester (not the TASK-002 implementer)",
@@ -53,6 +53,36 @@
         "elevation": 2.7
       }
     ],
+    "elementsByGeschossAndKategorie": {
+      "Dachgeschoss": {
+        "IfcAnnotation": 2,
+        "IfcBeam": 3,
+        "IfcMember": 42,
+        "IfcRailing": 2,
+        "IfcSlab": 3,
+        "IfcWallStandardCase": 4,
+        "IfcWindow": 2
+      },
+      "Erdgeschoss": {
+        "IfcAnnotation": 12,
+        "IfcBeam": 1,
+        "IfcDoor": 5,
+        "IfcSlab": 1,
+        "IfcStair": 1,
+        "IfcWallStandardCase": 9,
+        "IfcWindow": 9
+      }
+    },
+    "propertyCarriers": {
+      "note": "Elements whose properties contain the key (occurrence or type), per Kategorie; the catalogue count of a property is the sum over the classes the extractor lists as rows",
+      "BaseQuantities.Length": {
+        "count": 14,
+        "byKategorie": {
+          "IfcBeam": 1,
+          "IfcWallStandardCase": 13
+        }
+      }
+    },
     "elements": [
       {
         "why": "wall, single-layer IfcMaterialLayerSetUsage, ground floor",
@@ -504,6 +534,44 @@
       "bothLoaded": "header 'CalcTest_Units.Masse (gemischt)', unit gemischt, no group/total sums for this column"
     }
   },
+  "Ifc2x3_Duplex_Architecture": {
+    "file": "Ifc2x3_Duplex_Architecture.ifc",
+    "schema": "IFC2X3",
+    "elementsInStepText": 268,
+    "elementsInStepTextByKategorie": {
+      "IfcBeam": 8,
+      "IfcCovering": 13,
+      "IfcDoor": 14,
+      "IfcFooting": 7,
+      "IfcFurnishingElement": 61,
+      "IfcMember": 4,
+      "IfcOpeningElement": 50,
+      "IfcRailing": 4,
+      "IfcRoof": 1,
+      "IfcSlab": 21,
+      "IfcStair": 2,
+      "IfcStairFlight": 2,
+      "IfcWall": 1,
+      "IfcWallStandardCase": 56,
+      "IfcWindow": 24
+    },
+    "note": "Row count of the model = elementsInStepText minus the classes of elementsInStepTextByKategorie the extractor does not list as rows (IfcOpeningElement; REQ-001-AC1 Modell set)"
+  },
+  "REQ-005-AC4": {
+    "file": "Ifc2x3_Duplex_Architecture.ifc",
+    "element": {
+      "stepId": 4131,
+      "GlobalId": "2O2Fr$t4X7Zf8NOew3FNld",
+      "Kategorie": "IfcWallStandardCase",
+      "Name": "Basic Wall:Interior - Partition (92mm Stud):138584",
+      "Material": [
+        "Metal - Stud Layer",
+        "Plasterboard"
+      ]
+    },
+    "elementsWithSeveralMaterials": 80,
+    "note": "Material = sorted distinct IfcMaterial names (layer set usage); this element has two, so colouring by Material gives it the `mehrere Werte` colour"
+  },
   "REQ-002-AC7": {
     "file": "Ifc2x3_SampleCastle.ifc",
     "schema": "IFC2X3",
@@ -540,5 +608,30 @@
     },
     "statusLine": "2.000 von <Y> Elementen",
     "note": "Single Kategorie filter set with four checked values (OR). No single value or Kategorie x Geschoss/Material/Typ combination of the fetched fixtures gives exactly 2,000. The four counts equal the counts in the spike's fragments table (spike-extraction-check/out/mep.frag.table.json), so they do not depend on geometry. Y (all rows) depends on the extractor's class set and the IfcSpace option and is read from window.__calc at test time."
+  },
+  "NFR-001-name-filter": {
+    "files": [
+      "Ifc4_Revit_MEP.ifc",
+      "Ifc2x3_SampleCastle.ifc"
+    ],
+    "filter": {
+      "Name": [
+        "geveldrager"
+      ]
+    },
+    "expectedCount": 6,
+    "expectedGlobalIds": [
+      "1K5dIu2nnC8uHIMCP4p_mJ",
+      "1nkBTQxQ52TerLh7DOjRh6",
+      "2Du$joV9XChBACVeEuRrVe",
+      "2hmBGtlFT17AQbvvLa0rD0",
+      "30hxmiOx15DRzAggBisbdA",
+      "3_sm0$DsvDaRlGqGW8ep4k"
+    ],
+    "byKategorie": {
+      "IfcBeam": 3,
+      "IfcMember": 3
+    },
+    "note": "Name value chosen as the median of the sorted Name values that have 2..50 elements, none of a conditional class"
   }
 }

@@ -2,8 +2,8 @@
 // a filter set on `Name` (about one value per element) on a large fetched fixture stays responsive while searching and
 // scrolling, and the catalogue stays virtualised; HTML/script strings from IFC values are rendered as text (no XSS).
 import { test, expect } from "../support/network-guard.mjs";
-import { fetched, loadFiles, openBuilder } from "../support/builder.mjs";
-import { addFilterSet, filterSet, shownValues, toggleValue } from "../support/filter-area.mjs";
+import { REF, fetched, loadFiles, openBuilder } from "../support/builder.mjs";
+import { addFilterSet, filterSet, filteredGuids, shownValues, toggleValue } from "../support/filter-area.mjs";
 import { XSS_FILE_NAME, XSS_NAMES, XSS_PSET, xssFixture } from "../support/xss-fixture.mjs";
 
 const MAX_POOL_ROWS = 10 + 2 * 6 + 2; // visible rows + overscan on both sides (+ rounding)
@@ -79,13 +79,34 @@ test("@robustness @NFR-001 Name filter set on Revit MEP + SampleCastle (thousand
   expect(found.length).toBe(Math.min(expectedMatches, 10 + 6)); // 10 visible rows + overscan below the top
   for (const v of found) expect(v.label.toLowerCase()).toContain(query.toLowerCase());
 
-  // check one search result: the filter applies within the NFR-001 budget
-  await toggleValue(page, "Name", found[0].label);
-  expect(await page.evaluate(() => window.__calc.filter.count)).toBe(found[0].count);
-  expect(await page.evaluate(() => window.__calc.filter.lastMs)).toBeLessThan(500);
+  // check the reference Name value (scripts/ref, STEP text): count and GlobalIds equal the reference; the filter
+  // applies within the NFR-001 budget, measured in the page from the click to the next drawn frame
+  const ref = REF["NFR-001-name-filter"];
+  const [name] = ref.filter.Name;
+  await set.getByRole("searchbox").fill(name);
+  const hit = (await shownValues(page, "Name")).find((v) => v.label === name);
+  expect(hit).toEqual({ label: name, count: ref.expectedCount, checked: false });
+  const before = await page.evaluate(() => window.__calc.filter.updates);
+  const clickToFrame = await set.getByRole("checkbox", { name, exact: true }).evaluate(
+    (box) =>
+      new Promise((resolve) => {
+        const t0 = performance.now();
+        box.click(); // synchronous change handler: filters evaluated, lists and status line updated
+        requestAnimationFrame(() => setTimeout(() => resolve(performance.now() - t0), 0));
+      }),
+  );
+  expect(await page.evaluate(() => window.__calc.filter.updates)).toBeGreaterThan(before);
+  expect(await page.evaluate(() => window.__calc.filter.count)).toBe(ref.expectedCount);
+  expect(await filteredGuids(page)).toEqual(ref.expectedGlobalIds);
+  await expect(page.locator("#cv-status")).toHaveText(
+    `${ref.expectedCount.toLocaleString("de-DE")} von ${total.toLocaleString("de-DE")} Elementen`,
+  );
+  const filterMs = await page.evaluate(() => window.__calc.filter.lastMs);
+  expect(filterMs).toBeLessThan(500);
+  expect(clickToFrame).toBeLessThan(500);
   console.log(
     `[robustness] MEP+Castle rows=${total} catalogue=${catalogSize} Name values=${values} scroll=${scroll.ms.toFixed(1)} ms ` +
-      `search=${search.ms.toFixed(1)} ms filter=${(await page.evaluate(() => window.__calc.filter.lastMs)).toFixed(1)} ms`,
+      `search=${search.ms.toFixed(1)} ms filter=${filterMs.toFixed(1)} ms click-to-frame=${clickToFrame.toFixed(1)} ms`,
   );
   expect(errors).toEqual([]);
 });

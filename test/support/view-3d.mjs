@@ -1,0 +1,124 @@
+// Helpers for browser tests of the 3D view (TASK-005): CalcView.state() (spec 4.4) as plain data, waiting until the
+// queued engine calls are done and drawn, canvas screenshots and pixel comparison.
+import { expect } from "./network-guard.mjs";
+
+/** Waits until every queued engine call is done and a frame showing the result has been drawn. */
+export function idle(page) {
+  return page.evaluate(() => window.CalcView.whenIdle());
+}
+
+/**
+ * CalcView.state() as plain data: { mode, opaque, ghost, hidden, selected (sorted key arrays), colours ({ key -> hex }),
+ * section }.
+ */
+export async function viewState(page) {
+  await idle(page);
+  return page.evaluate(() => {
+    const s = window.CalcView.state();
+    const sorted = (set) => [...set].sort();
+    return {
+      mode: s.mode,
+      opaque: sorted(s.opaque),
+      ghost: sorted(s.ghost),
+      hidden: sorted(s.hidden),
+      selected: sorted(s.selected),
+      colours: Object.fromEntries(s.colours),
+      section: s.section,
+    };
+  });
+}
+
+/** { key -> row } for the rows of window.__calc (plain objects). */
+export async function rowsByKey(page) {
+  const rows = await page.evaluate(() => window.__calc.rows);
+  return new Map(rows.map((r) => [r.key, r]));
+}
+
+/** Keys of the rows with the given GlobalIds, in the order of guids. */
+export async function keysOfGuids(page, guids) {
+  return page.evaluate((list) => list.map((g) => window.__calc.rows.find((r) => r.guid === g)?.key ?? null), guids);
+}
+
+const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend { visibility: hidden !important; }" };
+
+/** PNG screenshot of the 3D canvas only (controls and legend hidden), after the view is idle. */
+export async function canvasShot(page) {
+  await idle(page);
+  return page.locator("#cv-viewport canvas").screenshot(CANVAS_ONLY);
+}
+
+/**
+ * Share of pixels that differ (sum of the channel differences > 12; a ghost at 12 % opacity changes the background by
+ * about 25) between two PNG screenshots.
+ */
+export function pixelDifference(page, a, b) {
+  return page.evaluate(
+    async ([pa, pb]) => {
+      const decode = async (b64) => {
+        const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(bitmap, 0, 0);
+        return ctx.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      };
+      const [da, db] = await Promise.all([decode(pa), decode(pb)]);
+      if (da.length !== db.length) return 1;
+      let differing = 0;
+      for (let i = 0; i < da.length; i += 4) {
+        const d = Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]);
+        if (d > 12) differing++;
+      }
+      return differing / (da.length / 4);
+    },
+    [a.toString("base64"), b.toString("base64")],
+  );
+}
+
+/** Opens `Faerben nach`, searches `query` and picks the property `key`. */
+export async function colourBy(page, query, key) {
+  await page.locator("#cv-colour").click();
+  const dialog = page.getByRole("dialog", { name: "Färben nach" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("searchbox", { name: "Eigenschaft suchen" }).fill(query);
+  await dialog.locator(`.cv-cat-entry[data-key="${key}"]`).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator("#cv-colour")).toHaveAccessibleName(new RegExp(`^Färben nach: ${key}`));
+}
+
+/** Legend entries as rendered: [{ label, colour, count, kind }]. */
+export function legendEntries(page) {
+  return page.locator("#cv-legend .cv-legend-item").evaluateAll((items) =>
+    items.map((li) => ({
+      label: li.querySelector(".cv-legend-label").textContent,
+      colour: li.dataset.colour,
+      count: Number(li.querySelector(".cv-legend-count").textContent.replace(/\./g, "")),
+      kind: li.dataset.kind,
+    })),
+  );
+}
+
+/** Colour dots of the rendered value rows of a filter set: { label -> colour ('' if none) } (CSS rgb -> hex). */
+export function setDots(page, key) {
+  return page.evaluate((k) => {
+    const hex = (css) => {
+      const m = /rgb\((\d+), (\d+), (\d+)\)/.exec(css);
+      return m
+        ? "#" +
+            m
+              .slice(1)
+              .map((x) => Number(x).toString(16).padStart(2, "0"))
+              .join("")
+        : "";
+    };
+    const out = {};
+    for (const row of document.querySelectorAll(`.cv-fs[data-key="${k}"] .cv-fs-value`)) {
+      if (row.hidden) continue;
+      const dot = row.querySelector(".cv-dot");
+      out[row.querySelector(".cv-fs-label").textContent] = dot.classList.contains("cv-dot-on")
+        ? hex(dot.style.background)
+        : "";
+    }
+    return out;
+  }, key);
+}
