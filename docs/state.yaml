@@ -24,9 +24,10 @@ blocking_questions: []
 active_changes: []
 pending_release: []
 reserved_ids: {}
-next_action: "Spikes running (extraction ASM-005, xlsx/offline export ASM-004, test harness) in the session scratchpad; when done, write docs/spec.md (lean) from docs/intake/* and the spike results, record spike findings in docs/spec.md §4/§7, fill AGENTS.md §4, then run an independent spec review."
+next_action: "Spec draft written (docs/spec.md). Independent spec review (3 lenses + verification) running; apply confirmed findings to docs/spec.md, set spec status approved (agent gate), fill AGENTS.md §4, then start implementation with TASK-001."
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
   - {date: 2026-11-02, event: "intake approved by human; spec started"}
   - {date: 2026-11-02, event: "spec: feasibility spikes started (ASM-004, ASM-005, test harness)"}
+  - {date: 2026-11-02, event: "spec draft written; spikes confirmed ASM-004/ASM-005; independent spec review started"}
