@@ -25,7 +25,7 @@ blocking_questions: []
 active_changes: []
 pending_release: []
 reserved_ids: {}
-next_action: "TASK-006a (table single-element view, D2 decimal-comma range parsing, full table+3D coupling; plus TASK-004/005 follow-ups F1, L1-L4) with independent verification."
+next_action: "TASK-006a (table, D2, follow-ups F1, L1-L4) then TASK-006b (grouping), each with independent verification and one fix round (workflow running)."
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
