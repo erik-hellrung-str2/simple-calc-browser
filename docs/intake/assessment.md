@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 date: 2026-11-02
 relates_to: [C00, C02, C04, C05, C08, C09, C11, F-01, F-02, F-03, F-04]
 ---
@@ -50,3 +50,9 @@ relates_to: [C00, C02, C04, C05, C08, C09, C11, F-01, F-02, F-03, F-04]
 | Date | Trigger | Changed scores | Tier before → after |
 |---|---|---|---|
 | 2026-11-02 | user override at tier confirmation | none | M (proposed) → S |
+
+## Change history
+
+| Date | Change | By |
+|---|---|---|
+| 2026-11-02 | approved at intake gate | human |

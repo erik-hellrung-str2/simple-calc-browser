@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 relates_to: [C00, C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11, C99]
 ---
 # Intake answers
@@ -124,3 +124,9 @@ Required needs for tier S (XS+S; functional at M): 17 · covered: 17 · detail q
 - Last completed: round 2 (export, save/load, multiple models, lifetime)
 - Last completed: closing C99 — interview complete
 - Next: intake gate approval, then spec
+
+## Change history
+
+| Date | Change | By |
+|---|---|---|
+| 2026-11-02 | approved at intake gate | human |
