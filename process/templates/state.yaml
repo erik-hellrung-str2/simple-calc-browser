@@ -1,0 +1,42 @@
+# Process state. Owner: orchestrator (sole writer). Update after every unit of work.
+# Keep it small: details live in docs/, this file only says where the process stands.
+project: <name>
+created: <YYYY-MM-DD>
+tier: <XS|S|M|L>
+track: <lean|standard|full>
+autonomy: <guided|standard|autonomous>
+modifiers: []                 # spikes | contracts_first | brownfield | threat_model | ui | parallel
+cycle: 1                      # delivery cycle; +1 for every feature-size change (process/kernel.md §4)
+
+current_phase: requirements   # intake | spec | requirements | design | planning | implementation | verification | testing | release | maintenance (after a release)
+current_increment: null       # INC-# during implementation/verification
+resume_after: null            # set by /change when jumping back; phase to return to afterwards
+
+# Only the phases of the selected track, in order — for the current cycle (reset when a new cycle starts; earlier cycles stay in history).
+#   Lean:          intake, spec, implementation, verification (once: spec–code sync + self-review), testing, release
+#   Standard/Full: intake, requirements, design, planning, implementation, verification, testing, release
+# status: todo | in_progress | awaiting_approval | done | skipped
+# gate:   human | agent  (process/kernel.md §6, for the chosen autonomy)
+phases:
+  - {id: intake,         status: done, gate: human, approval: {by: human, date: <YYYY-MM-DD>, note: ""}}
+  - {id: requirements,   status: todo, gate: human}
+  - {id: design,         status: todo, gate: human}
+  - {id: planning,       status: todo, gate: agent}
+  - {id: implementation, status: todo, gate: agent}
+  - {id: verification,   status: todo, gate: agent}
+  - {id: testing,        status: todo, gate: agent}
+  - {id: release,        status: todo, gate: human}
+
+# Filled in by planning. Implementation and verification loop over these.
+increments: []                # - {id: INC-1, cycle: 1, status: todo|in_progress|awaiting_approval|done, gate: agent|human}  (INC numbers continue across cycles)
+
+blocking_questions: []        # Q-### IDs that stop all progress
+
+# Change requests currently awaiting approval, approved, queued or in progress (process/calibration/change.md §8).
+active_changes: []            # - {id: CR-003, size: change|feature, status: awaiting_approval|approved|queued|in_progress, depends_on: [CR-001], branch: change/CR-003-x, locks: [docs/requirements/requirements.md#REQ-012, src/billing/]}
+pending_release: []           # verified CRs waiting for the next release (maintenance)
+reserved_ids: {}              # IDs reserved by the orchestrator for parallel work, e.g. {TASK: [TASK-031, TASK-032], BUG: [BUG-007]}
+next_action: "<one concrete instruction a fresh agent can execute without further context>"
+
+history:
+  - {date: <YYYY-MM-DD>, event: "intake complete, Tier <x>"}

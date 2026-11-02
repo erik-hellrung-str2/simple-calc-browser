@@ -1,0 +1,3 @@
+# /status
+
+Read-only. Report from `docs/state.yaml` (and plan, register, test report where relevant): project, tier and track, autonomy, delivery cycle, current phase (or maintenance with verified changes waiting for the next release) and increment, phase overview, task progress, testing progress, active/queued/deferred changes, what is waiting on the user, open questions and assumptions, next action. Compact, one screen. Open questions are listed as facts by ID and topic (`Q-003 payment provider — open`), not as questions. If a decision waits on the user, end by asking that decision itself with its real options (`process/kernel.md` §6) plus "Later" — the one exception to read-only: an answer is processed as `/approve`. No state → "Not started. Run /start."

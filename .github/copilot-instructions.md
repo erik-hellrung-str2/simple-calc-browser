@@ -1,0 +1,1 @@
+Follow the instructions in `AGENTS.md` at the repository root. They define the commands (`/start`, `/next`, `/status`, `/approve`, `/change`, `/rollback`), the session protocol and the delivery process in `process/`.

@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# Runs the project's fail-fast check (AGENTS.md §4 → commands.check) before every commit.
+# Enable once per clone: git config core.hooksPath .githooks   (process/kernel.md §2 → Checks)
+# Skip only for commits that contain no code (e.g. pure docs) — never to commit a red check.
+root=$(git rev-parse --show-toplevel) || exit 1
+cmd=$(sed -n 's/^[[:space:]]*check:[[:space:]]*//p' "$root/AGENTS.md" | head -n 1 | sed 's/[[:space:]]#.*$//; s/[[:space:]]*$//; s/^"\(.*\)"$/\1/')
+if [ -z "$cmd" ] || [ "$cmd" = "TBD" ]; then
+  exit 0  # project not configured yet (before design)
+fi
+cd "$root" || exit 1
+if ! sh -c "$cmd"; then
+  echo "pre-commit: '$cmd' failed — commit refused (process/kernel.md §2 → Checks)." >&2
+  exit 1
+fi
