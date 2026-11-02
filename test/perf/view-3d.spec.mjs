@@ -7,7 +7,7 @@
 //   frame   = the last such frame before the view is idle (complete result)                      -> asserted < 500 ms
 //   idle    = CalcView.whenIdle(): two further Fragments refreshes and a frame (upper bound)       -> recorded
 // Chromium headless with software WebGL (one frame about 280 ms). Runs in the `file` project only (the user's path).
-import { test, expect } from "../support/network-guard.mjs";
+import { test, expect } from "../support/perf-lock.mjs";
 import { fetched, loadFiles, openBuilder } from "../support/builder.mjs";
 import { filterSet } from "../support/filter-area.mjs";
 import { colourBy, idle, viewState } from "../support/view-3d.mjs";

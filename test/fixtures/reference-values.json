@@ -1,6 +1,6 @@
 {
   "meta": {
-    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1 and NFR-001 (spec Testing -> Test data)",
+    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10 and NFR-001 (spec Testing -> Test data)",
     "generatedBy": "node scripts/ref/derive-reference.mjs",
     "method": "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
     "reviewedBy": "fresh-context tester (not the TASK-002 implementer)",
@@ -325,6 +325,46 @@
         "quantities": {}
       }
     ],
+    "spaces": {
+      "note": "IfcSpace instances of the STEP text: rows only with the option `Räume (IfcSpace) einbeziehen` (DEC-13, REQ-001-AC4)",
+      "count": 7,
+      "GlobalIds": [
+        "0Lt8gR_E9ESeGH5uY_g9e9",
+        "0e_hbkIQ5DMQlIJ$2V3j_m",
+        "17JZcMFrf5tOftUTidA0d3",
+        "2RSCzLOBz4FAK$_wE8VckM",
+        "2dQFggKBb1fOc1CqZDIDlx",
+        "3$f2p7VyLB7eox67SA_zKE",
+        "347jFE2yX7IhCEIALmupEH"
+      ]
+    },
+    "columnValues": {
+      "note": "Values per GlobalId of the elements that carry the property (others have no value: empty cells, sorted last)",
+      "BaseQuantities.NetVolume": {
+        "unit": "m³",
+        "carriers": 18,
+        "byGlobalId": {
+          "2XPyKWY018sA1ygZKgQPtU": 2.49624,
+          "3PfS__Y_DBAfq5naM6zD2Z": 2.909316,
+          "2ptk1k7qn8_Qk22vjh$0DE": 2.226,
+          "3jjW3rL656ex34Gws22EfM": 3.412152,
+          "3tCgZT92j6fw8fXgwCL3Jm": 0.195838108894,
+          "1$wmdwWPjDYuku_ghVkynE": 2.08896189111,
+          "3rPX_Juz59peXXY6wDJl18": 5.80797,
+          "16DNNqzfP2thtfaOflvsKA": 6.604875,
+          "25fsbPyk15VvuXI$yNKenK": 6.417,
+          "1bzfVsJqn8De5PukCrqylz": 7.317,
+          "1pPHnf7cXCpPsNEnQf8_6B": 24,
+          "2RGlQk4xH47RHK93zcTzUL": 19.9671549157,
+          "07Enbsqm9C7AQC9iyBwfSD": 16.5122177149,
+          "2IxUUNUVPB6Ob$eicCfP2N": 16.5122177149,
+          "0knNIAVBPBFvBy_m5QVHsU": 5.54440602973,
+          "25OWQvmXj5BPgyergP43tY": 2.05637684052,
+          "3VCarUKgH1buLo22Ozxe6J": 5.54440602973,
+          "3Ttjr$59XEWfWN1WUHjelZ": 2.05637684052
+        }
+      }
+    },
     "conditionalElements": [
       {
         "why": "IfcVirtualElement: no storey, no material, no representation in the IFC. Assert only if the extractor lists IfcVirtualElement as rows; then Geschoss, Material empty and Geometrie = Nein",
@@ -429,6 +469,23 @@
           "IfcAnnotation": 12
         },
         "note": "With Geschoss = ground floor checked, the Kategorie filter set lists exactly kategorieCountsOnGroundFloor, plus each class of kategorieCountsOnGroundFloorConditional that the extractor lists as rows (IfcSpace only with the IfcSpace option on; the ground floor aggregates 6 IfcSpace)."
+      },
+      "REQ-006-AC4": {
+        "column": "Name",
+        "values": [
+          "Wand-Ext-ERDG-1"
+        ],
+        "expectedCount": 1,
+        "expectedGlobalIds": [
+          "3rPX_Juz59peXXY6wDJl18"
+        ],
+        "byKategorie": {
+          "IfcWallStandardCase": 1
+        },
+        "byGeschoss": {
+          "Erdgeschoss": 1
+        },
+        "note": "Column filter on Name with the name of reference element #21966; every element with exactly this Name"
       }
     }
   },
@@ -571,6 +628,554 @@
     },
     "elementsWithSeveralMaterials": 80,
     "note": "Material = sorted distinct IfcMaterial names (layer set usage); this element has two, so colouring by Material gives it the `mehrere Werte` colour"
+  },
+  "REQ-006-AC9": {
+    "file": "fzk-range.ifc",
+    "property": "CalcTest_Range.Wert",
+    "byGlobalId": {
+      "2XPyKWY018sA1ygZKgQPtU": 1.9,
+      "3PfS__Y_DBAfq5naM6zD2Z": 2,
+      "2ptk1k7qn8_Qk22vjh$0DE": 2.5,
+      "3jjW3rL656ex34Gws22EfM": 3.5,
+      "1$wmdwWPjDYuku_ghVkynE": 5,
+      "3rPX_Juz59peXXY6wDJl18": 5.1
+    },
+    "elementsWithoutValue": 110,
+    "von 2 bis 5": {
+      "min": 2,
+      "max": 5,
+      "expectedGlobalIds": [
+        "1$wmdwWPjDYuku_ghVkynE",
+        "2ptk1k7qn8_Qk22vjh$0DE",
+        "3PfS__Y_DBAfq5naM6zD2Z",
+        "3jjW3rL656ex34Gws22EfM"
+      ]
+    },
+    "von 2,5": {
+      "input": "2,5",
+      "min": 2.5,
+      "max": null,
+      "expectedGlobalIds": [
+        "1$wmdwWPjDYuku_ghVkynE",
+        "2ptk1k7qn8_Qk22vjh$0DE",
+        "3jjW3rL656ex34Gws22EfM",
+        "3rPX_Juz59peXXY6wDJl18"
+      ]
+    },
+    "note": "Bounds inclusive; elements without a value are excluded while a bound is set (DEC-17)"
+  },
+  "REQ-006-grouping-fzk": {
+    "file": "AC20-FZK-Haus.ifc",
+    "levels": [
+      "Kategorie",
+      "Geschoss"
+    ],
+    "column": "BaseQuantities.NetVolume",
+    "unit": "m³",
+    "byKategorie": {
+      "IfcAnnotation": {
+        "count": 14,
+        "volume": null,
+        "common": {
+          "Geschoss": null,
+          "Name": null,
+          "Typ": null
+        },
+        "byGeschoss": {
+          "Dachgeschoss": {
+            "count": 2,
+            "volume": null,
+            "common": {
+              "Typ": null
+            }
+          },
+          "Erdgeschoss": {
+            "count": 12,
+            "volume": null,
+            "common": {
+              "Typ": null
+            }
+          }
+        }
+      },
+      "IfcBeam": {
+        "count": 4,
+        "volume": 0.195838108894,
+        "common": {
+          "Geschoss": null,
+          "Name": null,
+          "Typ": null
+        },
+        "byGeschoss": {
+          "Dachgeschoss": {
+            "count": 3,
+            "volume": null,
+            "common": {
+              "Typ": null
+            }
+          },
+          "Erdgeschoss": {
+            "count": 1,
+            "volume": 0.195838108894,
+            "common": {
+              "Typ": "Radial Gradient Fill 1515460218 200 x 240"
+            }
+          }
+        }
+      },
+      "IfcDoor": {
+        "count": 5,
+        "volume": null,
+        "common": {
+          "Geschoss": "Erdgeschoss",
+          "Name": null,
+          "Typ": null
+        },
+        "byGeschoss": {
+          "Erdgeschoss": {
+            "count": 5,
+            "volume": null,
+            "common": {
+              "Typ": null
+            }
+          }
+        }
+      },
+      "IfcMember": {
+        "count": 42,
+        "volume": null,
+        "common": {
+          "Geschoss": "Dachgeschoss",
+          "Name": null,
+          "Typ": null
+        },
+        "byGeschoss": {
+          "Dachgeschoss": {
+            "count": 42,
+            "volume": null,
+            "common": {
+              "Typ": null
+            }
+          }
+        }
+      },
+      "IfcOpeningElement": {
+        "count": 17,
+        "volume": null,
+        "common": {
+          "Geschoss": null,
+          "Name": null,
+          "Typ": null
+        },
+        "byGeschoss": {
+          "(leer)": {
+            "count": 17,
+            "volume": null,
+            "common": {
+              "Typ": null
+            }
+          }
+        }
+      },
+      "IfcRailing": {
+        "count": 2,
+        "volume": null,
+        "common": {
+          "Geschoss": "Dachgeschoss",
+          "Name": null,
+          "Typ": "Geländer_horizontal 13"
+        },
+        "byGeschoss": {
+          "Dachgeschoss": {
+            "count": 2,
+            "volume": null,
+            "common": {
+              "Typ": "Geländer_horizontal 13"
+            }
+          }
+        }
+      },
+      "IfcSlab": {
+        "count": 4,
+        "volume": 76.9915903455,
+        "common": {
+          "Geschoss": null,
+          "Name": null,
+          "Typ": null
+        },
+        "byGeschoss": {
+          "Dachgeschoss": {
+            "count": 3,
+            "volume": 52.9915903455,
+            "common": {
+              "Typ": "Solid 397409098 200"
+            }
+          },
+          "Erdgeschoss": {
+            "count": 1,
+            "volume": 24,
+            "common": {
+              "Typ": "Stahlbeton 65690 200"
+            }
+          }
+        }
+      },
+      "IfcStair": {
+        "count": 1,
+        "volume": null,
+        "common": {
+          "Geschoss": "Erdgeschoss",
+          "Name": "Wendeltreppe",
+          "Typ": null
+        },
+        "byGeschoss": {
+          "Erdgeschoss": {
+            "count": 1,
+            "volume": null,
+            "common": {
+              "Typ": null
+            }
+          }
+        }
+      },
+      "IfcVirtualElement": {
+        "count": 3,
+        "volume": null,
+        "common": {
+          "Geschoss": null,
+          "Name": null,
+          "Typ": null
+        },
+        "byGeschoss": {
+          "(leer)": {
+            "count": 3,
+            "volume": null,
+            "common": {
+              "Typ": null
+            }
+          }
+        }
+      },
+      "IfcWallStandardCase": {
+        "count": 13,
+        "volume": 54.4810806316,
+        "common": {
+          "Geschoss": null,
+          "Name": null,
+          "Typ": null
+        },
+        "byGeschoss": {
+          "Dachgeschoss": {
+            "count": 4,
+            "volume": 15.2015657405,
+            "common": {
+              "Typ": "Leichtbeton 102890359 300"
+            }
+          },
+          "Erdgeschoss": {
+            "count": 9,
+            "volume": 39.2795148911,
+            "common": {
+              "Typ": null
+            }
+          }
+        }
+      },
+      "IfcWindow": {
+        "count": 11,
+        "volume": null,
+        "common": {
+          "Geschoss": null,
+          "Name": null,
+          "Typ": null
+        },
+        "byGeschoss": {
+          "Dachgeschoss": {
+            "count": 2,
+            "volume": null,
+            "common": {
+              "Typ": "Rundfenster 13"
+            }
+          },
+          "Erdgeschoss": {
+            "count": 9,
+            "volume": null,
+            "common": {
+              "Typ": "IFC Fenster - zwei Panele - Vertikal"
+            }
+          }
+        }
+      }
+    },
+    "note": "Every STEP element by Kategorie (sorted) then Geschoss ('(leer)' = no storey): count, sum of BaseQuantities.NetVolume (Neumaier sum of the unrounded values, then rounded to 12 significant digits; null = no element of the group has a volume) and the common value of the text columns Geschoss / Name / Typ (null = differs or empty). Group rows of the product exist only for the classes it lists as rows; the total row is the sum over those classes."
+  },
+  "REQ-006-grouping-duplex": {
+    "file": "Ifc2x3_Duplex_Architecture.ifc",
+    "level": "Material",
+    "column": "PSet_Revit_Dimensions.Volume",
+    "byMaterial": {
+      "(leer)": {
+        "IfcDoor": {
+          "count": 14,
+          "volume": null
+        },
+        "IfcFooting": {
+          "count": 7,
+          "volume": 16.52805
+        },
+        "IfcFurnishingElement": {
+          "count": 61,
+          "volume": null
+        },
+        "IfcMember": {
+          "count": 4,
+          "volume": null
+        },
+        "IfcOpeningElement": {
+          "count": 50,
+          "volume": 242.988793771
+        },
+        "IfcRailing": {
+          "count": 4,
+          "volume": null
+        },
+        "IfcSlab": {
+          "count": 1,
+          "volume": null
+        },
+        "IfcStair": {
+          "count": 2,
+          "volume": null
+        },
+        "IfcStairFlight": {
+          "count": 2,
+          "volume": null
+        },
+        "IfcWindow": {
+          "count": 24,
+          "volume": null
+        }
+      },
+      "Ceramic Tile": {
+        "IfcSlab": {
+          "count": 6,
+          "volume": 0.583827036
+        }
+      },
+      "Concrete": {
+        "IfcSlab": {
+          "count": 2,
+          "volume": 16.470167212
+        }
+      },
+      "Concrete - Cast In Situ": {
+        "IfcSlab": {
+          "count": 2,
+          "volume": 7.62595716
+        },
+        "IfcWallStandardCase": {
+          "count": 7,
+          "volume": 32.291310075
+        }
+      },
+      "Insulation / Thermal Barriers - Rigid insulation": {
+        "IfcRoof": {
+          "count": 1,
+          "volume": 60.7471984429
+        },
+        "IfcWallStandardCase": {
+          "count": 12,
+          "volume": 111.406644072
+        }
+      },
+      "Insulation / Thermal Barriers - Semi-rigid insulation": {
+        "IfcSlab": {
+          "count": 8,
+          "volume": 3.74149169907
+        }
+      },
+      "Masonry - Brick": {
+        "IfcWallStandardCase": {
+          "count": 12,
+          "volume": 111.406644072
+        }
+      },
+      "Masonry - Concrete Block": {
+        "IfcWall": {
+          "count": 1,
+          "volume": 25.8301172
+        },
+        "IfcWallStandardCase": {
+          "count": 15,
+          "volume": 124.994776942
+        }
+      },
+      "Masonry - Grout": {
+        "IfcSlab": {
+          "count": 6,
+          "volume": 0.583827036
+        }
+      },
+      "Metal - Steel - 345 MPa": {
+        "IfcBeam": {
+          "count": 8,
+          "volume": 0.325617659031
+        }
+      },
+      "Metal - Stud Layer": {
+        "IfcCovering": {
+          "count": 13,
+          "volume": 13.8771545173
+        },
+        "IfcWall": {
+          "count": 1,
+          "volume": 25.8301172
+        },
+        "IfcWallStandardCase": {
+          "count": 49,
+          "volume": 148.954235688
+        }
+      },
+      "Misc. Air Layers - Air Space": {
+        "IfcWall": {
+          "count": 1,
+          "volume": 25.8301172
+        },
+        "IfcWallStandardCase": {
+          "count": 15,
+          "volume": 124.994776942
+        }
+      },
+      "Plasterboard": {
+        "IfcCovering": {
+          "count": 13,
+          "volume": 13.8771545173
+        },
+        "IfcWall": {
+          "count": 1,
+          "volume": 25.8301172
+        },
+        "IfcWallStandardCase": {
+          "count": 49,
+          "volume": 148.954235688
+        }
+      },
+      "Roofing - Barrier": {
+        "IfcRoof": {
+          "count": 1,
+          "volume": 60.7471984429
+        }
+      },
+      "Roofing - EPDM Membrane": {
+        "IfcRoof": {
+          "count": 1,
+          "volume": 60.7471984429
+        }
+      },
+      "Site - Grass": {
+        "IfcRoof": {
+          "count": 1,
+          "volume": 60.7471984429
+        }
+      },
+      "Wood - Dimensional Lumber": {
+        "IfcRoof": {
+          "count": 1,
+          "volume": 60.7471984429
+        },
+        "IfcSlab": {
+          "count": 2,
+          "volume": 36.161643386
+        }
+      },
+      "Wood - Flooring": {
+        "IfcSlab": {
+          "count": 8,
+          "volume": 3.74149169907
+        }
+      },
+      "Wood - Sheathing - plywood": {
+        "IfcRoof": {
+          "count": 1,
+          "volume": 60.7471984429
+        },
+        "IfcSlab": {
+          "count": 2,
+          "volume": 36.161643386
+        }
+      }
+    },
+    "totalByKategorie": {
+      "IfcBeam": {
+        "count": 8,
+        "volume": 0.325617659031
+      },
+      "IfcCovering": {
+        "count": 13,
+        "volume": 13.8771545173
+      },
+      "IfcDoor": {
+        "count": 14,
+        "volume": null
+      },
+      "IfcFooting": {
+        "count": 7,
+        "volume": 16.52805
+      },
+      "IfcFurnishingElement": {
+        "count": 61,
+        "volume": null
+      },
+      "IfcMember": {
+        "count": 4,
+        "volume": null
+      },
+      "IfcOpeningElement": {
+        "count": 50,
+        "volume": 242.988793771
+      },
+      "IfcRailing": {
+        "count": 4,
+        "volume": null
+      },
+      "IfcRoof": {
+        "count": 1,
+        "volume": 60.7471984429
+      },
+      "IfcSlab": {
+        "count": 21,
+        "volume": 64.5830864931
+      },
+      "IfcStair": {
+        "count": 2,
+        "volume": null
+      },
+      "IfcStairFlight": {
+        "count": 2,
+        "volume": null
+      },
+      "IfcWall": {
+        "count": 1,
+        "volume": 25.8301172
+      },
+      "IfcWallStandardCase": {
+        "count": 56,
+        "volume": 181.245545763
+      },
+      "IfcWindow": {
+        "count": 24,
+        "volume": null
+      }
+    },
+    "elementsWithSeveralMaterials": 80,
+    "severalMaterialsByKategorie": {
+      "IfcCovering": 13,
+      "IfcRoof": 1,
+      "IfcSlab": 16,
+      "IfcWall": 1,
+      "IfcWallStandardCase": 49
+    },
+    "note": "Material = sorted distinct IfcMaterial names (REQ-002). Each material group lists its elements by Kategorie with count and sum of PSet_Revit_Dimensions.Volume (m³; Neumaier sum, rounded to 12 significant digits; null = none has a volume). An element with n materials is in n groups; totalByKategorie counts and sums each element once. Tests leave out the classes the extractor does not list as rows."
   },
   "REQ-002-AC7": {
     "file": "Ifc2x3_SampleCastle.ifc",

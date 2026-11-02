@@ -225,6 +225,7 @@
         padding: 12px 14px;
       }
       .cv-filters {
+        overflow-x: hidden;
         border-right: 1px solid var(--cv-line);
       }
       .cv-details {
@@ -266,10 +267,24 @@
         min-width: 0;
       }
       .cv-viewport {
-        position: relative;
+        display: flex;
+        flex-direction: column;
         min-height: 0;
         background: var(--cv-bg-3d);
         overflow: hidden;
+      }
+      /* 3D canvas with toolbar and overlay on top; the legend strip follows under it (TASK-005 L1) */
+      .cv-canvas-box {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .cv-legend-strip {
+        flex: none;
+        max-height: 40%;
+        overflow: auto;
+        background: #fff;
       }
       .cv-viewport canvas {
         display: block;
@@ -300,7 +315,11 @@
         background: var(--cv-accent);
       }
       .cv-table {
+        display: flex;
+        flex-direction: column;
         min-height: 0;
+        overflow: hidden;
+        padding-bottom: 0;
       }
       .cv-overlay {
         position: absolute;
@@ -422,11 +441,17 @@
         margin: 2px 0 8px -8px;
         font-weight: 400;
       }
+      /*
+       * One track as wide as the panel: grid items would otherwise grow to their min-content width and stick out on
+       * the right of a scrolling panel with a classic scrollbar (TASK-004 verification F1).
+       */
       .cv-fa-sets {
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 8px;
       }
       .cv-fs {
+        min-width: 0;
         border: 1px solid var(--cv-line);
         border-radius: 10px;
         background: #fff;
@@ -728,7 +753,7 @@
         right: 10px;
         left: 10px;
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         justify-content: flex-end;
         align-items: center;
         gap: 6px;
@@ -737,6 +762,7 @@
       }
       .cv-view-group,
       .cv-view-btn {
+        flex: none;
         pointer-events: auto;
         display: inline-flex;
         align-items: center;
@@ -790,15 +816,47 @@
         font-size: 12px;
         white-space: nowrap;
       }
+      /* `Elemente ausserhalb des Filters:` on two short lines, so the bar fits one row at 1280 px (TASK-005 L4) */
+      #cv-mode-label {
+        max-width: 112px;
+        font-size: 11px;
+        line-height: 1.15;
+        white-space: normal;
+      }
+      .cv-view-btn.cv-fit {
+        width: 32px;
+        padding: 0;
+        justify-content: center;
+      }
+      .cv-fit-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
       .cv-colour-text {
-        max-width: 240px;
+        display: flex;
+        flex-direction: column;
+        max-width: 110px;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
+        line-height: 1.15;
+        text-align: left;
         font-feature-settings:
           "calt" 0,
           "liga" 0;
         font-variant-ligatures: none;
+      }
+      .cv-colour-kicker {
+        color: var(--cv-muted);
+        font-size: 11px;
+      }
+      .cv-colour-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .cv-view-group .cv-icon-btn {
         width: 24px;
@@ -811,9 +869,9 @@
         overflow: hidden;
       }
       .cv-seg-btn {
-        min-width: 28px;
+        min-width: 26px;
         height: 24px;
-        padding: 0 8px;
+        padding: 0 7px;
         border: 0;
         background: #fff;
         color: var(--cv-ink-2);
@@ -835,27 +893,37 @@
         outline: 2px solid var(--cv-accent);
         outline-offset: -2px;
       }
+      .cv-section {
+        position: relative;
+      }
+      /* slider, flip and remove of an active section: a panel under the `Schnitt` group (bar stays one row, L4) */
+      .cv-section-panel {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: -1px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 6px 0 10px;
+        border: 1px solid var(--cv-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 1px 3px rgba(23, 24, 26, 0.08);
+      }
       .cv-section-slider {
-        width: 120px;
+        width: 160px;
         accent-color: var(--cv-accent);
       }
       .cv-section-flip.cv-on {
         color: var(--cv-accent);
       }
+      /* legend under the model (REQ-005), 13 px text (UI-02, TASK-005 L2) */
       .cv-legend {
-        position: absolute;
-        left: 10px;
-        bottom: 10px;
-        max-width: calc(100% - 20px);
-        max-height: 34%;
-        overflow: auto;
-        padding: 8px 10px;
-        border: 1px solid var(--cv-line);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.94);
-        box-shadow: 0 1px 3px rgba(23, 24, 26, 0.08);
-        font-size: 12px;
-        z-index: 2;
+        padding: 8px 14px 10px;
+        border-top: 1px solid var(--cv-line);
+        background: #fff;
+        font-size: 13px;
       }
       .cv-legend-title {
         margin-bottom: 4px;
@@ -878,7 +946,8 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        max-width: 260px;
+        max-width: 280px;
+        min-width: 0;
       }
       .cv-legend-label {
         overflow: hidden;
@@ -890,7 +959,469 @@
         font-variant-ligatures: none;
       }
       .cv-legend-count {
+        flex: none;
         color: var(--cv-muted);
+      }
+
+      /* Table (REQ-006 single-element view): toolbar, sticky header, virtualised rows, column filter popup */
+      .cv-table-head {
+        display: flex;
+        flex: none;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        margin-bottom: 8px;
+      }
+      .cv-table-head h2 {
+        margin: 0;
+      }
+      .cv-table-tools {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+      }
+      .cv-btn.cv-small {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        font-size: 13px;
+      }
+      .cv-btn.cv-small .cv-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+      .cv-btn.cv-on {
+        border-color: var(--cv-accent);
+        color: var(--cv-accent);
+      }
+      .cv-seg-btn:disabled {
+        color: var(--cv-faint);
+        cursor: default;
+        background: #fff;
+      }
+      .cv-table-box {
+        flex: 1 1 auto;
+        min-height: 0;
+        margin: 0 -14px;
+        border-top: 1px solid var(--cv-line);
+      }
+      .cv-tbl-scroll {
+        position: relative;
+        height: 100%;
+        overflow: auto;
+        outline: none;
+      }
+      .cv-tbl-scroll:focus-visible {
+        box-shadow: inset 0 0 0 2px var(--cv-accent);
+      }
+      .cv-tbl-inner {
+        position: relative;
+        min-width: 100%;
+      }
+      .cv-tbl-head {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--cv-bg);
+        border-bottom: 1px solid var(--cv-line);
+      }
+      .cv-th {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 0 2px 0 4px;
+        border-right: 1px solid var(--cv-line);
+        color: var(--cv-ink-2);
+        font-size: 13px;
+        font-weight: 600;
+        user-select: none;
+      }
+      .cv-th.cv-dragging {
+        opacity: 0.45;
+      }
+      .cv-th.cv-drop-before {
+        box-shadow: inset 3px 0 0 var(--cv-accent);
+      }
+      .cv-th.cv-drop-after {
+        box-shadow: inset -3px 0 0 var(--cv-accent);
+      }
+      .cv-th-label {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        min-width: 0;
+        height: 26px;
+        padding: 0 4px;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .cv-th.cv-num .cv-th-label {
+        justify-content: flex-end;
+      }
+      .cv-th-label:hover {
+        background: var(--cv-hover);
+      }
+      .cv-th-label:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: -2px;
+      }
+      .cv-th-text {
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        font-variant-ligatures: none;
+      }
+      .cv-th-sort {
+        display: inline-flex;
+        flex: none;
+        color: var(--cv-accent);
+      }
+      .cv-th-sort:empty {
+        display: none;
+      }
+      .cv-th-sort .cv-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+      .cv-th-filter .cv-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+      .cv-th-filter {
+        color: var(--cv-faint);
+      }
+      .cv-th:hover .cv-th-filter {
+        color: var(--cv-muted);
+      }
+      .cv-th-filter.cv-on,
+      .cv-th:hover .cv-th-filter.cv-on {
+        background: var(--cv-accent);
+        color: #fff;
+      }
+      .cv-th-resize {
+        position: absolute;
+        top: 0;
+        right: -4px;
+        bottom: 0;
+        width: 8px;
+        z-index: 1;
+        cursor: col-resize;
+      }
+      .cv-th-resize:hover,
+      .cv-th.cv-resizing .cv-th-resize,
+      .cv-th-resize:focus-visible {
+        outline: none;
+        background: linear-gradient(
+          90deg,
+          transparent 3px,
+          var(--cv-accent) 3px,
+          var(--cv-accent) 5px,
+          transparent 5px
+        );
+      }
+      .cv-tbl-body {
+        position: relative;
+      }
+      .cv-tr {
+        position: absolute;
+        left: 0;
+        border-bottom: 1px solid #f0f1f2;
+        font-size: 13px;
+        background: #fff;
+      }
+      .cv-tr.cv-odd {
+        background: #fafbfb;
+      }
+      .cv-tr:hover {
+        background: var(--cv-accent-soft);
+      }
+      .cv-td {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        padding: 0 10px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        line-height: 27px;
+        color: var(--cv-ink);
+      }
+      .cv-td.cv-num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      /* Grouping view (TASK-006b): controls, group rows, indented element rows, sticky total row */
+      .cv-group-tools {
+        display: flex;
+        flex: 1 1 100%;
+        order: 3;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+      }
+      .cv-group-tools[hidden] {
+        display: none;
+      }
+      .cv-group-pick {
+        max-width: 200px;
+        min-width: 0;
+      }
+      .cv-group-pick-text {
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        font-variant-ligatures: none;
+      }
+      .cv-group-clear[hidden] {
+        display: none;
+      }
+      .cv-th-fixed {
+        padding: 0 10px;
+      }
+      .cv-th-fixed.cv-num {
+        justify-content: flex-end;
+      }
+      .cv-tr.cv-grp {
+        background: #f7f8f9;
+        font-weight: 600;
+      }
+      .cv-tr.cv-grp-l1 {
+        background: #eef0f2;
+      }
+      .cv-tr.cv-grp:hover {
+        background: var(--cv-accent-soft);
+      }
+      .cv-grp-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        margin-right: 4px;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: none;
+        color: var(--cv-muted);
+        vertical-align: middle;
+        cursor: pointer;
+      }
+      .cv-grp-toggle:hover {
+        background: var(--cv-hover);
+        color: var(--cv-ink);
+      }
+      .cv-grp-toggle:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: -2px;
+      }
+      .cv-grp-toggle .cv-icon {
+        display: inline-flex;
+        transition: transform 0.15s;
+      }
+      .cv-grp-toggle .cv-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+      .cv-grp-toggle[aria-expanded="true"] {
+        color: var(--cv-accent);
+      }
+      .cv-grp-toggle[aria-expanded="true"] .cv-icon {
+        transform: rotate(90deg);
+      }
+      .cv-grp-label {
+        vertical-align: middle;
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        font-variant-ligatures: none;
+      }
+      .cv-td.cv-td-el::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        margin-left: 7px;
+        border-radius: 50%;
+        background: var(--cv-faint);
+        vertical-align: middle;
+      }
+      .cv-tbl-foot {
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
+        border-top: 1px solid var(--cv-line);
+        background: var(--cv-bg);
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .cv-tbl-foot[hidden] {
+        display: none;
+      }
+      .cv-tbl-foot .cv-td {
+        line-height: 26px;
+      }
+      .cv-tbl-empty {
+        position: absolute;
+        left: 14px;
+        margin: 12px 0;
+      }
+      .cv-popup {
+        position: absolute;
+        z-index: 15;
+        display: flex;
+        flex-direction: column;
+        width: 300px;
+        max-height: min(460px, calc(100% - 16px));
+        border: 1px solid var(--cv-line);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: var(--cv-shadow);
+      }
+      .cv-popup-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 8px 6px 12px;
+      }
+      .cv-popup-title {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 13px;
+        font-weight: 600;
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        font-variant-ligatures: none;
+      }
+      .cv-colfilter-sort {
+        display: flex;
+        gap: 6px;
+        padding: 0 12px 8px;
+        border-bottom: 1px solid var(--cv-line);
+      }
+      .cv-popup-body {
+        display: grid;
+        gap: 6px;
+        min-height: 0;
+        padding: 8px 12px;
+        overflow: auto;
+      }
+      .cv-popup-foot {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 4px 8px;
+        border-top: 1px solid var(--cv-line);
+      }
+      .cv-colfilter-values .cv-fs-value input {
+        accent-color: var(--cv-accent);
+      }
+      .cv-range {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .cv-range-field {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+        font-size: 12px;
+        color: var(--cv-muted);
+      }
+      .cv-range-field input {
+        min-width: 0;
+        height: 30px;
+        padding: 0 8px;
+        border: 1px solid var(--cv-faint);
+        border-radius: 8px;
+        color: var(--cv-ink);
+        font-size: 13px;
+        text-align: right;
+        outline: none;
+      }
+      .cv-range-field input:focus {
+        border-color: var(--cv-accent);
+        box-shadow: 0 0 0 3px rgba(215, 38, 34, 0.12);
+      }
+      .cv-range-field input[aria-invalid="true"] {
+        border-color: var(--cv-err);
+        background: #fdf3f2;
+      }
+      .cv-range-hint {
+        margin: 0;
+        padding: 6px 8px;
+        border-left: 3px solid var(--cv-err);
+        border-radius: 4px;
+        background: #fdf3f2;
+        color: var(--cv-err);
+        font-size: 12px;
+      }
+      .cv-range-info {
+        margin: 0;
+        font-size: 12px;
+      }
+      .cv-chooser {
+        display: grid;
+        gap: 6px;
+      }
+      .cv-chooser-title {
+        color: var(--cv-ink-2);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .cv-chooser-list {
+        max-height: 168px;
+        margin: 0;
+        padding: 4px;
+        overflow: auto;
+        border: 1px solid var(--cv-line);
+        border-radius: 8px;
+        list-style: none;
+      }
+      .cv-chooser-item {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 1px 2px 1px 8px;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+      .cv-chooser-item:hover {
+        background: var(--cv-hover);
+      }
+      .cv-chooser-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        font-variant-ligatures: none;
+      }
+      .cv-columns-dialog .cv-cat-list {
+        height: min(300px, 38vh);
       }
 
       /* Element details (REQ-007) */
@@ -2388,11 +2919,310 @@
         });
         return out;
       }
+
+      // ---------------------------------------------------------------------------------------------------------
+      // Table (TASK-006a; REQ-006 single-element view: columns, cell text, column filters)
+      // ---------------------------------------------------------------------------------------------------------
+
+      /** Default columns of a new configuration (REQ-006). */
+      export const DEFAULT_COLUMNS = ["Modell", "Kategorie", "Name", "Geschoss"];
+      /** Column width limits and defaults in px (REQ-006 "column width adjustable"). */
+      export const COLUMN_WIDTH = { min: 60, max: 800, text: 160, number: 150, name: 240 };
+
+      /** Default width of a new column for its catalogue entry (numbers narrower, Name wider). */
+      export function defaultColumnWidth(key, entry) {
+        if (key === "Name") return COLUMN_WIDTH.name;
+        return entry && entry.kind === "number" ? COLUMN_WIDTH.number : COLUMN_WIDTH.text;
+      }
+
+      /** A width clamped to COLUMN_WIDTH.min .. max (rounded px); NaN / missing -> fallback. */
+      export function clampColumnWidth(width, fallback) {
+        const w = Number(width);
+        if (!Number.isFinite(w)) return fallback === undefined ? COLUMN_WIDTH.text : fallback;
+        return Math.round(Math.min(COLUMN_WIDTH.max, Math.max(COLUMN_WIDTH.min, w)));
+      }
+
+      /**
+       * Column list of the table (part of the configuration, REQ-006-AC6 / REQ-009): [{ key, width }] in display
+       * order; duplicate or empty keys are dropped, widths clamped (missing width -> defaultColumnWidth).
+       */
+      export function normaliseColumns(list, catalog) {
+        const seen = new Set();
+        const out = [];
+        for (const item of list || []) {
+          const key = typeof item === "string" ? item : item && item.key;
+          if (typeof key !== "string" || key === "" || seen.has(key)) continue;
+          seen.add(key);
+          const entry = catalog && catalog.get ? catalog.get(key) : undefined;
+          const width = typeof item === "object" && item ? item.width : undefined;
+          out.push({ key, width: clampColumnWidth(width, defaultColumnWidth(key, entry)) });
+        }
+        return out;
+      }
+
+      /** Moves the item at index from to index to (both clamped); returns a new array. */
+      export function moveItem(list, from, to) {
+        const out = list.slice();
+        if (from < 0 || from >= out.length) return out;
+        const [item] = out.splice(from, 1);
+        out.splice(Math.max(0, Math.min(out.length, to)), 0, item);
+        return out;
+      }
+
+      const CELL_FORMAT = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 3 });
+
+      /**
+       * Text of a table cell (REQ-006): numbers in German format (thousands ".", decimal ",", up to 3 decimals),
+       * multi-values joined with ", " (REQ-002), empty values as "" (empty cells stay empty).
+       */
+      export function formatCell(value) {
+        if (isEmptyValue(value)) return "";
+        if (typeof value === "number") return CELL_FORMAT.format(value);
+        if (Array.isArray(value)) {
+          const parts = [];
+          for (const v of value) if (!isEmptyValue(v)) parts.push(typeof v === "number" ? CELL_FORMAT.format(v) : String(v));
+          return parts.join(", ");
+        }
+        return String(value);
+      }
+
+      /**
+       * Parses a range bound typed by the user (REQ-006 numeric column filter, TASK-003 D2): German decimal comma
+       * ("2,5", "-0,75", "1.234,5" with thousands dots) or a decimal point ("2.5"); surrounding blanks are ignored.
+       * Returns { value: number | null, valid }: empty text is { value: null, valid: true } (no bound), text that is
+       * no number is { value: null, valid: false }.
+       */
+      export function parseNumberInput(text) {
+        const s = text === null || text === undefined ? "" : String(text).trim();
+        if (s === "") return { value: null, valid: true };
+        let normal = null;
+        if (/^[+-]?\d{1,3}(\.\d{3})+,\d*$/.test(s)) normal = s.replace(/\./g, "").replace(",", ".");
+        else if (/^[+-]?(\d+([.,]\d*)?|[.,]\d+)$/.test(s)) normal = s.replace(",", ".");
+        if (normal === null) return { value: null, valid: false };
+        const value = Number(normal.replace(/\.$/, ""));
+        return Number.isFinite(value) ? { value, valid: true } : { value: null, valid: false };
+      }
+
+      /**
+       * The values of a selection that still occur in the column of key (REQ-001-AC3: after a model is removed,
+       * filters on remaining values stay active, values that no element has any more are dropped); null (the empty
+       * value) stays while some row is empty.
+       */
+      export function pruneSelection(source, key, values) {
+        const col = asStore(source).column(key);
+        const out = [];
+        for (const v of values || []) {
+          const value = v === undefined ? null : v;
+          if (value === null ? col.empties : col.index.get(value) !== undefined) out.push(value);
+        }
+        return out;
+      }
+
+      /**
+       * Smallest and largest number of a numeric column among the rows of a bitset (rows passing the other filters),
+       * or null (shown as a hint next to the range inputs of a numeric column filter).
+       */
+      export function numberRange(source, key, bits) {
+        const col = asStore(source).column(key);
+        let min = Infinity;
+        let max = -Infinity;
+        for (let i = 0; i < col.n; i++) {
+          if (bits && !(bits[i >>> 5] & (1 << (i & 31)))) continue;
+          const v = col.nums[i];
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+        return min <= max ? { min, max } : null;
+      }
+
+      // ---------------------------------------------------------------------------------------------------------
+      // Grouping view (TASK-006b; REQ-006 grouping view, DEC-16, ASM-008)
+      // ---------------------------------------------------------------------------------------------------------
+
+      /** Grouping levels at most (spec 3: more than two levels are out of scope). */
+      export const GROUP_LEVELS = 2;
+
+      /** Identity token of a group value: numbers and texts never collide; null (empty) has its own token. */
+      function groupToken(value) {
+        if (value === null || value === undefined) return "~";
+        return (typeof value === "number" ? "#" : "$") + String(value);
+      }
+
+      /** Comparable token of a cell for "same value in every element" (multi-values as displayed, empty = ""). */
+      function sameToken(value) {
+        if (isEmptyValue(value)) return "";
+        if (typeof value === "number") return "#" + value;
+        if (Array.isArray(value)) {
+          const parts = [];
+          for (const v of value) if (!isEmptyValue(v)) parts.push(typeof v === "number" ? "#" + v : "$" + v);
+          return parts.length ? "[" + parts.join("\u0001") : "";
+        }
+        return "$" + value;
+      }
+
+      /** Sum of the numbers of key over the rows (Neumaier summation); null if no row has a number. */
+      function sumOf(rows, list, key) {
+        let sum = 0;
+        let comp = 0;
+        let any = false;
+        for (let p = 0; p < list.length; p++) {
+          const v = rows[list[p]].values[key];
+          if (typeof v !== "number" || !Number.isFinite(v)) continue;
+          any = true;
+          const t = sum + v;
+          comp += Math.abs(sum) >= Math.abs(v) ? sum - t + v : v - t + sum;
+          sum = t;
+        }
+        return any ? sum + comp : null;
+      }
+
+      /** The value of key if every row has the same one (multi-values compared as displayed), else null. */
+      function sameOf(rows, list, key) {
+        if (!list.length) return null;
+        const first = rows[list[0]].values[key];
+        const token = sameToken(first);
+        if (token === "") return null;
+        for (let p = 1; p < list.length; p++) if (sameToken(rows[list[p]].values[key]) !== token) return null;
+        return first;
+      }
+
+      /** Aggregated cells of a list of rows: { key -> sum (mode 'sum') | common value (mode 'same') | null }. */
+      function groupCells(rows, list, columns, textToo) {
+        const cells = {};
+        for (const c of columns) {
+          if (c.mode === "sum") cells[c.key] = sumOf(rows, list, c.key);
+          else if (c.mode === "same" && textToo) cells[c.key] = sameOf(rows, list, c.key);
+          else cells[c.key] = null;
+        }
+        return cells;
+      }
+
+      /** Splits list (row indices, kept in their order) by the values of col: [{ code, indices }] in code order. */
+      function bucketBy(col, list) {
+        const buckets = new Map();
+        const { start, flat } = col;
+        for (let p = 0; p < list.length; p++) {
+          const i = list[p];
+          for (let j = start[i]; j < start[i + 1]; j++) {
+            const code = flat[j];
+            let bucket = buckets.get(code);
+            if (!bucket) {
+              bucket = [];
+              buckets.set(code, bucket);
+            }
+            bucket.push(i);
+          }
+        }
+        return [...buckets.keys()].sort((a, b) => a - b).map((code) => ({ code, indices: buckets.get(code) }));
+      }
+
+      function buildGroups(store, list, levels, depth, parentId, columns, sort) {
+        const col = store.column(levels[depth]);
+        const rows = store.rows;
+        let groups = bucketBy(col, list).map(({ code, indices }) => {
+          const value = col.values[code];
+          const id = (parentId === null ? "" : parentId + "\u001f") + groupToken(value);
+          const group = {
+            id,
+            level: depth + 1,
+            key: levels[depth],
+            value,
+            count: indices.length,
+            cells: groupCells(rows, indices, columns, true),
+            indices: Uint32Array.from(indices),
+            children: null,
+          };
+          if (depth + 1 < levels.length)
+            group.children = buildGroups(store, group.indices, levels, depth + 1, id, columns, sort);
+          return group;
+        });
+        if (sort && sort.key) {
+          // groups by their cell of the sort column (sums, common text); "(leer)" stays last (REQ-006-AC5)
+          const empty = groups.filter((g) => g.value === null);
+          const named = groups.filter((g) => g.value !== null);
+          groups = sortByValue(named, (g) => g.cells[sort.key], sort.dir).concat(empty);
+        }
+        return groups;
+      }
+
+      /**
+       * Grouping view of the table (REQ-006, DEC-16, ASM-008). source: column store (or rows); indices: the rows
+       * passing all filters in table order (sortRows); options: { levels: [key1, key2?] (one or two grouping
+       * properties), columns: [{ key, mode: 'sum' | 'same' | 'none' }] (numeric columns sum, text columns show a value
+       * equal in every element of the group, else null; 'none' e.g. numbers with mixed units), sort: { key, dir } |
+       * null }.
+       * Returns { levels, groups, total }: groups [{ id, level (1 | 2), key, value (null = "(leer)"), count, cells
+       * { key -> value | null }, indices (rows of the group in table order), children (level-2 groups) | null }];
+       * groups are in value order ("(leer)" last) or, with a sort, ordered by their cell of the sort column (empty
+       * last, "(leer)" still last). An element with several values of a grouping property is in each of its groups
+       * and counted and summed there; total { count, cells } counts and sums every element once (sums only).
+       */
+      export function groupRows(source, indices, options) {
+        const store = asStore(source);
+        const opts = options || {};
+        const levels = (opts.levels || []).filter((k) => typeof k === "string" && k !== "").slice(0, GROUP_LEVELS);
+        const columns = opts.columns || [];
+        const list = indices || new Uint32Array(0);
+        const groups = levels.length ? buildGroups(store, list, levels, 0, null, columns, opts.sort || null) : [];
+        return {
+          levels,
+          groups,
+          total: { count: list.length, cells: groupCells(store.rows, list, columns, false) },
+        };
+      }
+
+      /**
+       * Rows shown by the grouping view (REQ-006, REQ-008 export order): every level-1 group; under an expanded group
+       * its level-2 groups, or its elements when it is the last level. isExpanded(group) decides. Returns
+       * [{ type: 'group', group } | { type: 'element', index (row index), depth (1 | 2), parent (group) }].
+       */
+      export function groupDisplayRows(tree, isExpanded) {
+        const out = [];
+        const visit = (groups) => {
+          for (const group of groups) {
+            out.push({ type: "group", group });
+            if (!isExpanded(group)) continue;
+            if (group.children) visit(group.children);
+            else for (const index of group.indices) out.push({ type: "element", index, depth: group.level, parent: group });
+          }
+        };
+        if (tree) visit(tree.groups);
+        return out;
+      }
+
+      /** Every group of a tree (both levels), depth first. */
+      export function allGroups(tree) {
+        const out = [];
+        const visit = (groups) => {
+          for (const g of groups) {
+            out.push(g);
+            if (g.children) visit(g.children);
+          }
+        };
+        if (tree) visit(tree.groups);
+        return out;
+      }
+
+      /**
+       * Grouping state of the table (configuration part, REQ-009 "table view, grouping properties"; saved by TASK-007):
+       * { view: 'single' | 'grouped', groupBy: [key1, key2?] }; duplicate, empty and (with a catalogue) unknown keys are
+       * dropped, at most GROUP_LEVELS keys.
+       */
+      export function normaliseGrouping(state, catalog) {
+        const view = state && state.view === "grouped" ? "grouped" : "single";
+        const groupBy = [];
+        for (const key of (state && Array.isArray(state.groupBy) ? state.groupBy : []).slice()) {
+          if (typeof key !== "string" || key === "" || groupBy.includes(key)) continue;
+          if (catalog && catalog.size && !catalog.has(key)) continue;
+          if (groupBy.length < GROUP_LEVELS) groupBy.push(key);
+        }
+        return { view, groupBy };
+      }
     </script>
 
     <!-- DOM: layout, model list, messages, progress and status (builder and viewer file). ASCII only. -->
     <script type="text/plain" id="cv-ui-src">
-      import { EMPTY_LABEL, coreInfo } from "calc-core";
+      import { EMPTY_LABEL, coreInfo, formatCell, parseNumberInput } from "calc-core";
 
       function el(tag, className, text) {
         const node = document.createElement(tag);
@@ -2419,6 +3249,13 @@
         scissors:
           '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/>',
         flip: '<path d="M7 4v16M7 4l-3 3M7 4l3 3M17 20V4M17 20l-3-3M17 20l3-3"/>',
+        filter: '<path d="M4 5h16l-6 7.5V19l-4-2v-4.5z"/>',
+        sortAsc: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+        sortDesc: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+        columns: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>',
+        unfold: '<path d="M7 9l5-5 5 5M7 15l5 5 5-5"/>',
+        fold: '<path d="M7 4l5 5 5-5M7 20l5-5 5 5"/>',
+        layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
       };
 
       function icon(name) {
@@ -2824,11 +3661,15 @@
       /**
        * Property catalogue dialog (REQ-003): search, entries grouped (`Allgemein` first, then pset names, as the
        * catalogue orders them) with their element counts, virtualised for thousands of entries. entries: catalogue
-       * entries in order; used: Set of keys that already have a filter set; onPick(key).
+       * entries in order; used: Set of keys that already have a filter set; onPick(key). extra (optional): { keepOpen
+       * (picking an entry keeps the dialog open and refreshes the list, e.g. to add several columns), top (node shown
+       * above the search field), usedNote (label of used entries), usedLabel (accessible suffix of used entries),
+       * className, onClose() }.
        */
-      function openCatalogue(host, entries, used, onPick, titleText) {
+      function openCatalogue(host, entries, used, onPick, titleText, extra) {
+        const opts = extra || {};
         const backdrop = el("div", "cv-backdrop");
-        const dialog = el("div", "cv-dialog cv-catalogue");
+        const dialog = el("div", "cv-dialog cv-catalogue" + (opts.className ? " " + opts.className : ""));
         dialog.setAttribute("role", "dialog");
         dialog.setAttribute("aria-modal", "true");
         dialog.setAttribute("aria-labelledby", "cv-catalogue-title");
@@ -2877,14 +3718,19 @@
             row.title = entry.header;
             row.setAttribute(
               "aria-label",
-              entry.label + ", " + formatCount(entry.count) + " Elemente" + (isUsed ? ", bereits als Filtersatz" : ""),
+              entry.label +
+                ", " +
+                formatCount(entry.count) +
+                " Elemente" +
+                (isUsed ? ", " + (opts.usedLabel || "bereits als Filtersatz") : ""),
             );
             name.textContent = entryName(entry);
-            note.textContent = isUsed ? "vorhanden" : "";
+            note.textContent = isUsed ? opts.usedNote || "vorhanden" : "";
             count.textContent = formatCount(entry.count);
           },
         });
         const info = el("p", "cv-hint cv-cat-info");
+        if (opts.top) body.append(opts.top);
         body.append(search, list.element, info);
         dialog.append(head, body);
         backdrop.append(dialog);
@@ -2909,7 +3755,7 @@
             items.push({ entry });
             matches++;
           }
-          list.setItems(items, true);
+          list.setItems(items, !opts.keepOpen);
           if (!entries.length) info.textContent = "Keine Eigenschaften. Zuerst ein IFC-Modell laden.";
           else if (!matches) info.textContent = "Keine Treffer.";
           else info.textContent = formatCount(matches) + " von " + formatCount(entries.length) + " Eigenschaften";
@@ -2920,9 +3766,13 @@
           event.preventDefault(); // handled: Escape closes the dialog only (it does not clear the 3D selection)
           finish();
         }
+        let open = true;
         function finish() {
+          if (!open) return;
+          open = false;
           document.removeEventListener("keydown", onKey, true);
           backdrop.remove();
+          if (opts.onClose) opts.onClose();
         }
         document.addEventListener("keydown", onKey, true);
         backdrop.addEventListener("click", (event) => {
@@ -2934,20 +3784,27 @@
           const row = event.target.closest(".cv-cat-entry");
           if (!row || row.disabled) return;
           const key = row.dataset.key;
+          if (opts.keepOpen) {
+            onPick(key);
+            build();
+            return;
+          }
           finish();
           onPick(key);
         });
         build();
         input.focus();
-        return { close: finish, element: dialog };
+        return { close: finish, element: dialog, refresh: build };
       }
 
       /**
        * 3D view controls (REQ-005; top right of the model): `Elemente ausserhalb des Filters: Geist | Ausblenden`,
-       * `Faerben nach`, `Schnitt` (axis X / Y / Z, slider, flip, remove) and `Ansicht einpassen`; legend at the bottom.
+       * `Faerben nach`, `Schnitt` (axis X / Y / Z; while a section is active a panel under it holds slider, flip and
+       * remove, so the bar stays one row at 1280 px, TASK-005 L4) and `Ansicht einpassen`. The legend is placed in
+       * legendHost under the canvas (spec "legend under the model"; it never covers geometry, TASK-005 L1).
        * handlers: { mode(m), pickColour(), clearColour(), section(axis | null), sectionOffset(value), flip(), fit() }.
        */
-      function createViewControls(viewport, handlers) {
+      function createViewControls(viewport, legendHost, handlers) {
         const bar = el("div", "cv-view-bar");
         bar.id = "cv-view-bar";
 
@@ -2985,7 +3842,7 @@
         colourBox.append(colourButton, colourClear);
 
         const sectionBox = el("div", "cv-view-group cv-section");
-        const sectionLabel = el("span", "cv-view-label", "Schnitt");
+        const sectionLabel = el("span", "cv-view-label cv-section-label", "Schnitt");
         sectionLabel.id = "cv-section-label";
         sectionLabel.prepend(icon("scissors"));
         const axisSeg = el("div", "cv-seg");
@@ -3012,12 +3869,16 @@
         const sectionOff = iconButton("close", "Schnitt entfernen", "cv-section-off");
         sectionOff.id = "cv-section-off";
         sectionOff.addEventListener("click", () => handlers.section(null));
-        sectionBox.append(sectionLabel, axisSeg, slider, flip, sectionOff);
+        const sectionPanel = el("div", "cv-section-panel");
+        sectionPanel.id = "cv-section-panel";
+        sectionPanel.append(slider, flip, sectionOff);
+        sectionBox.append(sectionLabel, axisSeg, sectionPanel);
 
         const fit = el("button", "cv-view-btn cv-fit");
         fit.type = "button";
         fit.id = "cv-fit";
-        fit.append(icon("fit"), document.createTextNode("Ansicht einpassen"));
+        fit.title = "Ansicht einpassen";
+        fit.append(icon("fit"), el("span", "cv-fit-text", "Ansicht einpassen"));
         fit.addEventListener("click", () => handlers.fit());
 
         bar.append(modeBox, colourBox, sectionBox, fit);
@@ -3028,7 +3889,9 @@
         const legendTitle = el("div", "cv-legend-title");
         const legendList = el("ul", "cv-legend-list");
         legend.append(legendTitle, legendList);
-        viewport.append(bar, legend);
+        let legendKey = null; // title of the colouring the legend's kept height belongs to
+        viewport.append(bar);
+        legendHost.append(legend);
 
         return {
           element: bar,
@@ -3040,9 +3903,12 @@
           },
           /** Label of the colouring property, or null (no colouring). */
           setColouring(label) {
-            colourText.textContent = label ? "F\u00e4rben nach: " + label : "F\u00e4rben nach";
-            colourButton.title = colourText.textContent;
-            colourButton.setAttribute("aria-label", colourText.textContent);
+            const text = label ? "F\u00e4rben nach: " + label : "F\u00e4rben nach";
+            // active: small `Faerben nach` over the property (two short lines keep the bar one row, L4)
+            if (label) colourText.replaceChildren(el("span", "cv-colour-kicker", "F\u00e4rben nach"), el("span", "cv-colour-value", label));
+            else colourText.replaceChildren(document.createTextNode(text));
+            colourButton.title = text;
+            colourButton.setAttribute("aria-label", text);
             colourBox.classList.toggle("cv-on", Boolean(label));
             colourClear.hidden = !label;
           },
@@ -3054,7 +3920,7 @@
               button.classList.toggle("cv-on", on);
             }
             sectionBox.classList.toggle("cv-on", Boolean(section));
-            slider.hidden = flip.hidden = sectionOff.hidden = !section;
+            sectionPanel.hidden = !section;
             if (section && range) {
               slider.min = String(range.min);
               slider.max = String(range.max);
@@ -3071,6 +3937,11 @@
           setLegend(data) {
             legend.hidden = !data;
             legendList.replaceChildren();
+            if (!data || data.title !== legendKey) {
+              // a new colouring starts with its own height
+              legend.style.minHeight = "";
+              legendKey = data ? data.title : null;
+            }
             if (!data) return;
             legendTitle.textContent = data.title;
             for (const entry of data.entries) {
@@ -3087,8 +3958,864 @@
               legendList.append(item);
             }
             if (!data.entries.length) legendList.append(el("li", "cv-hint", "Keine Elemente im Filter."));
+            /*
+             * The legend strip is part of the model area: a shorter legend would resize the 3D canvas, and a canvas
+             * resize redraws the whole view (about 280 ms in software WebGL) on every filter click. So during one
+             * colouring the legend keeps the largest height it had (NFR-001).
+             */
+            const height = legend.offsetHeight;
+            if (height > (parseFloat(legend.style.minHeight) || 0)) legend.style.minHeight = height + "px";
           },
         };
+      }
+
+      const TABLE_ROW_HEIGHT = 28;
+      const TABLE_HEAD_HEIGHT = 34;
+      const TABLE_OVERSCAN_ROWS = 8;
+      const TABLE_OVERSCAN_PX = 240; // columns rendered beyond the visible width on each side
+      const RESIZE_STEP = 16; // px per arrow key on a column's resize handle
+
+      /** Pseudo columns of the grouping view (TASK-006b): the group value and the element count. */
+      export const GROUP_COLUMN = "@gruppe";
+      export const COUNT_COLUMN = "@anzahl";
+      const GROUP_INDENT = 18; // px per level in the `Gruppe` column (REQ-006-AC3)
+
+      /**
+       * Table (REQ-006): a header row (sticky) and virtualised body rows. Only the rows near the visible window exist
+       * (pool, as createVirtualList), and within a row only the cells of the columns near the visible width (many
+       * columns stay cheap). Header cell: label (click = sort asc -> desc -> none), sort indicator, column filter
+       * button, drag to move (HTML5 drag and drop), resize handle (pointer drag or arrow keys); `fixed` columns (the
+       * grouping view's `Gruppe` and `Anzahl`) have a plain label only. Single-element view: setRows; grouping view
+       * (TASK-006b): setGroups with group rows (toggle, indentation by level), element rows indented under their
+       * group and a sticky total row `Summe` at the bottom.
+       * handlers: { sort(key), filter(key, button), move(key, toIndex), resize(key, width), rowClick(key),
+       * toggleGroup(id), groupClick(id) }.
+       */
+      function createTable(container, handlers) {
+        const scroll = el("div", "cv-tbl-scroll");
+        scroll.id = "cv-tbl-scroll";
+        scroll.setAttribute("role", "grid");
+        scroll.setAttribute("aria-label", "Tabelle Einzelelemente");
+        scroll.tabIndex = 0;
+        const inner = el("div", "cv-tbl-inner");
+        const head = el("div", "cv-tbl-head");
+        head.setAttribute("role", "row");
+        head.setAttribute("aria-rowindex", "1");
+        head.style.height = TABLE_HEAD_HEIGHT + "px";
+        const body = el("div", "cv-tbl-body");
+        body.setAttribute("role", "rowgroup");
+        const foot = el("div", "cv-tbl-foot");
+        foot.id = "cv-tbl-total";
+        foot.setAttribute("role", "row");
+        foot.style.height = TABLE_ROW_HEIGHT + "px";
+        foot.hidden = true;
+        const empty = el("p", "cv-hint cv-tbl-empty");
+        empty.id = "cv-tbl-empty";
+        empty.style.top = TABLE_HEAD_HEIGHT + "px";
+        inner.append(head, body, foot);
+        scroll.append(inner, empty);
+        container.append(scroll);
+
+        let columns = []; // [{ key, title, kind, width, sort, filtered }]
+        let offsets = [0]; // left edge of each column; offsets[columns.length] = total width
+        let headCells = [];
+        let headSignature = "";
+        let rows = [];
+        let order = new Uint32Array(0);
+        let grouped = false; // grouping view: items instead of order
+        let items = []; // [{ type: 'group', group, label } | { type: 'element', index, depth }]
+        let total = null; // { count, cells } of the total row
+        let rowCount = 0;
+        const pool = [];
+        const stats = { renders: 0, lastMs: 0, maxMs: 0 };
+        let dragKey = null;
+        let resizing = false;
+
+        function layoutColumns() {
+          offsets = [0];
+          for (const col of columns) offsets.push(offsets[offsets.length - 1] + col.width);
+          const total = offsets[columns.length];
+          inner.style.width = total + "px";
+          head.style.width = total + "px";
+          for (let c = 0; c < headCells.length; c++) {
+            headCells[c].style.left = offsets[c] + "px";
+            headCells[c].style.width = columns[c].width + "px";
+          }
+        }
+
+        function setHeadState(cell, col) {
+          cell.classList.toggle("cv-num", col.kind === "number");
+          if (col.fixed) return;
+          const sortIcon = cell.cvSort;
+          cell.setAttribute("aria-sort", col.sort === "asc" ? "ascending" : col.sort === "desc" ? "descending" : "none");
+          cell.classList.toggle("cv-sorted", Boolean(col.sort));
+          sortIcon.replaceChildren();
+          if (col.sort) sortIcon.append(icon(col.sort === "asc" ? "sortAsc" : "sortDesc"));
+          cell.cvFilter.classList.toggle("cv-on", col.filtered);
+          cell.cvFilter.setAttribute("aria-pressed", String(col.filtered));
+          cell.cvResize.setAttribute("aria-valuenow", String(col.width));
+        }
+
+        function headCell(col) {
+          const cell = el("div", "cv-th");
+          cell.setAttribute("role", "columnheader");
+          cell.dataset.key = col.key;
+          if (col.fixed) {
+            cell.classList.add("cv-th-fixed");
+            const text = el("span", "cv-th-text", col.title);
+            cell.title = col.title;
+            cell.append(text);
+            return cell;
+          }
+          cell.draggable = true;
+          const label = el("button", "cv-th-label");
+          label.type = "button";
+          const text = el("span", "cv-th-text", col.title);
+          label.append(text);
+          label.title = col.title + " \u2013 klicken zum Sortieren, ziehen zum Verschieben";
+          label.setAttribute("aria-label", "Sortieren nach " + col.title);
+          const sortIcon = el("span", "cv-th-sort");
+          sortIcon.setAttribute("aria-hidden", "true");
+          const filter = iconButton("filter", "Spaltenfilter: " + col.title, "cv-th-filter");
+          filter.setAttribute("aria-haspopup", "dialog");
+          const resize = el("div", "cv-th-resize");
+          resize.setAttribute("role", "separator");
+          resize.setAttribute("aria-orientation", "vertical");
+          resize.setAttribute("aria-label", "Spaltenbreite: " + col.title);
+          resize.setAttribute("aria-valuemin", "60");
+          resize.setAttribute("aria-valuemax", "800");
+          resize.tabIndex = 0;
+          cell.append(label, sortIcon, filter, resize);
+          cell.cvSort = sortIcon;
+          cell.cvFilter = filter;
+          cell.cvResize = resize;
+          label.addEventListener("click", () => handlers.sort(col.key));
+          filter.addEventListener("click", () => handlers.filter(col.key, filter));
+          wireResize(cell, resize);
+          wireDrag(cell);
+          return cell;
+        }
+
+        function indexOfKey(key) {
+          return columns.findIndex((c) => c.key === key);
+        }
+
+        /** Position of a column among the movable (non-fixed) columns: the index of the app's column list. */
+        function movableIndex(key) {
+          return columns.filter((c) => !c.fixed).findIndex((c) => c.key === key);
+        }
+
+        function wireResize(cell, handle) {
+          let startX = 0;
+          let startWidth = 0;
+          let key = null;
+          handle.addEventListener("pointerdown", (event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.stopPropagation();
+            key = cell.dataset.key;
+            const c = indexOfKey(key);
+            if (c === -1) return;
+            resizing = true;
+            startX = event.clientX;
+            startWidth = columns[c].width;
+            handle.setPointerCapture(event.pointerId);
+            cell.classList.add("cv-resizing");
+          });
+          handle.addEventListener("pointermove", (event) => {
+            if (!resizing || !handle.hasPointerCapture(event.pointerId)) return;
+            const c = indexOfKey(key);
+            if (c === -1) return;
+            columns[c].width = Math.round(Math.min(800, Math.max(60, startWidth + event.clientX - startX)));
+            layoutColumns();
+            render();
+          });
+          const end = (event) => {
+            if (!resizing) return;
+            resizing = false;
+            if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+            cell.classList.remove("cv-resizing");
+            const c = indexOfKey(key);
+            if (c !== -1) handlers.resize(key, columns[c].width);
+          };
+          handle.addEventListener("pointerup", end);
+          handle.addEventListener("pointercancel", end);
+          handle.addEventListener("click", (event) => event.stopPropagation());
+          handle.addEventListener("keydown", (event) => {
+            const c = indexOfKey(cell.dataset.key);
+            if (c === -1) return;
+            let delta = 0;
+            if (event.key === "ArrowRight") delta = RESIZE_STEP;
+            else if (event.key === "ArrowLeft") delta = -RESIZE_STEP;
+            else return;
+            event.preventDefault();
+            handlers.resize(cell.dataset.key, columns[c].width + delta);
+          });
+        }
+
+        function clearDropMarks() {
+          for (const cell of headCells) cell.classList.remove("cv-drop-before", "cv-drop-after", "cv-dragging");
+        }
+
+        function wireDrag(cell) {
+          cell.addEventListener("dragstart", (event) => {
+            if (resizing || event.target !== cell) {
+              if (resizing) event.preventDefault();
+              if (resizing || !cell.contains(event.target)) return;
+            }
+            dragKey = cell.dataset.key;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("application/x-cv-column", dragKey);
+            event.dataTransfer.setData("text/plain", dragKey);
+            cell.classList.add("cv-dragging");
+          });
+          cell.addEventListener("dragend", () => {
+            dragKey = null;
+            clearDropMarks();
+          });
+          cell.addEventListener("dragover", (event) => {
+            if (dragKey === null) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            const box = cell.getBoundingClientRect();
+            const before = event.clientX < box.left + box.width / 2;
+            cell.classList.toggle("cv-drop-before", before);
+            cell.classList.toggle("cv-drop-after", !before);
+          });
+          cell.addEventListener("dragleave", (event) => {
+            if (!cell.contains(event.relatedTarget)) cell.classList.remove("cv-drop-before", "cv-drop-after");
+          });
+          cell.addEventListener("drop", (event) => {
+            if (dragKey === null) return;
+            event.preventDefault();
+            const box = cell.getBoundingClientRect();
+            const before = event.clientX < box.left + box.width / 2;
+            const source = dragKey;
+            dragKey = null;
+            clearDropMarks();
+            if (source === cell.dataset.key) return;
+            const from = movableIndex(source);
+            let to = movableIndex(cell.dataset.key) + (before ? 0 : 1);
+            if (from < to) to--;
+            if (from !== -1 && from !== to) handlers.move(source, to);
+          });
+        }
+
+        function createRow() {
+          const node = el("div", "cv-tr");
+          node.setAttribute("role", "row");
+          node.style.height = TABLE_ROW_HEIGHT + "px";
+          node.cvCells = [];
+          node.cvIndex = -1;
+          body.append(node);
+          return node;
+        }
+
+        function cellAt(node, p) {
+          let cell = node.cvCells[p];
+          if (!cell) {
+            cell = el("div", "cv-td");
+            cell.setAttribute("role", "gridcell");
+            cell.cvText = null;
+            cell.cvGroup = null;
+            cell.cvPad = "";
+            node.cvCells[p] = cell;
+            node.append(cell);
+          }
+          return cell;
+        }
+
+        /** Plain text cell (a former group cell loses its toggle). */
+        function setCellText(cell, text) {
+          if (cell.cvGroup !== null) {
+            cell.cvGroup = null;
+            cell.cvText = null;
+            cell.replaceChildren();
+          }
+          if (cell.cvText !== text) {
+            cell.cvText = text;
+            cell.textContent = text;
+            cell.title = text;
+          }
+        }
+
+        /** `Gruppe` cell of a group row: expand toggle and the group value. */
+        function setCellGroup(cell, item, expanded) {
+          let parts = cell.cvGroup;
+          if (parts === null) {
+            const toggle = el("button", "cv-grp-toggle");
+            toggle.type = "button";
+            toggle.append(icon("chevron"));
+            const label = el("span", "cv-grp-label");
+            cell.replaceChildren(toggle, label);
+            parts = { toggle, label, id: null, text: null, expanded: null };
+            cell.cvGroup = parts;
+            cell.cvText = null;
+          }
+          if (parts.text !== item.label) {
+            parts.text = item.label;
+            parts.label.textContent = item.label;
+            cell.title = item.label;
+          }
+          if (parts.id !== item.group.id || parts.expanded !== expanded) {
+            parts.id = item.group.id;
+            parts.expanded = expanded;
+            parts.toggle.dataset.group = item.group.id;
+            parts.toggle.setAttribute("aria-expanded", String(expanded));
+            const name = (expanded ? "Gruppe zuklappen: " : "Gruppe aufklappen: ") + item.label;
+            parts.toggle.setAttribute("aria-label", name);
+            parts.toggle.title = name;
+          }
+        }
+
+        function setCellPad(cell, pad) {
+          if (cell.cvPad !== pad) {
+            cell.cvPad = pad;
+            cell.style.paddingLeft = pad;
+          }
+        }
+
+        function setCellNum(cell, numeric) {
+          if (cell.cvNum !== numeric) {
+            cell.cvNum = numeric;
+            cell.classList.toggle("cv-num", numeric);
+          }
+        }
+
+        /** Value of column col in a grouping-view item (group: aggregate; element: the row's value). */
+        function itemValue(item, row, key) {
+          if (item.type === "group") {
+            if (key === COUNT_COLUMN) return item.group.count;
+            return item.group.cells[key];
+          }
+          return key === COUNT_COLUMN ? null : row.values[key];
+        }
+
+        /** Total row `Summe` (grouping view): Anzahl and the sums of every column (all cells; one row). */
+        function renderTotal() {
+          const signature = columns.map((c) => c.key + ":" + c.width).join("|");
+          if (foot.cvSignature !== signature) {
+            foot.cvSignature = signature;
+            foot.replaceChildren();
+            foot.cvCells = columns.map((col, c) => {
+              const cell = el("div", "cv-td");
+              cell.setAttribute("role", "gridcell");
+              cell.dataset.col = col.key;
+              cell.setAttribute("aria-colindex", String(c + 1));
+              cell.style.left = offsets[c] + "px";
+              cell.style.width = col.width + "px";
+              foot.append(cell);
+              return cell;
+            });
+          }
+          foot.style.width = offsets[columns.length] + "px";
+          columns.forEach((col, c) => {
+            const cell = foot.cvCells[c];
+            let text = "";
+            let numeric = false;
+            if (col.key === GROUP_COLUMN) text = "Summe";
+            else if (total) {
+              const value = col.key === COUNT_COLUMN ? total.count : total.cells[col.key];
+              numeric = typeof value === "number";
+              text = numeric ? formatCell(value) : "";
+            }
+            if (cell.textContent !== text) cell.textContent = text;
+            cell.title = text;
+            cell.classList.toggle("cv-num", numeric);
+          });
+        }
+
+        /** Renders the rows and columns near the visible window (on scroll, resize and every update). */
+        function render() {
+          const t0 = performance.now();
+          const viewHeight = Math.max(0, (scroll.clientHeight || 300) - TABLE_HEAD_HEIGHT);
+          const top = Math.max(0, scroll.scrollTop);
+          const first = Math.max(0, Math.floor(top / TABLE_ROW_HEIGHT) - TABLE_OVERSCAN_ROWS);
+          const last = Math.min(rowCount, Math.ceil((top + viewHeight) / TABLE_ROW_HEIGHT) + TABLE_OVERSCAN_ROWS);
+          const left = scroll.scrollLeft - TABLE_OVERSCAN_PX;
+          const right = scroll.scrollLeft + (scroll.clientWidth || 800) + TABLE_OVERSCAN_PX;
+          let c0 = 0;
+          while (c0 < columns.length && offsets[c0 + 1] < left) c0++;
+          let c1 = c0;
+          while (c1 < columns.length && offsets[c1] <= right) c1++;
+          while (pool.length < last - first) pool.push(createRow());
+          for (let p = 0; p < pool.length; p++) {
+            const node = pool[p];
+            const index = first + p;
+            if (index >= last) {
+              if (!node.hidden) {
+                node.hidden = true;
+                node.cvIndex = -1;
+                delete node.dataset.key;
+              }
+              continue;
+            }
+            const item = grouped ? items[index] : null;
+            const row = grouped ? (item.type === "element" ? rows[item.index] : null) : rows[order[index]];
+            node.hidden = false;
+            node.cvIndex = index;
+            node.style.top = index * TABLE_ROW_HEIGHT + "px";
+            node.style.width = offsets[columns.length] + "px";
+            node.setAttribute("aria-rowindex", String(index + 2));
+            node.classList.toggle("cv-odd", index % 2 === 1);
+            const kind = item ? item.type : "single";
+            const expanded = item && item.type === "group" ? item.expanded : false;
+            if (node.cvKind !== kind || (item && item.type === "group" && node.cvLevel !== item.group.level)) {
+              node.cvKind = kind;
+              node.cvLevel = item && item.type === "group" ? item.group.level : 0;
+              node.classList.toggle("cv-grp", kind === "group");
+              node.classList.toggle("cv-grp-l1", kind === "group" && node.cvLevel === 1);
+              node.classList.toggle("cv-grp-l2", kind === "group" && node.cvLevel === 2);
+              node.classList.toggle("cv-tr-el", kind === "element");
+              if (kind === "single") {
+                node.removeAttribute("aria-level");
+                node.removeAttribute("aria-expanded");
+              }
+            }
+            if (row) {
+              node.dataset.key = row.key;
+              delete node.dataset.group;
+              delete node.dataset.level;
+            } else {
+              delete node.dataset.key;
+              node.dataset.group = item.group.id;
+              node.dataset.level = String(item.group.level);
+            }
+            if (item) {
+              const level = item.type === "group" ? item.group.level : item.depth + 1;
+              if (node.cvAriaLevel !== level) {
+                node.cvAriaLevel = level;
+                node.setAttribute("aria-level", String(level));
+                node.dataset.depth = String(level - 1);
+              }
+              if (item.type === "group") node.setAttribute("aria-expanded", String(expanded));
+              else node.removeAttribute("aria-expanded");
+            } else if (node.cvAriaLevel !== undefined) {
+              node.cvAriaLevel = undefined;
+              delete node.dataset.depth;
+            }
+            let q = 0;
+            for (let c = c0; c < c1; c++, q++) {
+              const col = columns[c];
+              const cell = cellAt(node, q);
+              cell.hidden = false;
+              cell.style.left = offsets[c] + "px";
+              cell.style.width = col.width + "px";
+              cell.dataset.col = col.key;
+              cell.setAttribute("aria-colindex", String(c + 1));
+              if (col.key === GROUP_COLUMN && item) {
+                // indentation by level: level-1 groups, level-2 groups, element rows below their group (REQ-006-AC3)
+                const depth = item.type === "group" ? item.group.level - 1 : item.depth;
+                setCellPad(cell, 4 + depth * GROUP_INDENT + "px");
+                if (item.type === "group") setCellGroup(cell, item, expanded);
+                else setCellText(cell, "");
+                cell.classList.toggle("cv-td-el", item.type === "element");
+                setCellNum(cell, false);
+                continue;
+              }
+              if (cell.cvPad !== "") setCellPad(cell, "");
+              if (cell.classList.contains("cv-td-el")) cell.classList.remove("cv-td-el");
+              const value = item ? itemValue(item, row, col.key) : row.values[col.key];
+              setCellText(cell, formatCell(value));
+              setCellNum(cell, typeof value === "number");
+            }
+            for (; q < node.cvCells.length; q++) if (!node.cvCells[q].hidden) node.cvCells[q].hidden = true;
+          }
+          if (grouped) renderTotal();
+          const ms = performance.now() - t0;
+          stats.renders++;
+          stats.lastMs = ms;
+          if (ms > stats.maxMs) stats.maxMs = ms;
+        }
+
+        scroll.addEventListener("scroll", render, { passive: true });
+        new ResizeObserver(() => render()).observe(scroll);
+        body.addEventListener("click", (event) => {
+          const toggle = event.target.closest(".cv-grp-toggle");
+          if (toggle && toggle.dataset.group !== undefined) {
+            event.stopPropagation();
+            handlers.toggleGroup(toggle.dataset.group);
+            return;
+          }
+          const node = event.target.closest(".cv-tr");
+          if (node && node.dataset.key) handlers.rowClick(node.dataset.key);
+          else if (node && node.dataset.group !== undefined && handlers.groupClick) handlers.groupClick(node.dataset.group);
+        });
+
+        function setHeights(emptyText) {
+          const height = rowCount * TABLE_ROW_HEIGHT;
+          const footHeight = grouped ? TABLE_ROW_HEIGHT : 0;
+          body.style.height = height + "px";
+          inner.style.height = TABLE_HEAD_HEIGHT + height + footHeight + "px";
+          scroll.setAttribute("aria-rowcount", String(rowCount + 1 + (grouped ? 1 : 0)));
+          foot.setAttribute("aria-rowindex", String(rowCount + 2));
+          foot.hidden = !grouped;
+          scroll.setAttribute("role", grouped ? "treegrid" : "grid");
+          scroll.setAttribute("aria-label", grouped ? "Tabelle gruppiert" : "Tabelle Einzelelemente");
+          empty.hidden = rowCount > 0 && columns.length > 0;
+          empty.textContent = columns.length ? emptyText : "Keine Spalten. \u00dcber \u201eSpalten\u201c hinzuf\u00fcgen.";
+          const maxTop = Math.max(0, inner.offsetHeight - scroll.clientHeight);
+          if (scroll.scrollTop > maxTop) scroll.scrollTop = maxTop;
+          render();
+        }
+
+        return {
+          element: scroll,
+          /**
+           * Columns [{ key, title, kind 'number' | 'text', width, sort 'asc' | 'desc' | null, filtered }] in display
+           * order; header cells are rebuilt only when keys or titles change, else updated in place.
+           */
+          setColumns(specs) {
+            const signature = JSON.stringify(specs.map((s) => [s.key, s.title]));
+            columns = specs.map((s) => ({ ...s }));
+            if (signature !== headSignature) {
+              headSignature = signature;
+              headCells = columns.map(headCell);
+              head.replaceChildren(...headCells);
+              scroll.setAttribute("aria-colcount", String(columns.length));
+            }
+            columns.forEach((col, c) => setHeadState(headCells[c], col));
+            layoutColumns();
+            render();
+          },
+          /** Single-element view: rows (store rows) and the display order (row indices); emptyText when none shown. */
+          setRows(rowList, displayOrder, emptyText) {
+            rows = rowList;
+            order = displayOrder;
+            grouped = false;
+            items = [];
+            total = null;
+            rowCount = order.length;
+            setHeights(emptyText);
+          },
+          /**
+           * Grouping view (TASK-006b): rows (store rows), display items [{ type: 'group', group, label, expanded } |
+           * { type: 'element', index, depth }] and the total { count, cells } of the total row; emptyText when no
+           * group is shown.
+           */
+          setGroups(rowList, displayItems, totalRow, emptyText) {
+            rows = rowList;
+            items = displayItems;
+            total = totalRow;
+            grouped = true;
+            rowCount = items.length;
+            setHeights(emptyText);
+          },
+          /** Header cell of a column (anchor of its filter popup). */
+          headerCell: (key) => headCells[indexOfKey(key)] || null,
+          /** Render statistics (perf tests): { renders, lastMs, maxMs, rowNodes, cellNodes }. */
+          stats() {
+            let cellNodes = 0;
+            for (const node of pool) cellNodes += node.cvCells.length;
+            return { ...stats, rowNodes: pool.length, cellNodes };
+          },
+          rowHeight: TABLE_ROW_HEIGHT,
+          headHeight: TABLE_HEAD_HEIGHT,
+          render,
+        };
+      }
+
+      /** Bound shown in a range input: German decimal comma, full precision, no grouping (REQ-006, D2). */
+      function boundText(value) {
+        return value === null || value === undefined
+          ? ""
+          : value.toLocaleString("de-DE", { maximumFractionDigits: 20, useGrouping: false });
+      }
+
+      /**
+       * Column filter popup (REQ-006) anchored under a header cell. spec: { key, title, kind 'number' | 'text', sort,
+       * filter ({ values } | { min, max } | null), facet (facetCounts entry, text columns), range ({ min, max } of the
+       * column under the other filters, number columns) }. Text columns: value checklist with search (OR within the
+       * column); number columns: `von` / `bis` (inclusive, empty = no bound; German decimal comma or point; invalid
+       * input shows a hint and is ignored, D2). handlers: { toggle(value, checked), range(min, max) (undefined =
+       * unchanged), reset(), sort(dir), remove(), close() }.
+       */
+      function openColumnFilter(host, anchor, spec, handlers) {
+        const popup = el("div", "cv-popup cv-colfilter");
+        popup.id = "cv-colfilter";
+        popup.dataset.key = spec.key;
+        popup.setAttribute("role", "dialog");
+        popup.setAttribute("aria-label", "Spaltenfilter: " + spec.title);
+        const head = el("div", "cv-popup-head");
+        const title = el("div", "cv-popup-title", spec.title);
+        title.title = spec.title;
+        const close = iconButton("close", "Schlie\u00dfen", "cv-popup-close");
+        head.append(title, close);
+
+        const sortRow = el("div", "cv-colfilter-sort");
+        const sortButtons = {};
+        for (const [dir, text, name] of [
+          ["asc", "Aufsteigend", "sortAsc"],
+          ["desc", "Absteigend", "sortDesc"],
+        ]) {
+          const button = el("button", "cv-btn cv-small");
+          button.type = "button";
+          button.dataset.dir = dir;
+          button.append(icon(name), document.createTextNode(text));
+          button.setAttribute("aria-label", text + " sortieren");
+          button.addEventListener("click", () => handlers.sort(dir));
+          sortButtons[dir] = button;
+          sortRow.append(button);
+        }
+        const body = el("div", "cv-popup-body");
+        const foot = el("div", "cv-popup-foot");
+        const reset = el("button", "cv-link", "Filter zur\u00fccksetzen");
+        reset.type = "button";
+        reset.addEventListener("click", () => handlers.reset());
+        const remove = el("button", "cv-link cv-colfilter-remove", "Spalte entfernen");
+        remove.type = "button";
+        remove.addEventListener("click", () => handlers.remove());
+        foot.append(reset, remove);
+        popup.append(head, sortRow, body, foot);
+
+        let current = spec;
+        let api = null;
+        if (spec.kind === "number") {
+          const grid = el("div", "cv-range");
+          const inputs = {};
+          for (const [name, text] of [
+            ["min", "von"],
+            ["max", "bis"],
+          ]) {
+            const label = el("label", "cv-range-field");
+            const input = el("input");
+            input.type = "text";
+            input.inputMode = "decimal";
+            input.autocomplete = "off";
+            input.spellcheck = false;
+            input.dataset.bound = name;
+            input.setAttribute("aria-label", text + ": " + spec.title);
+            input.placeholder = "keine Grenze";
+            label.append(el("span", "cv-range-name", text), input);
+            inputs[name] = input;
+            grid.append(label);
+          }
+          const hint = el("p", "cv-range-hint");
+          hint.setAttribute("role", "status");
+          hint.setAttribute("aria-live", "polite");
+          const info = el("p", "cv-hint cv-range-info");
+          body.append(grid, hint, info);
+          const apply = () => {
+            const bad = [];
+            const out = {};
+            for (const [name, text] of [
+              ["min", "von"],
+              ["max", "bis"],
+            ]) {
+              const parsed = parseNumberInput(inputs[name].value);
+              inputs[name].setAttribute("aria-invalid", String(!parsed.valid));
+              if (parsed.valid) out[name] = parsed.value;
+              else bad.push("\u201e" + text + "\u201c");
+            }
+            hint.textContent = bad.length
+              ? "Ung\u00fcltige Zahl in " +
+                bad.join(" und ") +
+                " \u2013 die Eingabe wird ignoriert. Beispiel: 2,5"
+              : "";
+            hint.hidden = !bad.length;
+            place(); // the hint changes the height
+            handlers.range(out.min, out.max);
+          };
+          for (const input of Object.values(inputs)) {
+            input.addEventListener("input", apply);
+            input.addEventListener("keydown", (event) => {
+              if (event.key === "Enter") apply();
+            });
+          }
+          const fill = (s) => {
+            const f = s.filter || {};
+            for (const name of ["min", "max"]) {
+              const input = inputs[name];
+              if (document.activeElement === input) continue; // keep what the user is typing
+              const parsed = parseNumberInput(input.value);
+              const applied = f[name] === undefined ? null : f[name];
+              if (!(parsed.valid && parsed.value === applied)) {
+                input.value = boundText(applied);
+                input.setAttribute("aria-invalid", "false");
+              }
+            }
+            info.textContent = s.range
+              ? "Werte: " + formatCell(s.range.min) + " \u2013 " + formatCell(s.range.max) + ". Grenzen inklusive, leeres Feld = keine Grenze."
+              : "Keine Werte.";
+          };
+          hint.hidden = true;
+          fill(spec);
+          api = { fill, focus: () => inputs.min.focus() };
+        } else {
+          const search = el("label", "cv-search");
+          const input = el("input");
+          input.type = "search";
+          input.placeholder = "Werte suchen";
+          input.setAttribute("aria-label", "Werte suchen: " + spec.title);
+          search.append(icon("search"), input);
+          const emptyHint = el("p", "cv-hint");
+          const list = createVirtualList({
+            className: "cv-fs-values cv-colfilter-values",
+            rowHeight: VALUE_ROW_HEIGHT,
+            maxRows: VALUE_MAX_ROWS,
+            createRow() {
+              const row = el("label", "cv-fs-value");
+              const box = el("input");
+              box.type = "checkbox";
+              row.append(box, el("span", "cv-fs-label"), el("span", "cv-fs-count"));
+              return row;
+            },
+            updateRow(row, item) {
+              const [box, label, count] = row.children;
+              const text = valueLabel(item.value);
+              box.checked = item.checked;
+              box.setAttribute("aria-label", text);
+              row.classList.toggle("cv-checked", item.checked);
+              row.classList.toggle("cv-zero", item.count === 0);
+              label.textContent = text;
+              label.title = text;
+              label.classList.toggle("cv-empty-value", item.value === null);
+              count.textContent = formatCount(item.count);
+            },
+          });
+          body.append(search, list.element, emptyHint);
+          let query = "";
+          const fill = (s, resetScroll) => {
+            const values = s.facet ? s.facet.values : [];
+            let shown = values;
+            if (query) shown = values.filter((item) => valueLabel(item.value).toLowerCase().includes(query));
+            list.setItems(shown, resetScroll);
+            list.element.hidden = !shown.length;
+            emptyHint.hidden = shown.length > 0;
+            emptyHint.textContent = values.length ? "Keine Treffer." : "Keine Werte.";
+          };
+          input.addEventListener("input", () => {
+            query = input.value.trim().toLowerCase();
+            fill(current, true);
+          });
+          list.element.addEventListener("change", (event) => {
+            const item = list.itemOf(event.target);
+            if (item) handlers.toggle(item.value, event.target.checked);
+          });
+          fill(spec, true);
+          api = { fill, focus: () => input.focus() };
+        }
+
+        function setState(s) {
+          current = s;
+          for (const [dir, button] of Object.entries(sortButtons)) {
+            button.classList.toggle("cv-on", s.sort === dir);
+            button.setAttribute("aria-pressed", String(s.sort === dir));
+          }
+          const active = Boolean(s.filter);
+          reset.disabled = !active;
+        }
+        setState(spec);
+        host.append(popup);
+
+        function place() {
+          const hostBox = host.getBoundingClientRect();
+          const box = anchor.getBoundingClientRect();
+          const width = popup.offsetWidth;
+          const left = Math.max(8, Math.min(box.right - width, hostBox.width - width - 8));
+          let top = box.bottom - hostBox.top + 4;
+          const maxTop = hostBox.height - popup.offsetHeight - 8;
+          if (top > maxTop) top = Math.max(8, box.top - hostBox.top - popup.offsetHeight - 4);
+          popup.style.left = left + "px";
+          popup.style.top = top + "px";
+        }
+        place();
+        api.focus();
+
+        let open = true;
+        function finish() {
+          if (!open) return;
+          open = false;
+          document.removeEventListener("keydown", onKey, true);
+          document.removeEventListener("pointerdown", onDown, true);
+          popup.remove();
+          handlers.close();
+        }
+        function onKey(event) {
+          if (event.key !== "Escape") return;
+          event.preventDefault(); // handled: Escape closes the popup only (not the 3D selection)
+          finish();
+        }
+        function onDown(event) {
+          if (popup.contains(event.target)) return;
+          if (anchor.contains(event.target)) return; // the filter button toggles itself
+          finish();
+        }
+        document.addEventListener("keydown", onKey, true);
+        document.addEventListener("pointerdown", onDown, true);
+        close.addEventListener("click", finish);
+        return {
+          key: spec.key,
+          element: popup,
+          close: finish,
+          /** New state (facet values, filter, sort) after a refresh. */
+          update(s) {
+            setState(s);
+            api.fill(s, false);
+          },
+          place,
+        };
+      }
+
+      /**
+       * Column chooser `Spalten` (REQ-006): the shown columns (move up/down, remove) above the property catalogue
+       * (search, add; the dialog stays open). handlers: { columns() -> [{ key, title }], add(key), remove(key),
+       * step(key, delta) }; refresh() re-reads the columns.
+       */
+      function openColumnChooser(host, entries, handlers) {
+        const top = el("div", "cv-chooser");
+        const heading = el("div", "cv-chooser-title", "Angezeigte Spalten");
+        const list = el("ol", "cv-chooser-list");
+        list.id = "cv-chooser-list";
+        top.append(heading, list, el("div", "cv-chooser-title", "Spalte hinzuf\u00fcgen"));
+        const used = new Set();
+        let dialog = null;
+        function refresh() {
+          const cols = handlers.columns();
+          used.clear();
+          for (const c of cols) used.add(c.key);
+          list.replaceChildren();
+          cols.forEach((col, i) => {
+            const item = el("li", "cv-chooser-item");
+            item.dataset.key = col.key;
+            const name = el("span", "cv-chooser-name", col.title);
+            name.title = col.title;
+            const up = iconButton("up", "Spalte nach links: " + col.title);
+            up.disabled = i === 0;
+            up.addEventListener("click", () => {
+              handlers.step(col.key, -1);
+              refresh();
+            });
+            const down = iconButton("down", "Spalte nach rechts: " + col.title);
+            down.disabled = i === cols.length - 1;
+            down.addEventListener("click", () => {
+              handlers.step(col.key, 1);
+              refresh();
+            });
+            const remove = iconButton("close", "Spalte entfernen: " + col.title);
+            remove.addEventListener("click", () => {
+              handlers.remove(col.key);
+              refresh();
+            });
+            item.append(name, up, down, remove);
+            list.append(item);
+          });
+          if (!cols.length) list.append(el("li", "cv-hint", "Keine Spalten."));
+          if (dialog) dialog.refresh();
+        }
+        refresh();
+        dialog = openCatalogue(
+          host,
+          entries,
+          used,
+          (key) => {
+            handlers.add(key);
+            refresh();
+          },
+          "Spalten",
+          { keepOpen: true, top, usedNote: "angezeigt", usedLabel: "bereits als Spalte", className: "cv-columns-dialog", onClose: handlers.close },
+        );
+        return { close: dialog.close, refresh, element: dialog.element };
       }
 
       /** Text of a property value in the details panel: numbers in German format (up to 3 decimals) with unit. */
@@ -3259,8 +4986,13 @@
 
         const center = el("div", "cv-center");
         center.id = "cv-center";
+        // model area: the canvas box (3D view, toolbar and overlay on top) and the legend strip under it (TASK-005 L1)
         const viewport = el("div", "cv-viewport");
         viewport.id = "cv-viewport";
+        const canvasBox = el("div", "cv-canvas-box");
+        canvasBox.id = "cv-canvas-box";
+        const legendStrip = el("div", "cv-legend-strip");
+        viewport.append(canvasBox, legendStrip);
         const overlay = el("div", "cv-overlay");
         overlay.id = "cv-overlay";
         const overlayBox = el("div", "cv-overlay-box");
@@ -3272,8 +5004,8 @@
         progressBar.hidden = true;
         overlayBox.append(overlayText, progressBar);
         overlay.append(overlayBox);
-        viewport.append(overlay);
-        const viewControls = createViewControls(viewport, options.viewHandlers);
+        canvasBox.append(overlay);
+        const viewControls = createViewControls(canvasBox, legendStrip, options.viewHandlers);
         const splitter = el("div", "cv-splitter");
         splitter.id = "cv-splitter";
         splitter.tabIndex = 0;
@@ -3284,7 +5016,67 @@
         splitter.setAttribute("aria-valuemax", "85");
         const table = el("section", "cv-panel cv-table");
         table.id = "cv-table";
-        table.append(el("h2", "", "Tabelle"), el("p", "cv-hint", "Die Mengentabelle folgt."));
+        const tableHead = el("div", "cv-table-head");
+        const tableTitle = el("h2", "", "Tabelle");
+        const viewSeg = el("div", "cv-seg cv-table-view");
+        viewSeg.setAttribute("role", "radiogroup");
+        viewSeg.setAttribute("aria-label", "Tabellenansicht");
+        const viewButtons = {};
+        for (const [text, value] of [
+          ["Einzelelemente", "single"],
+          ["Gruppiert", "grouped"],
+        ]) {
+          const button = el("button", "cv-seg-btn" + (value === "single" ? " cv-on" : ""), text);
+          button.type = "button";
+          button.dataset.view = value;
+          button.setAttribute("role", "radio");
+          button.setAttribute("aria-checked", String(value === "single"));
+          button.addEventListener("click", () => options.tableHandlers.view(value));
+          viewButtons[value] = button;
+          viewSeg.append(button);
+        }
+        // grouping controls (TASK-006b): level 1 and 2 (catalogue picker), remove level 2, expand / collapse all
+        const groupTools = el("div", "cv-group-tools");
+        groupTools.id = "cv-group-tools";
+        groupTools.hidden = true;
+        const groupButtons = [];
+        for (let level = 1; level <= 2; level++) {
+          const button = el("button", "cv-btn cv-small cv-group-pick");
+          button.type = "button";
+          button.id = "cv-group-" + level;
+          button.append(icon("layers"), el("span", "cv-group-pick-text", ""));
+          button.addEventListener("click", () => options.tableHandlers.pickGroup(level));
+          groupButtons.push(button);
+          groupTools.append(button);
+        }
+        const groupClear = iconButton("close", "Gruppe 2 entfernen", "cv-group-clear");
+        groupClear.id = "cv-group-2-clear";
+        groupClear.addEventListener("click", () => options.tableHandlers.clearGroup(2));
+        groupTools.append(groupClear);
+        const expandAll = iconButton("unfold", "Alle aufklappen", "cv-group-all");
+        expandAll.id = "cv-expand-all";
+        expandAll.addEventListener("click", () => options.tableHandlers.expandAll(true));
+        const collapseAll = iconButton("fold", "Alle zuklappen", "cv-group-all");
+        collapseAll.id = "cv-collapse-all";
+        collapseAll.addEventListener("click", () => options.tableHandlers.expandAll(false));
+        groupTools.append(expandAll, collapseAll);
+        const tableTools = el("div", "cv-table-tools");
+        const columnsButton = el("button", "cv-btn cv-small");
+        columnsButton.type = "button";
+        columnsButton.id = "cv-columns";
+        columnsButton.append(icon("columns"), document.createTextNode("Spalten"));
+        columnsButton.addEventListener("click", () => options.tableHandlers.chooser());
+        tableTools.append(columnsButton);
+        for (const label of ["Export CSV", "Export Excel"]) {
+          const button = el("button", "cv-btn cv-small", label);
+          button.type = "button";
+          button.disabled = true;
+          tableTools.append(button);
+        }
+        tableHead.append(tableTitle, viewSeg, groupTools, tableTools);
+        const tableBox = el("div", "cv-table-box");
+        table.append(tableHead, tableBox);
+        const tableView = createTable(tableBox, options.tableHandlers);
         center.append(viewport, splitter, table);
 
         const details = el("aside", "cv-panel cv-details");
@@ -3360,14 +5152,47 @@
           fileInput,
           loadButton,
           spacesToggle,
-          viewport,
+          viewport: canvasBox,
           layout,
           filters: filterArea,
+          table: tableView,
           view: viewControls,
           details: detailsPanel,
           /** Opens the property catalogue dialog (title default `Filtersatz hinzufuegen`); onPick(key). */
           openCatalogue(entries, used, onPick, titleText) {
             return openCatalogue(app, entries, used, onPick, titleText);
+          },
+          /**
+           * Table view switch and grouping controls (TASK-006b): view 'single' | 'grouped', levels [{ key, title } |
+           * null, { key, title } | null].
+           */
+          setTableView(view, levels) {
+            for (const [value, button] of Object.entries(viewButtons)) {
+              const on = value === view;
+              button.classList.toggle("cv-on", on);
+              button.setAttribute("aria-checked", String(on));
+            }
+            groupTools.hidden = view !== "grouped";
+            groupButtons.forEach((button, i) => {
+              const level = levels[i] || null;
+              const text = "Gruppe " + (i + 1) + ": " + (level ? level.title : "\u2013");
+              button.querySelector(".cv-group-pick-text").textContent = text;
+              button.title = level
+                ? text + " \u2013 klicken zum \u00c4ndern"
+                : "Gruppe " + (i + 1) + " w\u00e4hlen";
+              button.setAttribute("aria-label", level ? "Gruppe " + (i + 1) + " \u00e4ndern: " + level.title : "Gruppe " + (i + 1) + " w\u00e4hlen");
+              button.classList.toggle("cv-on", Boolean(level));
+            });
+            groupButtons[1].disabled = !levels[0];
+            groupClear.hidden = !levels[1];
+          },
+          /** Opens the column filter popup of a column under its header cell (see openColumnFilter). */
+          openColumnFilter(anchor, spec, handlers) {
+            return openColumnFilter(app, anchor, spec, handlers);
+          },
+          /** Opens the column chooser `Spalten` (see openColumnChooser). */
+          openColumnChooser(entries, handlers) {
+            return openColumnChooser(app, entries, handlers);
           },
           /** Shows a message over the 3D view (isError: error style); null hides it. */
           overlay(text, isError) {
@@ -3470,6 +5295,12 @@
       const GHOST_OPACITY = 0.12;
       const COALESCE_MS = 150; // longest wait for other models' refreshes before a changed view is drawn
       const GHOST = "ghost"; // paint of a ghost in the display mirror; colours are "#rrggbb"
+      /**
+       * Neutral light grey of context geometry (e.g. the IfcSite terrain) while `Faerben nach` is active without a
+       * filter (TASK-005 L3): not a legend colour (lighter than `(leer)` #c4c7ca and every scale step is blue), so the
+       * terrain is not mistaken for a coloured value.
+       */
+      export const CONTEXT_COLOR = "#e3e5e7";
       /**
        * Section axes in IFC terms (REQ-005 `Schnitt` X / Y / Z): Fragments shows IFC Z-up models Y-up, so IFC X = three
        * x, IFC Y = -three z, IFC Z = three y. dir: the IFC axis as a three vector.
@@ -3787,12 +5618,15 @@
             entry.vis = vis;
             entry.paint = paint;
           }
-          // context geometry: like elements outside the filter while a filter is active, else as loaded; not in state()
+          // context geometry: like elements outside the filter while a filter is active, else as loaded (neutral grey
+          // while colouring is active, L3); not in state()
+          const contextPaint =
+            plan.filterActive && plan.mode === "ghost" ? GHOST : !plan.filterActive && plan.colourOf ? CONTEXT_COLOR : null;
           for (const { model: modelId, ids } of plan.context || []) {
             const items = mirror.get(modelId);
             if (!items) continue;
             const vis = !plan.filterActive || plan.mode === "ghost";
-            const paint = plan.filterActive && plan.mode === "ghost" ? GHOST : null;
+            const paint = contextPaint;
             for (const localId of ids) {
               let entry = items.get(localId);
               if (!entry || entry.key !== null)
@@ -3977,7 +5811,22 @@
           return out;
         }
 
+        /** Context geometry (no element rows) in the mirror: { items, visible, paints { paint -> count } } (test seam). */
+        function contextState() {
+          const out = { items: 0, visible: 0, paints: {} };
+          for (const items of mirror.values())
+            for (const entry of items.values()) {
+              if (entry.key !== null) continue;
+              out.items++;
+              if (entry.vis) out.visible++;
+              const paint = entry.paint === null ? "none" : entry.paint;
+              out.paints[paint] = (out.paints[paint] || 0) + 1;
+            }
+          return out;
+        }
+
         return {
+          contextState,
           /**
            * Loads .frag bytes as model modelId and fits the camera; resolves to { modelId, model, withGeometry }
            * (model: the Fragments model for extraction; withGeometry: localIds of items with 3D geometry).
@@ -4087,19 +5936,31 @@
 
     <!-- Entry: start({mode}) wires ui + 3d; holds models, rows and the property catalogue. ASCII only. -->
     <script type="text/plain" id="cv-app-src">
-      import { renderLayout } from "calc-ui";
+      import { COUNT_COLUMN, GROUP_COLUMN, renderLayout, valueLabel } from "calc-ui";
       import { createEngine } from "calc-3d";
       import {
+        DEFAULT_COLUMNS,
         LoadError,
+        allGroups,
         buildCatalog,
+        clampColumnWidth,
         colourLegend,
         colourScheme,
         createColumnStore,
+        defaultColumnWidth,
         evaluateFilters,
         facetCounts,
         filterRows,
+        groupDisplayRows,
+        groupRows,
         loadErrorMessage,
         modelNameFromFile,
+        moveItem,
+        normaliseColumns,
+        normaliseGrouping,
+        numberRange,
+        pruneSelection,
+        sortRows,
         uniqueModelName,
         visibleRows,
       } from "calc-core";
@@ -4122,7 +5983,18 @@
        * [{ value, count, checked }] } }), updates (number of filter evaluations), lastMs (duration of the last
        * evaluation incl. filter-area update) }. layout: { split (model share in %), detailsCollapsed }. view (TASK-005):
        * { mode 'ghost' | 'hide', colourKey, selected (row key or null), section }; the 3D state itself is
-       * window.CalcView.state() (spec 4.4).
+       * window.CalcView.state() (spec 4.4). table (TASK-006a): { columns [{ key, width }] in display order, sort
+       * ({ key, dir } | null), filters ([{ key, type 'values', values } | { key, type 'range', min, max }] column
+       * filters, ids `col:<key>`), count (rows shown), keys (row keys in display order; built when read), updates,
+       * lastMs (filter result -> table rendered) }; columns, sort and filters are the configuration part (REQ-006-AC6,
+       * TASK-007) and also returned by start().tableState() / window.CalcTable.state().
+       * table.at is the performance.now() time of the last table update (perf tests: input event -> table rendered).
+       * Grouping view (TASK-006b) adds to table: view ('single' | 'grouped'), groupBy ([key1, key2?]), groups (number
+       * of groups on both levels), display (built when read: the shown rows in order, [{ type 'group', level, id, key,
+       * value, label, count, cells { key -> sum | common value | null }, expanded } | { type 'element', key, depth }]),
+       * total ({ count, cells } of the total row, or null in the single-element view); in the grouping view count is the
+       * number of shown rows (group and element rows, total row excluded) and keys the element rows' keys. view and
+       * groupBy are the configuration part (REQ-009, TASK-007): start().groupingState() / window.CalcTable.grouping().
        */
       const hook = {
         phase: "starting",
@@ -4138,6 +6010,21 @@
         error: null,
         options: { includeSpaces: false },
         filter: { sets: [], active: [], count: 0, total: 0, keys: [], facets: {}, updates: 0, lastMs: 0 },
+        table: {
+          columns: [],
+          sort: null,
+          filters: [],
+          count: 0,
+          keys: [],
+          updates: 0,
+          lastMs: 0,
+          at: 0,
+          view: "single",
+          groupBy: [],
+          groups: 0,
+          display: [],
+          total: null,
+        },
         layout: null,
         view: null,
         test: { crashNextConversion: false, neverStartNextConversion: false, startTimeoutMs: null },
@@ -4173,9 +6060,31 @@
         let rowIndex = new Map(); // row key -> index in store.rows
         let catalogOrder = new Map(); // property key -> catalogue position (details order)
         let inside = new Uint8Array(0); // 1 = row passes all filters
+        // Table (TASK-006a, REQ-006): columns [{ key, width }], sort { key, dir } | null, column filters by key
+        // ({ type 'values', values } | { type 'range', min, max }; filter id `col:<key>`), open popup / chooser.
+        let columns = normaliseColumns(DEFAULT_COLUMNS, null);
+        let sort = null;
+        const columnFilters = new Map();
+        let columnPopup = null; // { key, popup }
+        let chooser = null;
+        let order = new Uint32Array(0); // row indices in table order (filtered, sorted)
+        const rowClickListeners = [];
+        // Grouping view (TASK-006b, REQ-006): view, grouping properties (level 1, optional level 2), expanded groups
+        // (a group is expanded when expandDefault differs from toggled.has(id); `Alle auf-/zuklappen` set the default)
+        let tableView = "single";
+        let groupBy = [];
+        let expandDefault = false;
+        const toggled = new Set();
+        let tree = null; // groupRows result of the current filter result
+        let displayItems = [];
+        const groupClickListeners = [];
 
         const setById = (id) => filterSets.find((s) => s.id === id);
-        const coreFilters = () => filterSets.map((s) => ({ id: s.id, key: s.key, type: "values", values: s.selected }));
+        const colId = (key) => "col:" + key;
+        const coreFilters = () =>
+          filterSets
+            .map((s) => ({ id: s.id, key: s.key, type: "values", values: s.selected }))
+            .concat([...columnFilters].map(([key, f]) => ({ id: colId(key), key, ...f })));
 
         function setSpecs() {
           return filterSets.map((s) => {
@@ -4220,6 +6129,8 @@
           ui.filters.update(facets, evaluation.filters.length > 0);
           sync3d();
           ui.status(indices.length, store.size, hook.modelCount);
+          updateTable(t0);
+          updatePopup();
           const rows = store.rows;
           let keys = null;
           let plainFacets = null;
@@ -4257,8 +6168,429 @@
           refresh();
         }
 
-        /** Keys of the cached columns still in use: filter sets and the colouring property. */
-        const keysInUse = () => filterSets.map((s) => s.key).concat(colourKey ? [colourKey] : []);
+        /** Keys of the cached columns still in use: filter sets, colouring, column filters, sort key and grouping. */
+        const keysInUse = () =>
+          filterSets
+            .map((s) => s.key)
+            .concat(
+              colourKey ? [colourKey] : [],
+              [...columnFilters.keys()],
+              sort ? [sort.key] : [],
+              tableView === "grouped" ? groupBy : [],
+            );
+
+        // ---------- table (TASK-006a, REQ-006) ----------
+
+        /** Header specs of the columns for the table component (grouping view: `Gruppe` and `Anzahl` first). */
+        function columnSpecs() {
+          const fixed =
+            tableView === "grouped"
+              ? [
+                  { key: GROUP_COLUMN, title: "Gruppe", kind: "text", width: 260, sort: null, filtered: false, fixed: true },
+                  { key: COUNT_COLUMN, title: "Anzahl", kind: "number", width: 90, sort: null, filtered: false, fixed: true },
+                ]
+              : [];
+          return fixed.concat(columnSpecsOnly());
+        }
+
+        function columnSpecsOnly() {
+          return columns.map((c) => {
+            const entry = catalog.get(c.key);
+            return {
+              key: c.key,
+              title: entry ? entry.header : c.key,
+              kind: entry && entry.kind === "number" ? "number" : "text",
+              width: c.width,
+              sort: sort && sort.key === c.key ? sort.dir : null,
+              filtered: columnFilters.has(c.key),
+            };
+          });
+        }
+
+        /** Configuration part of the table (REQ-006-AC6; saved by TASK-007): columns, sort, column filters. */
+        function tableState() {
+          return {
+            columns: columns.map((c) => ({ key: c.key, width: c.width })),
+            sort: sort ? { ...sort } : null,
+            columnFilters: [...columnFilters].map(([key, f]) =>
+              f.type === "range"
+                ? { key, type: "range", min: f.min, max: f.max }
+                : { key, type: "values", values: f.values.slice() },
+            ),
+          };
+        }
+
+        /** Grouping part of the configuration (REQ-009 "table view, grouping properties"; saved by TASK-007). */
+        function groupingState() {
+          return { view: tableView, groupBy: groupBy.slice() };
+        }
+
+        function groupTitle(key) {
+          const entry = catalog.get(key);
+          return entry ? entry.header : key;
+        }
+
+        function publishTable() {
+          const state = tableState();
+          hook.table.columns = state.columns;
+          hook.table.sort = state.sort;
+          hook.table.filters = state.columnFilters;
+          hook.table.view = tableView;
+          hook.table.groupBy = groupBy.slice();
+          ui.setTableView(
+            tableView,
+            [0, 1].map((i) => (groupBy[i] ? { key: groupBy[i], title: groupTitle(groupBy[i]) } : null)),
+          );
+          ui.table.setColumns(columnSpecs());
+          if (chooser) chooser.refresh();
+        }
+
+        /** Aggregation of each column in the grouping view: sums for numbers (not mixed units, DEC-2), else equal text. */
+        function groupColumns() {
+          return columns.map((c) => {
+            const entry = catalog.get(c.key);
+            if (entry && entry.kind === "number") return { key: c.key, mode: entry.unit === "gemischt" ? "none" : "sum" };
+            return { key: c.key, mode: "same" };
+          });
+        }
+
+        const isExpanded = (group) => expandDefault !== toggled.has(group.id);
+
+        /** Display rows of the grouping view from the current tree and the expanded state; renders them. */
+        function showGroups() {
+          const rows = store.rows;
+          const list = groupDisplayRows(tree, isExpanded);
+          displayItems = list.map((item) =>
+            item.type === "group"
+              ? { type: "group", group: item.group, label: valueLabel(item.group.value), expanded: isExpanded(item.group) }
+              : item,
+          );
+          ui.table.setGroups(
+            rows,
+            displayItems,
+            tree.total,
+            store.size ? "Keine Elemente im Filter." : "Keine Elemente.",
+          );
+          const items = displayItems;
+          let keys = null;
+          let display = null;
+          hook.table.count = items.length;
+          hook.table.groups = allGroups(tree).length;
+          hook.table.total = { count: tree.total.count, cells: { ...tree.total.cells } };
+          Object.defineProperty(hook.table, "keys", {
+            configurable: true,
+            enumerable: true,
+            get() {
+              if (!keys) keys = items.filter((it) => it.type === "element").map((it) => rows[it.index].key);
+              return keys;
+            },
+          });
+          Object.defineProperty(hook.table, "display", {
+            configurable: true,
+            enumerable: true,
+            get() {
+              if (!display)
+                display = items.map((it) =>
+                  it.type === "group"
+                    ? {
+                        type: "group",
+                        level: it.group.level,
+                        id: it.group.id,
+                        key: it.group.key,
+                        value: it.group.value,
+                        label: it.label,
+                        count: it.group.count,
+                        cells: { ...it.group.cells },
+                        expanded: it.expanded,
+                      }
+                    : { type: "element", key: rows[it.index].key, depth: it.depth },
+                );
+              return display;
+            },
+          });
+        }
+
+        /**
+         * Table rows = the filter result (view.indices) in sort order; renders the visible part. Grouping view: the
+         * groups of the sorted rows (groupRows), their display rows under the expanded state and the total row.
+         */
+        function updateTable(t0) {
+          const start = t0 === undefined ? performance.now() : t0;
+          order = sort ? sortRows(store, view.indices, sort) : view.indices;
+          const rows = store.rows;
+          if (tableView === "grouped") {
+            tree = groupRows(store, order, { levels: groupBy, columns: groupColumns(), sort });
+            showGroups();
+          } else {
+            tree = null;
+            displayItems = [];
+            const shown = order;
+            ui.table.setRows(rows, shown, store.size ? "Keine Elemente im Filter." : "Keine Elemente.");
+            let keys = null;
+            hook.table.count = shown.length;
+            hook.table.groups = 0;
+            hook.table.total = null;
+            Object.defineProperty(hook.table, "display", {
+              configurable: true,
+              enumerable: true,
+              writable: true,
+              value: [],
+            });
+            Object.defineProperty(hook.table, "keys", {
+              configurable: true,
+              enumerable: true,
+              get() {
+                if (!keys) keys = Array.from(shown, (i) => rows[i].key);
+                return keys;
+              },
+            });
+          }
+          hook.table.updates++;
+          hook.table.at = performance.now();
+          hook.table.lastMs = hook.table.at - start;
+        }
+
+        /** Re-renders the grouping view after an expand / collapse (no regrouping). */
+        function refreshGroups() {
+          if (tableView !== "grouped" || !tree) return;
+          const start = performance.now();
+          showGroups();
+          hook.table.updates++;
+          hook.table.at = performance.now();
+          hook.table.lastMs = hook.table.at - start;
+        }
+
+        /**
+         * Applies a grouping state { view, groupBy } (UI switch, group pickers, TASK-007 configuration load). The
+         * grouping view needs a level-1 property: without one it groups by `Kategorie`. A new grouping collapses all.
+         */
+        function setGroupingState(state) {
+          const next = normaliseGrouping(state, catalog);
+          if (next.view === "grouped" && !next.groupBy.length) next.groupBy = ["Kategorie"];
+          const regroup = next.groupBy.join("\u0000") !== groupBy.join("\u0000");
+          if (next.view === tableView && !regroup) return;
+          tableView = next.view;
+          groupBy = next.groupBy;
+          if (regroup) {
+            expandDefault = false;
+            toggled.clear();
+          }
+          store.retain(keysInUse());
+          publishTable();
+          updateTable();
+        }
+        /** Spec of the column filter popup of key under the current filters (values / range under the others). */
+        function popupSpec(key) {
+          const entry = catalog.get(key);
+          const kind = entry && entry.kind === "number" ? "number" : "text";
+          const f = columnFilters.get(key) || null;
+          const spec = {
+            key,
+            title: entry ? entry.header : key,
+            kind,
+            sort: sort && sort.key === key ? sort.dir : null,
+            filter: f,
+          };
+          const evaluation = view.evaluation || evaluateFilters(store, coreFilters());
+          if (kind === "number") spec.range = numberRange(store, key, evaluation.except(colId(key)));
+          else spec.facet = facetCounts(evaluation, null, [{ id: colId(key), key }]).get(colId(key));
+          return spec;
+        }
+
+        function updatePopup() {
+          if (columnPopup) columnPopup.popup.update(popupSpec(columnPopup.key));
+        }
+
+        function setSort(key, dir) {
+          sort = key && dir ? { key, dir } : null;
+          store.retain(keysInUse());
+          publishTable();
+          updateTable();
+          updatePopup();
+        }
+
+        function closePopup() {
+          if (columnPopup) columnPopup.popup.close();
+        }
+
+        /** Changes the column filter of key (null removes it) and re-evaluates every filter (sets, table, 3D). */
+        function setColumnFilter(key, filter) {
+          if (filter) columnFilters.set(key, filter);
+          else columnFilters.delete(key);
+          store.retain(keysInUse());
+          publishTable();
+          refresh();
+        }
+
+        function addColumn(key) {
+          if (columns.some((c) => c.key === key)) return;
+          columns = columns.concat([{ key, width: defaultColumnWidth(key, catalog.get(key)) }]);
+          publishTable();
+          if (tableView === "grouped") updateTable(); // the group rows need the sums / common values of the new column
+          else ui.table.render();
+        }
+
+        function removeColumn(key) {
+          if (!columns.some((c) => c.key === key)) return;
+          if (columnPopup && columnPopup.key === key) closePopup();
+          columns = columns.filter((c) => c.key !== key);
+          const hadFilter = columnFilters.delete(key);
+          if (sort && sort.key === key) sort = null;
+          store.retain(keysInUse());
+          publishTable();
+          if (hadFilter) refresh();
+          else updateTable();
+        }
+
+        function moveColumn(key, to) {
+          const from = columns.findIndex((c) => c.key === key);
+          if (from === -1 || to < 0 || to >= columns.length || from === to) return;
+          columns = moveItem(columns, from, to);
+          publishTable();
+        }
+
+        const tableHandlers = {
+          /** Header click: ascending -> descending -> unsorted (REQ-006). */
+          sort(key) {
+            if (!sort || sort.key !== key) setSort(key, "asc");
+            else if (sort.dir === "asc") setSort(key, "desc");
+            else setSort(null);
+          },
+          filter(key, button) {
+            const same = columnPopup && columnPopup.key === key;
+            closePopup();
+            if (same) return; // the filter button toggles its popup
+            const spec = popupSpec(key);
+            const popup = ui.openColumnFilter(button, spec, {
+              toggle(value, checked) {
+                const f = columnFilters.get(key);
+                const values = f && f.type === "values" ? f.values.slice() : [];
+                const at = values.indexOf(value);
+                if (checked && at === -1) values.push(value);
+                else if (!checked && at !== -1) values.splice(at, 1);
+                else return;
+                setColumnFilter(key, values.length ? { type: "values", values } : null);
+              },
+              range(min, max) {
+                const f = columnFilters.get(key);
+                const next = {
+                  min: min === undefined ? (f ? f.min : null) : min,
+                  max: max === undefined ? (f ? f.max : null) : max,
+                };
+                if (f && f.min === next.min && f.max === next.max) return;
+                if (!f && next.min === null && next.max === null) return;
+                setColumnFilter(key, next.min === null && next.max === null ? null : { type: "range", ...next });
+              },
+              reset() {
+                if (columnFilters.has(key)) setColumnFilter(key, null);
+              },
+              sort(dir) {
+                if (sort && sort.key === key && sort.dir === dir) setSort(null);
+                else setSort(key, dir);
+              },
+              remove() {
+                removeColumn(key);
+              },
+              close() {
+                if (columnPopup && columnPopup.popup === popup) columnPopup = null;
+              },
+            });
+            columnPopup = { key, popup };
+          },
+          move: moveColumn,
+          resize(key, width) {
+            const c = columns.find((col) => col.key === key);
+            if (!c) return;
+            const next = clampColumnWidth(width, c.width);
+            if (next === c.width) return publishTable();
+            columns = columns.map((col) => (col.key === key ? { key, width: next } : col));
+            publishTable();
+          },
+          /** Row click: hook for the table -> 3D selection (TASK-006c); listeners from start().onRowClick. */
+          rowClick(key) {
+            for (const listener of rowClickListeners) listener(key);
+          },
+          /** Group row click: hook for the group selection (TASK-006c); listener(id, element keys of the group). */
+          groupClick(id) {
+            const group = allGroups(tree).find((g) => g.id === id);
+            if (!group) return;
+            const keys = Array.from(group.indices, (i) => store.rows[i].key);
+            for (const listener of groupClickListeners) listener(id, keys);
+          },
+          /** `Einzelelemente | Gruppiert` (REQ-006). */
+          view(next) {
+            setGroupingState({ view: next, groupBy });
+          },
+          /** Chooses the property of grouping level 1 or 2 from the catalogue. */
+          pickGroup(level) {
+            if (level === 2 && !groupBy[0]) return;
+            const other = groupBy[level === 1 ? 1 : 0];
+            const used = new Set(other ? [other] : []);
+            ui.openCatalogue(
+              [...catalog.values()],
+              used,
+              (key) => {
+                const next = groupBy.slice();
+                next[level - 1] = key;
+                setGroupingState({ view: "grouped", groupBy: next.filter(Boolean) });
+              },
+              "Gruppieren nach (Ebene " + level + ")",
+            );
+          },
+          clearGroup(level) {
+            setGroupingState({ view: tableView, groupBy: groupBy.filter((_, i) => i !== level - 1) });
+          },
+          /** `Alle aufklappen` (true) / `Alle zuklappen` (false): every group of both levels. */
+          expandAll(expanded) {
+            expandDefault = Boolean(expanded);
+            toggled.clear();
+            refreshGroups();
+          },
+          /** Expands or collapses one group (by id). */
+          toggleGroup(id) {
+            if (toggled.has(id)) toggled.delete(id);
+            else toggled.add(id);
+            refreshGroups();
+          },
+          chooser() {
+            if (chooser) return;
+            chooser = ui.openColumnChooser([...catalog.values()], {
+              columns: () => columnSpecsOnly().map((c) => ({ key: c.key, title: c.title })),
+              add: addColumn,
+              remove: removeColumn,
+              step(key, delta) {
+                moveColumn(key, columns.findIndex((c) => c.key === key) + delta);
+              },
+              close() {
+                chooser = null;
+              },
+            });
+          },
+        };
+
+        /**
+         * Applies a table state (configuration part; TASK-007 loads it): { columns [{ key, width }], sort,
+         * columnFilters [{ key, type, values | min, max }] }; filters and sort on keys that are no column are skipped.
+         */
+        function setTableState(state) {
+          closePopup();
+          columns = normaliseColumns(state && state.columns ? state.columns : DEFAULT_COLUMNS, catalog);
+          const keys = new Set(columns.map((c) => c.key));
+          sort = state && state.sort && keys.has(state.sort.key) ? { key: state.sort.key, dir: state.sort.dir === "desc" ? "desc" : "asc" } : null;
+          columnFilters.clear();
+          for (const f of (state && state.columnFilters) || []) {
+            if (!f || !keys.has(f.key)) continue;
+            if (f.type === "range") {
+              const min = typeof f.min === "number" && Number.isFinite(f.min) ? f.min : null;
+              const max = typeof f.max === "number" && Number.isFinite(f.max) ? f.max : null;
+              if (min !== null || max !== null) columnFilters.set(f.key, { type: "range", min, max });
+            } else if (Array.isArray(f.values) && f.values.length)
+              columnFilters.set(f.key, { type: "values", values: f.values.slice() });
+          }
+          store.retain(keysInUse());
+          publishTable();
+          refresh();
+        }
 
         /**
          * Sends the display plan for the current filter result to cv-3d (ghost / hide, colours) and updates the legend;
@@ -4383,9 +6715,12 @@
             set.selected = [];
             changed();
           },
-          /** Clears every filter (filter sets; the table's column filters join here in TASK-006a; REQ-004-AC4). */
+          /** Clears every filter: filter sets and the table's column filters (REQ-004-AC4). */
           resetAll() {
             for (const set of filterSets) set.selected = [];
+            columnFilters.clear();
+            store.retain(keysInUse());
+            publishTable();
             changed();
           },
           move(id, to) {
@@ -4413,7 +6748,13 @@
           },
         };
 
-        const ui = renderLayout(options.root, { mode: options.mode, title: options.title, filterHandlers, viewHandlers });
+        const ui = renderLayout(options.root, {
+          mode: options.mode,
+          title: options.title,
+          filterHandlers,
+          viewHandlers,
+          tableHandlers,
+        });
         hook.layout = ui.layout;
         ui.overlay("3D-Ansicht wird gestartet ...");
         const engine = createEngine(ui.viewport, options.workerUrl, { onPick: (key) => select(key) });
@@ -4436,6 +6777,15 @@
           screenBox: (key) => engine.screenBox(key),
           engineVisible: (modelId, localIds) => engine.engineVisible(modelId, localIds),
           axisRange: (axis) => engine.axisRange(axis),
+          contextState: () => engine.contextState(),
+        };
+        /** Table seam (TASK-006a): configuration part (state / setState, TASK-007) and render statistics. */
+        window.CalcTable = {
+          state: () => tableState(),
+          setState: (state) => setTableState(state),
+          stats: () => ui.table.stats(),
+          grouping: () => groupingState(),
+          setGrouping: (state) => setGroupingState(state),
         };
         const models = []; // { id, name, fileName, rows, properties, spaceProperties, spaceIds, contextIds, fragBytes }
         const queued = []; // files dropped while an action runs; loaded right after it
@@ -4460,12 +6810,29 @@
           catalogOrder = new Map(hook.catalog.map((entry, i) => [entry.key, i]));
           store = createColumnStore(rows); // new row set: new column store (TASK-003)
           rowIndex = new Map(rows.map((row, i) => [row.key, i]));
+          // REQ-001-AC3: filters on remaining values stay active; checked values no element has any more are dropped
+          for (const set of filterSets) if (set.selected.length) set.selected = pruneSelection(store, set.key, set.selected);
+          for (const [key, f] of [...columnFilters]) {
+            if (f.type !== "values") continue;
+            const values = pruneSelection(store, key, f.values);
+            if (values.length) columnFilters.set(key, { type: "values", values });
+            else columnFilters.delete(key);
+          }
+          store.retain(keysInUse());
           // colouring follows the new row set (dropped if its property is gone)
           if (colourKey && !catalog.has(colourKey)) {
             colourKey = null;
             ui.view.setColouring(null);
           }
           scheme = colourKey ? colourScheme(store, colourKey) : null;
+          // grouping follows the new row set: properties no element has any more are dropped (level 2 moves up)
+          if (catalog.size && groupBy.some((key) => !catalog.has(key))) {
+            const kept = normaliseGrouping({ view: tableView, groupBy }, catalog);
+            groupBy = tableView === "grouped" && !kept.groupBy.length ? ["Kategorie"] : kept.groupBy;
+            expandDefault = false;
+            toggled.clear();
+            store.retain(keysInUse());
+          }
           if (section) ui.view.setSection(section, engine.axisRange(section.axis));
           hook.models = models.map((m) => {
             const visible = visibleRows(m.rows, includeSpaces);
@@ -4485,6 +6852,7 @@
             options.mode === "builder" ? removeModel : null,
           );
           publishSets();
+          publishTable();
           refresh();
           settleOverlay();
         }
@@ -4637,6 +7005,20 @@
           select,
           /** Key of the selected element or null. */
           selected: () => selectedKey,
+          /** Table configuration part (REQ-006-AC6): { columns, sort, columnFilters }; setTableState applies one. */
+          tableState,
+          setTableState,
+          /** Calls listener(rowKey) when a table row is clicked (hook for the table -> 3D selection, TASK-006c). */
+          onRowClick(listener) {
+            rowClickListeners.push(listener);
+          },
+          /** Grouping part of the configuration (REQ-009): { view, groupBy }; setGroupingState applies one. */
+          groupingState,
+          setGroupingState,
+          /** Calls listener(groupId, elementKeys) when a group row is clicked (group selection, TASK-006c). */
+          onGroupClick(listener) {
+            groupClickListeners.push(listener);
+          },
         };
       }
 

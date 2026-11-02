@@ -66,6 +66,14 @@
       "source": "derived from AC20-FZK-Haus.ifc by scripts/make-unit-fixtures.mjs",
       "licence": "as AC20-FZK-Haus.ifc",
       "sha256": "fc0674da6d04df7fa81661b1b9377afc13dcec5d66a90fce73107097a77935b7"
+    },
+    {
+      "file": "fzk-range.ifc",
+      "schema": "IFC4",
+      "purpose": "numeric property CalcTest_Range.Wert (IfcReal) on six walls: 1.9, 2, 2.5, 3.5, 5, 5.1 (REQ-006-AC9 range bounds, TASK-003 D2 decimal comma)",
+      "source": "derived from AC20-FZK-Haus.ifc by scripts/make-unit-fixtures.mjs",
+      "licence": "as AC20-FZK-Haus.ifc",
+      "sha256": "d5135aee37671b0dc21a59feb9ab0b1c7a199d55a80109a8ed805c4ab05c4c0d"
     }
   ],
   "fetched": [

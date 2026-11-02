@@ -10,7 +10,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { loadIfc } from "./ifc-model.mjs";
-import { MASS_PROPERTY, MASS_TARGET } from "../make-unit-fixtures.mjs";
+import { MASS_PROPERTY, MASS_TARGET, RANGE_PROPERTY } from "../make-unit-fixtures.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const FIX = ROOT + "test/fixtures/";
@@ -84,6 +84,23 @@ function fzkSection() {
     return { count: list.length, byKategorie: count(list) };
   };
 
+  // REQ-006-AC4: column filter Name = the name of reference wall #21966; REQ-006-AC5: NetVolume per element
+  const acName = m.element(21966).Name;
+  const nameHits = els.filter((e) => e.Name === acName);
+  const countBy = (list, key) => {
+    const c = {};
+    for (const e of list) c[e[key] ?? "(leer)"] = (c[e[key] ?? "(leer)"] ?? 0) + 1;
+    return Object.fromEntries(Object.entries(c).sort(([a], [b]) => a.localeCompare(b)));
+  };
+  const VOLUME = "BaseQuantities.NetVolume";
+  const volumes = {};
+  for (const e of els)
+    if (typeof e.props[VOLUME]?.value === "number") volumes[e.GlobalId] = round(e.props[VOLUME].value);
+  const spaces = m
+    .all("IFCSPACE")
+    .map((sp) => sp.args[0])
+    .sort();
+
   const Q = (...k) => k;
   const elements = [
     refElement(
@@ -138,6 +155,15 @@ function fzkSection() {
       "BaseQuantities.Length": carriers("BaseQuantities.Length"),
     },
     elements,
+    spaces: {
+      note: "IfcSpace instances of the STEP text: rows only with the option `R\u00e4ume (IfcSpace) einbeziehen` (DEC-13, REQ-001-AC4)",
+      count: spaces.length,
+      GlobalIds: spaces,
+    },
+    columnValues: {
+      note: "Values per GlobalId of the elements that carry the property (others have no value: empty cells, sorted last)",
+      [VOLUME]: { unit: "m\u00b3", carriers: Object.keys(volumes).length, byGlobalId: volumes },
+    },
     conditionalElements: virtual.map((e) => ({
       why: "IfcVirtualElement: no storey, no material, no representation in the IFC. Assert only if the extractor lists IfcVirtualElement as rows; then Geschoss, Material empty and Geometrie = Nein",
       stepId: e.stepId,
@@ -163,6 +189,15 @@ function fzkSection() {
         kategorieCountsOnGroundFloor: core,
         kategorieCountsOnGroundFloorConditional: conditional,
         note: "With Geschoss = ground floor checked, the Kategorie filter set lists exactly kategorieCountsOnGroundFloor, plus each class of kategorieCountsOnGroundFloorConditional that the extractor lists as rows (IfcSpace only with the IfcSpace option on; the ground floor aggregates 6 IfcSpace).",
+      },
+      "REQ-006-AC4": {
+        column: "Name",
+        values: [acName],
+        expectedCount: nameHits.length,
+        expectedGlobalIds: nameHits.map((e) => e.GlobalId).sort(),
+        byKategorie: countBy(nameHits, "Kategorie"),
+        byGeschoss: countBy(nameHits, "Geschoss"),
+        note: "Column filter on Name with the name of reference element #21966; every element with exactly this Name",
       },
     },
   };
@@ -239,6 +274,32 @@ function nameFilterSection() {
     expectedGlobalIds: hits.map((e) => e.GlobalId).sort(),
     byKategorie: countByKategorie(hits),
     note: "Name value chosen as the median of the sorted Name values that have 2..50 elements, none of a conditional class",
+  };
+}
+
+/**
+ * REQ-006-AC9 (TASK-006a): fzk-range.ifc carries CalcTest_Range.Wert on six walls. Expected rows of the numeric column
+ * filter for the spec bounds `von` 2 `bis` 5 (inclusive, DEC-17) and for the decimal comma input `2,5` (TASK-003 D2).
+ */
+function rangeSection() {
+  const m = read(FIX + "fzk-range.ifc");
+  const key = `${RANGE_PROPERTY.pset}.${RANGE_PROPERTY.name}`;
+  const els = m.elements.map((id) => m.element(id));
+  const values = {};
+  for (const e of els) if (typeof e.props[key]?.value === "number") values[e.GlobalId] = round(e.props[key].value);
+  const within = (lo, hi) =>
+    Object.entries(values)
+      .filter(([, v]) => v >= lo && v <= hi)
+      .map(([g]) => g)
+      .sort();
+  return {
+    file: "fzk-range.ifc",
+    property: key,
+    byGlobalId: values,
+    elementsWithoutValue: els.length - Object.keys(values).length,
+    "von 2 bis 5": { min: 2, max: 5, expectedGlobalIds: within(2, 5) },
+    "von 2,5": { input: "2,5", min: 2.5, max: null, expectedGlobalIds: within(2.5, Infinity) },
+    note: "Bounds inclusive; elements without a value are excluded while a bound is set (DEC-17)",
   };
 }
 
@@ -350,12 +411,127 @@ function mep2000Section() {
   };
 }
 
+/** Neumaier sum of numbers (rounded like every reference value); null if there is none. */
+function refSum(values) {
+  let sum = 0;
+  let comp = 0;
+  let any = false;
+  for (const v of values) {
+    if (typeof v !== "number" || !Number.isFinite(v)) continue;
+    any = true;
+    const t = sum + v;
+    comp += Math.abs(sum) >= Math.abs(v) ? sum - t + v : v - t + sum;
+    sum = t;
+  }
+  return any ? round(sum + comp) : null;
+}
+
+/** The value of a text attribute if every element has the same non-empty one, else null (REQ-006-AC7). */
+function commonText(list, get) {
+  const token = (v) =>
+    v === null || v === undefined || v === "" ? "" : Array.isArray(v) ? JSON.stringify(v) : String(v);
+  if (!list.length || token(get(list[0])) === "") return null;
+  const first = token(get(list[0]));
+  return list.every((e) => token(get(e)) === first) ? get(list[0]) : null;
+}
+
+/**
+ * REQ-006-AC2/AC3/AC7/AC8 (TASK-006b): AC20-FZK-Haus grouped by Kategorie, then Geschoss, with the numeric column
+ * BaseQuantities.NetVolume. Per Kategorie: element count, volume sum (null = no element has a volume), the common
+ * Geschoss / Name / Typ (REQ-006-AC7: value if equal in every element of the group, else null) and the same per
+ * Geschoss sub-group ("(leer)" = no storey). All STEP elements are listed by Kategorie; tests leave out the classes
+ * the extractor does not list as rows.
+ */
+function groupingFzkSection() {
+  const m = read(FIX + "AC20-FZK-Haus.ifc");
+  const els = m.elements.map((id) => m.element(id));
+  const VOLUME = "BaseQuantities.NetVolume";
+  const volume = (e) => (typeof e.props[VOLUME]?.value === "number" ? e.props[VOLUME].value : null);
+  const typ = (e) => e.Typ;
+  const byKat = new Map();
+  for (const e of els) (byKat.get(e.Kategorie) ?? byKat.set(e.Kategorie, []).get(e.Kategorie)).push(e);
+  const groups = {};
+  for (const kat of [...byKat.keys()].sort()) {
+    const list = byKat.get(kat);
+    const byGeschoss = new Map();
+    for (const e of list) {
+      const g = e.Geschoss ?? "(leer)";
+      (byGeschoss.get(g) ?? byGeschoss.set(g, []).get(g)).push(e);
+    }
+    groups[kat] = {
+      count: list.length,
+      volume: refSum(list.map(volume)),
+      common: {
+        Geschoss: commonText(list, (e) => e.Geschoss),
+        Name: commonText(list, (e) => e.Name),
+        Typ: commonText(list, typ),
+      },
+      byGeschoss: Object.fromEntries(
+        [...byGeschoss.keys()].sort().map((g) => [
+          g,
+          {
+            count: byGeschoss.get(g).length,
+            volume: refSum(byGeschoss.get(g).map(volume)),
+            common: { Typ: commonText(byGeschoss.get(g), typ) },
+          },
+        ]),
+      ),
+    };
+  }
+  return {
+    file: "AC20-FZK-Haus.ifc",
+    levels: ["Kategorie", "Geschoss"],
+    column: VOLUME,
+    unit: "m\u00b3",
+    byKategorie: groups,
+    note: "Every STEP element by Kategorie (sorted) then Geschoss ('(leer)' = no storey): count, sum of BaseQuantities.NetVolume (Neumaier sum of the unrounded values, then rounded to 12 significant digits; null = no element of the group has a volume) and the common value of the text columns Geschoss / Name / Typ (null = differs or empty). Group rows of the product exist only for the classes it lists as rows; the total row is the sum over those classes.",
+  };
+}
+
+/**
+ * REQ-006-AC10 (TASK-006b): the committed Duplex fixture grouped by Material (multi-valued, DEC-16, ASM-008). Per
+ * material ("(leer)" = no material) the elements by Kategorie with count and sum of PSet_Revit_Dimensions.Volume; an
+ * element with several materials is in each of its groups. Plus the number of elements with several materials and
+ * the totals (each element once).
+ */
+function groupingDuplexSection() {
+  const m = read(FIX + "Ifc2x3_Duplex_Architecture.ifc");
+  const els = m.elements.map((id) => ({ id, e: m.element(id) }));
+  const VOLUME = "PSet_Revit_Dimensions.Volume";
+  const volume = (e) => (typeof e.props[VOLUME]?.value === "number" ? e.props[VOLUME].value : null);
+  const groups = new Map();
+  for (const { e } of els)
+    for (const mat of e.Material.length ? e.Material : ["(leer)"]) {
+      const g = groups.get(mat) ?? groups.set(mat, new Map()).get(mat);
+      (g.get(e.Kategorie) ?? g.set(e.Kategorie, []).get(e.Kategorie)).push(e);
+    }
+  const perKategorie = (byKat) =>
+    Object.fromEntries(
+      [...byKat.keys()]
+        .sort()
+        .map((k) => [k, { count: byKat.get(k).length, volume: refSum(byKat.get(k).map(volume)) }]),
+    );
+  const all = new Map();
+  for (const { e } of els) (all.get(e.Kategorie) ?? all.set(e.Kategorie, []).get(e.Kategorie)).push(e);
+  const multi = els.filter(({ e }) => e.Material.length > 1);
+  return {
+    file: "Ifc2x3_Duplex_Architecture.ifc",
+    level: "Material",
+    column: VOLUME,
+    byMaterial: Object.fromEntries([...groups.keys()].sort().map((mat) => [mat, perKategorie(groups.get(mat))])),
+    totalByKategorie: perKategorie(all),
+    elementsWithSeveralMaterials: multi.length,
+    severalMaterialsByKategorie: countByKategorie(multi.map(({ e }) => e)),
+    note: "Material = sorted distinct IfcMaterial names (REQ-002). Each material group lists its elements by Kategorie with count and sum of PSet_Revit_Dimensions.Volume (m\u00b3; Neumaier sum, rounded to 12 significant digits; null = none has a volume). An element with n materials is in n groups; totalByKategorie counts and sums each element once. Tests leave out the classes the extractor does not list as rows.",
+  };
+}
+
 const existing = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : {};
 const fzk = fzkSection();
 const out = {
   meta: {
     purpose:
-      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1 and NFR-001 (spec Testing -> Test data)",
+      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10 and NFR-001 (spec Testing -> Test data)",
     generatedBy: "node scripts/ref/derive-reference.mjs",
     method:
       "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
@@ -367,6 +543,9 @@ const out = {
   "fzk-unit-a-b": unitPairSection(),
   Ifc2x3_Duplex_Architecture: duplexSection(),
   "REQ-005-AC4": multiMaterialSection(),
+  "REQ-006-AC9": rangeSection(),
+  "REQ-006-grouping-fzk": groupingFzkSection(),
+  "REQ-006-grouping-duplex": groupingDuplexSection(),
   "REQ-002-AC7": castleSection() ?? existing["REQ-002-AC7"] ?? null,
   "REQ-006-AC1": mep2000Section()?.["REQ-006-AC1"] ?? existing["REQ-006-AC1"] ?? null,
   "NFR-001-name-filter": nameFilterSection() ?? existing["NFR-001-name-filter"] ?? null,

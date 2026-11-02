@@ -8,6 +8,9 @@
 //                   project mass unit (#24, IfcSIUnit GRAM) becomes KILO GRAM (kg).
 //   fzk-unit-b.ifc  the same property and value; project mass unit becomes IfcConversionBasedUnit 'POUND'
 //                   (0.45359237 kg). Mass is a non-converted unit (DEC-2), so a and b together give `gemischt`.
+//   fzk-range.ifc   property set 'CalcTest_Range' with 'Wert' = IfcReal on six walls (1.9, 2, 2.5, 3.5, 5, 5.1;
+//                   the other elements have no value): the bounds and neighbours of the numeric column filter
+//                   `von` 2 `bis` 5 (REQ-006-AC9) and a value for the decimal comma input `2,5` (TASK-003 D2).
 //
 // Everything else is byte-identical to the source (CRLF line ends kept); new entities are appended to DATA with
 // ids above the source's maximum and deterministic GlobalIds (scripts/lib/ifc-synth.mjs ifcGuidFromSeed).
@@ -92,7 +95,46 @@ export function fzkUnitB(source) {
   ]);
 }
 
-export const UNIT_FIXTURES = { "fzk-feet.ifc": fzkFeet, "fzk-unit-a.ifc": fzkUnitA, "fzk-unit-b.ifc": fzkUnitB };
+/** Walls of the source (STEP id) and the CalcTest_Range.Wert value each gets in fzk-range.ifc (REQ-006-AC9). */
+export const RANGE_PROPERTY = { pset: "CalcTest_Range", name: "Wert" };
+export const RANGE_VALUES = [
+  [15042, "1.9"],
+  [17040, "2."],
+  [18465, "2.5"],
+  [18698, "3.5"],
+  [20598, "5."],
+  [21966, "5.1"],
+];
+
+/** fzk-range.ifc: one IfcPropertySingleValue (IfcReal) per wall in its own property set (REQ-006-AC9). */
+export function fzkRange(source) {
+  const n = maxId(source);
+  const oh = `#${MASS_TARGET.ownerHistory}`;
+  const records = [];
+  RANGE_VALUES.forEach(([stepId, value], i) => {
+    const id = n + 1 + i * 3;
+    records.push(
+      `#${id}= IFCPROPERTYSINGLEVALUE('${RANGE_PROPERTY.name}',$,IFCREAL(${value}),$);`,
+      `#${id + 1}= IFCPROPERTYSET('${ifcGuidFromSeed("fzk-range:pset:" + stepId)}',${oh},'${RANGE_PROPERTY.pset}',$,(#${id}));`,
+      `#${id + 2}= IFCRELDEFINESBYPROPERTIES('${ifcGuidFromSeed("fzk-range:rel:" + stepId)}',${oh},$,$,(#${stepId}),#${id + 1});`,
+    );
+  });
+  return appendRecords(renameFile(source, "fzk-range.ifc"), records);
+}
+
+export const UNIT_FIXTURES = {
+  "fzk-feet.ifc": fzkFeet,
+  "fzk-unit-a.ifc": fzkUnitA,
+  "fzk-unit-b.ifc": fzkUnitB,
+  "fzk-range.ifc": fzkRange,
+};
+
+const PURPOSE = {
+  "fzk-feet.ifc": "length unit IfcConversionBasedUnit FOOT (0.3048 m) (REQ-002-AC6)",
+  "fzk-unit-a.ifc": `numeric non-length property ${MASS_PROPERTY.pset}.${MASS_PROPERTY.name} with mass unit kg (IfcSIUnit) (REQ-002-AC6 gemischt)`,
+  "fzk-unit-b.ifc": `numeric non-length property ${MASS_PROPERTY.pset}.${MASS_PROPERTY.name} with mass unit pound (IfcConversionBasedUnit) (REQ-002-AC6 gemischt)`,
+  "fzk-range.ifc": `numeric property ${RANGE_PROPERTY.pset}.${RANGE_PROPERTY.name} (IfcReal) on six walls: 1.9, 2, 2.5, 3.5, 5, 5.1 (REQ-006-AC9 range bounds, TASK-003 D2 decimal comma)`,
+};
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const source = readFileSync(DIR + "AC20-FZK-Haus.ifc", "latin1");
@@ -104,10 +146,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const entry = {
       file,
       schema: "IFC4",
-      purpose:
-        file === "fzk-feet.ifc"
-          ? "length unit IfcConversionBasedUnit FOOT (0.3048 m) (REQ-002-AC6)"
-          : `numeric non-length property ${MASS_PROPERTY.pset}.${MASS_PROPERTY.name} with mass unit ${file === "fzk-unit-a.ifc" ? "kg (IfcSIUnit)" : "pound (IfcConversionBasedUnit)"} (REQ-002-AC6 gemischt)`,
+      purpose: PURPOSE[file],
       source: SOURCE_NOTE,
       licence: "as AC20-FZK-Haus.ifc",
       sha256: createHash("sha256").update(buf).digest("hex"),
@@ -117,5 +156,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     else manifest.committed.push(entry);
   }
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
-  console.log("make-unit-fixtures: wrote fzk-feet.ifc, fzk-unit-a.ifc, fzk-unit-b.ifc and their manifest entries");
+  console.log(`make-unit-fixtures: wrote ${Object.keys(UNIT_FIXTURES).join(", ")} and their manifest entries`);
 }

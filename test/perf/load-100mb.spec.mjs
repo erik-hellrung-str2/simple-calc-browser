@@ -3,7 +3,7 @@
 // (CDP Performance.getMetrics, polled) and the row count; the full NFR-002 measurement (median of 3, synthetic
 // single file) is TASK-010. Runs in the `file` project only (the user's path; http is covered by the smoke test).
 import { statSync, writeFileSync, mkdirSync } from "node:fs";
-import { test, expect } from "../support/network-guard.mjs";
+import { test, expect } from "../support/perf-lock.mjs";
 import { fetched, loadFiles, openBuilder } from "../support/builder.mjs";
 
 const SET = ["Ifc2x3_SampleCastle.ifc", "Ifc2x3_SampleCastle.ifc", "Ifc4_Revit_MEP.ifc"].map(fetched);
