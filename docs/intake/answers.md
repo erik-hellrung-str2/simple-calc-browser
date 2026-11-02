@@ -23,6 +23,7 @@ Source: `user` | `user-confirmed` | `inferred` | `delegated` | `unknown`.
 
 | ID | Question | Answer | Source |
 |---|---|---|---|
+| F-02 | Summary correct? | "Wie oben beschrieben - eine Gruppierungsansicht muss aber möglich sein. Hierzu darf man bis zu 2 Ebenen als Struktur auswählen. Ansonsten gibt es noch die Einzelelementansicht. In der Gruppierungsansicht darf man auch noch Einzelelemente anzeigen lassen. Da die Spalten frei wählbar sind, kann man sich das selbst zusammenbauen. Wichtig ist daher, dass man dies exportieren kann und auch speichern und laden. Export für Kollegen ohne näheres Verständnis und Export und Laden, um es zu aktualisieren / anzupassen. Es ist also eigentlich ein Calc Viewer Builder - wobei im exportierten Zustand die Filteranordnung und die Spaltenanordnung verändert werden darf (genauso wie Gruppierungsansicht usw.)" → normalized: table has (a) single-element view and (b) grouping view with up to 2 group levels, optionally expanding to single elements; columns freely chosen; configuration can be saved and loaded (to update/adapt); export for colleagues; in the exported file filter arrangement, column arrangement and grouping remain changeable | user |
 | F-01 | (unprompted) role of the screenshot | "Nimm aus dem Bild nur die Struktur - die Farbgebung bleibt wie bei HTML Model Viewer" → screenshot = layout/structure reference only; colours/styling follow the HTML Model Viewer | user |
 
 ## Understanding (mirrored back to the user)
@@ -37,17 +38,18 @@ Source: `user` | `user-confirmed` | `inferred` | `delegated` | `unknown`.
 | ID | Answer | Source | Notes / follow-up |
 |---|---|---|---|
 | C01 | | | |
-| C02 | | | |
+| C02 | Fachleute (BIM-Koordinatoren, Kalkulatoren, Projektbeteiligte); one role, no login; HTML file shared via mail/drive and opened locally. Second audience: "Kollegen ohne näheres Verständnis" who receive the export | user (option) + user (round-1 summary answer) | |
 | C03 | see description | user | to confirm |
-| C04 | browser, based on HTML Model Viewer | user | |
+| C04 | New standalone browser app in this repo (`simple-calc-browser`), same stack as HTML Model Viewer; works as a "Calc Viewer Builder": produces an exported view for colleagues | user | |
 | C05 | IFC model(s), one or more | user | volume open |
 | C06 | | | |
 | C07 | | | |
-| C08 | builds on `html-modelviewer` | user | how exactly — open |
+| C08 | New app, same stack as `html-modelviewer` (code/style reused, not the builder extended) | user | |
 | C09 | | | |
 | C10 | HTML Model Viewer stack | user | |
-| C11 | | | |
+| C11 | autonomous | user | |
 
 ## Interview progress
 - Last completed: C00
-- Next: confirm understanding + core gaps round 1
+- Last completed: round 1 (summary, basis, users, autonomy)
+- Next: analyse html-modelviewer, then round 2 (export form, data, scope, lifetime)
