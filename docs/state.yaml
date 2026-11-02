@@ -24,8 +24,9 @@ blocking_questions: []
 active_changes: []
 pending_release: []
 reserved_ids: {}
-next_action: "Write docs/spec.md (lean) from docs/intake/answers.md, assessment.md and modelviewer-analysis.md, incl. UI section, as-is notes, test strategy for T1-T7, task checklist; fill AGENTS.md §4."
+next_action: "Spikes running (extraction ASM-005, xlsx/offline export ASM-004, test harness) in the session scratchpad; when done, write docs/spec.md (lean) from docs/intake/* and the spike results, record spike findings in docs/spec.md §4/§7, fill AGENTS.md §4, then run an independent spec review."
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
   - {date: 2026-11-02, event: "intake approved by human; spec started"}
+  - {date: 2026-11-02, event: "spec: feasibility spikes started (ASM-004, ASM-005, test harness)"}
