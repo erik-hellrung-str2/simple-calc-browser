@@ -40,20 +40,28 @@ A message that changes scope, requirements or design is a `/change`. A message t
 <!-- Filled in by the design phase, verified by the first task. Keep current. -->
 
 ```yaml
-project_name: TBD
-stack: TBD                 # languages, frameworks, runtime versions
-source_layout: TBD         # where code, tests, config live
-commands:                  # exact shell commands, runnable from repo root
-  install: TBD
-  format: TBD
-  lint: TBD
-  typecheck: TBD           # or n/a
-  build: TBD
-  test_fast: TBD           # tests run per task
-  test_all: TBD            # every automated suite (regression)
-  test_single: TBD         # one test, with placeholder
-  run: TBD
-  check: TBD               # ONE fail-fast command running check_sequence, naming the failing step; its exit code is the evidence (run by .githooks/pre-commit)
-tests: {}                  # one command per test type the test strategy requires, e.g. unit: …, e2e: …, perf: …
+project_name: Calc Viewer Builder
+stack: plain JavaScript in one hand-written HTML file (no build step); @thatopen/fragments 3.4.7 + three 0.185.1 + web-ifc 0.0.77 from jsDelivr; dev tooling Node 22, Playwright 1.63 (Chromium), Python 3 + openpyxl 3.1.5 (tests only)
+source_layout: calc-viewer-builder.html (product); scripts/ (vendor, fixtures, serve, check); test/{unit,integration,e2e,perf,fixtures}; docs/ (process)
+commands:                  # exact shell commands, runnable from repo root (established by TASK-001a)
+  install: npm ci && python3 -m pip install openpyxl==3.1.5 && node scripts/vendor-cdn.mjs && node scripts/fetch-fixtures.mjs
+  format: npx prettier --write .
+  lint: npx eslint --max-warnings 0 .
+  typecheck: n/a
+  build: n/a
+  test_fast: npx c8 --include='.cache/**' --check-coverage --lines 70 node --test 'test/unit/**/*.test.mjs' && npx playwright test --grep @integration --project=http
+  test_all: node scripts/check.mjs --all
+  test_single: node --test --test-name-pattern='<name>' 'test/unit/**/*.test.mjs'   # or: npx playwright test -g '<name>'
+  run: node scripts/serve.mjs   # then open http://localhost:8080/calc-viewer-builder.html, or double-click calc-viewer-builder.html
+  check: node scripts/check.mjs
+tests:
+  unit: node --test --test-name-pattern='\[unit\]' 'test/unit/**/*.test.mjs'
+  integration: npx playwright test --grep @integration
+  system: npx playwright test --grep @system
+  e2e: npx playwright test --grep @e2e
+  acceptance: npx playwright test --grep @acceptance
+  perf: npx playwright test --grep @perf && node --test --test-name-pattern='\[perf\]' 'test/perf/**/*.test.mjs'
+  robustness: npx playwright test --grep @robustness
+  smoke: npx playwright test --grep @smoke
 check_sequence: [format, lint, typecheck, build, test_fast]   # must pass before a task is done (run via `check`)
 ```

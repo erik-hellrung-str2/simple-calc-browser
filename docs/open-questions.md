@@ -22,5 +22,6 @@ Status: `open` | `answered` | `obsolete`. Blocking questions are also listed in 
 | ASM-005 | Storey, material and type-pset extraction is feasible with That Open Fragments 3.4.7 relations (`ContainedInStructure`, `HasAssociations`, `IsTypedBy`/`DefinesOccurrence`) | not yet used in html-modelviewer | DAT-01, FUN-01 | first implementation task (spike) | confirmed (spike 2026-11-02, re-checked: type via IsDefinedBy, storey via spatial tree, material via HasAssociations; IFC2X3 door/window styles need extra importer classes) |
 | ASM-006 | Aggregates (IfcStair, IfcCurtainWall, IfcElementAssembly …) and their parts are both table rows; sums include both (spec DEC-3) | double counting rule not asked | REQ-002, REQ-006 | release gate | active |
 | ASM-007 | Supported browsers: current Chrome and Edge; Firefox best effort (spec DEC-8) | QLT-02 not asked at tier S | NFR-*, T12 | release gate | active |
+| ASM-008 | Grouping by a multi-valued property (e.g. `Material`) counts and sums an element in each of its groups; the total row counts it once (spec DEC-16) | affects quantity totals; not asked | REQ-006, REQ-008 | release gate | active |
 
 Status: `active` | `confirmed` | `rejected` (→ `/change`).
