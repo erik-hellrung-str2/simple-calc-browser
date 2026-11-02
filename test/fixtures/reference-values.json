@@ -1,0 +1,544 @@
+{
+  "meta": {
+    "purpose": "Reference values for REQ-002-AC1/AC6/AC7, REQ-004-AC1/AC2 and REQ-006-AC1 (spec Testing -> Test data)",
+    "generatedBy": "node scripts/ref/derive-reference.mjs",
+    "method": "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
+    "reviewedBy": "fresh-context tester (not the TASK-002 implementer)",
+    "tolerance": {
+      "relative": 1e-9
+    }
+  },
+  "AC20-FZK-Haus": {
+    "file": "AC20-FZK-Haus.ifc",
+    "schema": "IFC4",
+    "unitAssignment": {
+      "LENGTHUNIT": "IfcSIUnit METRE",
+      "AREAUNIT": "IfcSIUnit SQUARE_METRE",
+      "VOLUMEUNIT": "IfcSIUnit CUBIC_METRE",
+      "PLANEANGLEUNIT": "IfcConversionBasedUnit 'DEGREE' = 0.0174532925199 x (IfcSIUnit RADIAN)",
+      "SOLIDANGLEUNIT": "IfcSIUnit STERADIAN",
+      "MONETARYUNIT": "IfcMonetaryUnit EUR",
+      "TIMEUNIT": "IfcSIUnit SECOND",
+      "MASSUNIT": "IfcSIUnit GRAM",
+      "THERMODYNAMICTEMPERATUREUNIT": "IfcSIUnit DEGREE_CELSIUS",
+      "LUMINOUSINTENSITYUNIT": "IfcSIUnit LUMEN",
+      "THERMALCONDUCTANCEUNIT": "IfcDerivedUnit IfcSIUnit WATT^1 * IfcSIUnit METRE^-1 * IfcSIUnit KELVIN^-1",
+      "SPECIFICHEATCAPACITYUNIT": "IfcDerivedUnit IfcSIUnit JOULE^1 * IfcSIUnit KILO GRAM^-1 * IfcSIUnit KELVIN^-1",
+      "MASSDENSITYUNIT": "IfcDerivedUnit IfcSIUnit KILO GRAM^1 * IfcSIUnit CUBIC_METRE^-1"
+    },
+    "unitNote": "length METRE, area SQUARE_METRE, volume CUBIC_METRE without prefix: expected values equal the raw IFC values",
+    "elementsInStepText": 116,
+    "elementsInStepTextByKategorie": {
+      "IfcAnnotation": 14,
+      "IfcBeam": 4,
+      "IfcDoor": 5,
+      "IfcMember": 42,
+      "IfcOpeningElement": 17,
+      "IfcRailing": 2,
+      "IfcSlab": 4,
+      "IfcStair": 1,
+      "IfcVirtualElement": 3,
+      "IfcWallStandardCase": 13,
+      "IfcWindow": 11
+    },
+    "storeys": [
+      {
+        "Name": "Erdgeschoss",
+        "GlobalId": "2eyxpyOx95m90jmsXLOuR0",
+        "elevation": 0
+      },
+      {
+        "Name": "Dachgeschoss",
+        "GlobalId": "273g3wqLzDtfYIl7qqkgcO",
+        "elevation": 2.7
+      }
+    ],
+    "elements": [
+      {
+        "why": "wall, single-layer IfcMaterialLayerSetUsage, ground floor",
+        "stepId": 21966,
+        "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+        "Kategorie": "IfcWallStandardCase",
+        "Name": "Wand-Ext-ERDG-1",
+        "Typ": "Leichtbeton 102890359 300",
+        "typeClass": "IFCWALLTYPE",
+        "Geschoss": "Erdgeschoss",
+        "Material": [
+          "Leichtbeton 102890359"
+        ],
+        "materialSource": "occurrence",
+        "materialAssociation": [
+          "IFCMATERIALLAYERSETUSAGE"
+        ],
+        "hasRepresentationInIfc": true,
+        "quantities": {
+          "BaseQuantities.Length": {
+            "value": 9.7,
+            "unit": "m",
+            "raw": 9.7,
+            "measure": "IFCQUANTITYLENGTH",
+            "source": "occurrence"
+          },
+          "BaseQuantities.GrossSideArea": {
+            "value": 25.59,
+            "unit": "m²",
+            "raw": 25.59,
+            "measure": "IFCQUANTITYAREA",
+            "source": "occurrence"
+          },
+          "BaseQuantities.NetVolume": {
+            "value": 5.80797,
+            "unit": "m³",
+            "raw": 5.80797,
+            "measure": "IFCQUANTITYVOLUME",
+            "source": "occurrence"
+          }
+        }
+      },
+      {
+        "why": "slab, IfcMaterialLayerSetUsage, ground floor",
+        "stepId": 34509,
+        "GlobalId": "1pPHnf7cXCpPsNEnQf8_6B",
+        "Kategorie": "IfcSlab",
+        "Name": "Bodenplatte",
+        "Typ": "Stahlbeton 65690 200",
+        "typeClass": "IFCSLABTYPE",
+        "Geschoss": "Erdgeschoss",
+        "Material": [
+          "Stahlbeton 65690"
+        ],
+        "materialSource": "occurrence",
+        "materialAssociation": [
+          "IFCMATERIALLAYERSETUSAGE"
+        ],
+        "hasRepresentationInIfc": true,
+        "quantities": {
+          "BaseQuantities.Width": {
+            "value": 0.2,
+            "unit": "m",
+            "raw": 0.2,
+            "measure": "IFCQUANTITYLENGTH",
+            "source": "occurrence"
+          },
+          "BaseQuantities.GrossArea": {
+            "value": 120,
+            "unit": "m²",
+            "raw": 120,
+            "measure": "IFCQUANTITYAREA",
+            "source": "occurrence"
+          },
+          "BaseQuantities.GrossVolume": {
+            "value": 24,
+            "unit": "m³",
+            "raw": 24,
+            "measure": "IFCQUANTITYVOLUME",
+            "source": "occurrence"
+          }
+        }
+      },
+      {
+        "why": "door with type and material",
+        "stepId": 17468,
+        "GlobalId": "1Oms875aH3Wg$9l65H2ZGw",
+        "Kategorie": "IfcDoor",
+        "Name": "Innentuer-1",
+        "Typ": "IFC Tür - Eine Öffnunsgrichtung",
+        "typeClass": "IFCDOORTYPE",
+        "Geschoss": "Erdgeschoss",
+        "Material": [
+          "Holz"
+        ],
+        "materialSource": "occurrence",
+        "materialAssociation": [
+          "IFCMATERIALLIST"
+        ],
+        "hasRepresentationInIfc": true,
+        "quantities": {
+          "BaseQuantities.Height": {
+            "value": 2.01,
+            "unit": "m",
+            "raw": 2.01,
+            "measure": "IFCQUANTITYLENGTH",
+            "source": "occurrence"
+          },
+          "BaseQuantities.Area": {
+            "value": 1.77885,
+            "unit": "m²",
+            "raw": 1.77885,
+            "measure": "IFCQUANTITYAREA",
+            "source": "occurrence"
+          },
+          "BaseQuantities.Volume": {
+            "value": 0.085569,
+            "unit": "m³",
+            "raw": 0.085569,
+            "measure": "IFCQUANTITYVOLUME",
+            "source": "occurrence"
+          }
+        }
+      },
+      {
+        "why": "window with type and material",
+        "stepId": 23024,
+        "GlobalId": "1srAI$R4T8ihLXSNHmUSET",
+        "Kategorie": "IfcWindow",
+        "Name": "EG-Fenster-6",
+        "Typ": "IFC Fenster - zwei Panele - Vertikal",
+        "typeClass": "IFCWINDOWTYPE",
+        "Geschoss": "Erdgeschoss",
+        "Material": [
+          "Holz"
+        ],
+        "materialSource": "occurrence",
+        "materialAssociation": [
+          "IFCMATERIALLIST"
+        ],
+        "hasRepresentationInIfc": true,
+        "quantities": {
+          "BaseQuantities.Width": {
+            "value": 2,
+            "unit": "m",
+            "raw": 2,
+            "measure": "IFCQUANTITYLENGTH",
+            "source": "occurrence"
+          },
+          "BaseQuantities.Area": {
+            "value": 2.4,
+            "unit": "m²",
+            "raw": 2.4,
+            "measure": "IFCQUANTITYAREA",
+            "source": "occurrence"
+          },
+          "BaseQuantities.Volume": {
+            "value": 0.0396675,
+            "unit": "m³",
+            "raw": 0.0396675,
+            "measure": "IFCQUANTITYVOLUME",
+            "source": "occurrence"
+          }
+        }
+      },
+      {
+        "why": "element without material (neither occurrence nor type 'Eingangstür' has one): Material empty",
+        "stepId": 27013,
+        "GlobalId": "2jTRqchjf7oB0yhQ6462T0",
+        "Kategorie": "IfcDoor",
+        "Name": "Haustuer",
+        "Typ": "Eingangstür",
+        "typeClass": "IFCDOORTYPE",
+        "Geschoss": "Erdgeschoss",
+        "Material": [],
+        "materialSource": "none",
+        "materialAssociation": [],
+        "hasRepresentationInIfc": true,
+        "quantities": {
+          "BaseQuantities.Width": {
+            "value": 1.01,
+            "unit": "m",
+            "raw": 1.01,
+            "measure": "IFCQUANTITYLENGTH",
+            "source": "occurrence"
+          },
+          "BaseQuantities.Area": {
+            "value": 2.0301,
+            "unit": "m²",
+            "raw": 2.0301,
+            "measure": "IFCQUANTITYAREA",
+            "source": "occurrence"
+          }
+        }
+      },
+      {
+        "why": "wall on the upper storey (storey via containment)",
+        "stepId": 60012,
+        "GlobalId": "0knNIAVBPBFvBy_m5QVHsU",
+        "Kategorie": "IfcWallStandardCase",
+        "Name": "Wand-Ext-OG-1",
+        "Typ": "Leichtbeton 102890359 300",
+        "typeClass": "IFCWALLTYPE",
+        "Geschoss": "Dachgeschoss",
+        "Material": [
+          "Leichtbeton 102890359"
+        ],
+        "materialSource": "occurrence",
+        "materialAssociation": [
+          "IFCMATERIALLAYERSETUSAGE"
+        ],
+        "hasRepresentationInIfc": true,
+        "quantities": {
+          "BaseQuantities.Length": {
+            "value": 9.7,
+            "unit": "m",
+            "raw": 9.7,
+            "measure": "IFCQUANTITYLENGTH",
+            "source": "occurrence"
+          }
+        }
+      },
+      {
+        "why": "member without type object: Typ empty",
+        "stepId": 35169,
+        "GlobalId": "0oTQ6V1VbChulreA_hfmUa",
+        "Kategorie": "IfcMember",
+        "Name": "Sparren-1",
+        "Typ": null,
+        "typeClass": "IFCMEMBERTYPE",
+        "Geschoss": "Dachgeschoss",
+        "Material": [
+          "Solid"
+        ],
+        "materialSource": "occurrence",
+        "materialAssociation": [
+          "IFCMATERIAL"
+        ],
+        "hasRepresentationInIfc": true,
+        "quantities": {}
+      }
+    ],
+    "conditionalElements": [
+      {
+        "why": "IfcVirtualElement: no storey, no material, no representation in the IFC. Assert only if the extractor lists IfcVirtualElement as rows; then Geschoss, Material empty and Geometrie = Nein",
+        "stepId": 77324,
+        "GlobalId": "2O1epMSyD6ol5XOFRviRIZ",
+        "Kategorie": "IfcVirtualElement",
+        "Name": null,
+        "Typ": null,
+        "Geschoss": null,
+        "Material": [],
+        "hasRepresentationInIfc": false
+      },
+      {
+        "why": "IfcVirtualElement: no storey, no material, no representation in the IFC. Assert only if the extractor lists IfcVirtualElement as rows; then Geschoss, Material empty and Geometrie = Nein",
+        "stepId": 77395,
+        "GlobalId": "0wuj6ac_Rv$ZYWzILFrlw0",
+        "Kategorie": "IfcVirtualElement",
+        "Name": null,
+        "Typ": null,
+        "Geschoss": null,
+        "Material": [],
+        "hasRepresentationInIfc": false
+      },
+      {
+        "why": "IfcVirtualElement: no storey, no material, no representation in the IFC. Assert only if the extractor lists IfcVirtualElement as rows; then Geschoss, Material empty and Geometrie = Nein",
+        "stepId": 77636,
+        "GlobalId": "3x5bWRj6N6PhHPHxSQnO1r",
+        "Kategorie": "IfcVirtualElement",
+        "Name": null,
+        "Typ": null,
+        "Geschoss": null,
+        "Material": [],
+        "hasRepresentationInIfc": false
+      }
+    ],
+    "filters": {
+      "REQ-004-AC1": {
+        "filter": {
+          "Kategorie": [
+            "IfcWallStandardCase",
+            "IfcSlab"
+          ]
+        },
+        "expectedCount": 17,
+        "expectedGlobalIds": [
+          "07Enbsqm9C7AQC9iyBwfSD",
+          "0knNIAVBPBFvBy_m5QVHsU",
+          "1$wmdwWPjDYuku_ghVkynE",
+          "16DNNqzfP2thtfaOflvsKA",
+          "1bzfVsJqn8De5PukCrqylz",
+          "1pPHnf7cXCpPsNEnQf8_6B",
+          "25OWQvmXj5BPgyergP43tY",
+          "25fsbPyk15VvuXI$yNKenK",
+          "2IxUUNUVPB6Ob$eicCfP2N",
+          "2RGlQk4xH47RHK93zcTzUL",
+          "2XPyKWY018sA1ygZKgQPtU",
+          "2ptk1k7qn8_Qk22vjh$0DE",
+          "3PfS__Y_DBAfq5naM6zD2Z",
+          "3Ttjr$59XEWfWN1WUHjelZ",
+          "3VCarUKgH1buLo22Ozxe6J",
+          "3jjW3rL656ex34Gws22EfM",
+          "3rPX_Juz59peXXY6wDJl18"
+        ]
+      },
+      "REQ-004-AC2": {
+        "filter": {
+          "Kategorie": [
+            "IfcWallStandardCase",
+            "IfcSlab"
+          ],
+          "Geschoss": [
+            "Erdgeschoss"
+          ]
+        },
+        "groundFloorStorey": {
+          "Name": "Erdgeschoss",
+          "GlobalId": "2eyxpyOx95m90jmsXLOuR0",
+          "elevation": 0
+        },
+        "expectedCount": 10,
+        "expectedGlobalIds": [
+          "1$wmdwWPjDYuku_ghVkynE",
+          "16DNNqzfP2thtfaOflvsKA",
+          "1bzfVsJqn8De5PukCrqylz",
+          "1pPHnf7cXCpPsNEnQf8_6B",
+          "25fsbPyk15VvuXI$yNKenK",
+          "2XPyKWY018sA1ygZKgQPtU",
+          "2ptk1k7qn8_Qk22vjh$0DE",
+          "3PfS__Y_DBAfq5naM6zD2Z",
+          "3jjW3rL656ex34Gws22EfM",
+          "3rPX_Juz59peXXY6wDJl18"
+        ],
+        "kategorieCountsOnGroundFloor": {
+          "IfcBeam": 1,
+          "IfcDoor": 5,
+          "IfcSlab": 1,
+          "IfcStair": 1,
+          "IfcWallStandardCase": 9,
+          "IfcWindow": 9
+        },
+        "kategorieCountsOnGroundFloorConditional": {
+          "IfcAnnotation": 12
+        },
+        "note": "With Geschoss = ground floor checked, the Kategorie filter set lists exactly kategorieCountsOnGroundFloor, plus each class of kategorieCountsOnGroundFloorConditional that the extractor lists as rows (IfcSpace only with the IfcSpace option on; the ground floor aggregates 6 IfcSpace)."
+      }
+    }
+  },
+  "fzk-feet": {
+    "file": "fzk-feet.ifc",
+    "unitAssignment": {
+      "LENGTHUNIT": "IfcConversionBasedUnit 'FOOT' = 0.3048 x (IfcSIUnit METRE)",
+      "AREAUNIT": "IfcSIUnit SQUARE_METRE",
+      "VOLUMEUNIT": "IfcSIUnit CUBIC_METRE",
+      "PLANEANGLEUNIT": "IfcConversionBasedUnit 'DEGREE' = 0.0174532925199 x (IfcSIUnit RADIAN)",
+      "SOLIDANGLEUNIT": "IfcSIUnit STERADIAN",
+      "MONETARYUNIT": "IfcMonetaryUnit EUR",
+      "TIMEUNIT": "IfcSIUnit SECOND",
+      "MASSUNIT": "IfcSIUnit GRAM",
+      "THERMODYNAMICTEMPERATUREUNIT": "IfcSIUnit DEGREE_CELSIUS",
+      "LUMINOUSINTENSITYUNIT": "IfcSIUnit LUMEN",
+      "THERMALCONDUCTANCEUNIT": "IfcDerivedUnit IfcSIUnit WATT^1 * IfcSIUnit METRE^-1 * IfcSIUnit KELVIN^-1",
+      "SPECIFICHEATCAPACITYUNIT": "IfcDerivedUnit IfcSIUnit JOULE^1 * IfcSIUnit KILO GRAM^-1 * IfcSIUnit KELVIN^-1",
+      "MASSDENSITYUNIT": "IfcDerivedUnit IfcSIUnit KILO GRAM^1 * IfcSIUnit CUBIC_METRE^-1"
+    },
+    "lengthFactorToMetre": 0.3048,
+    "elements": [
+      {
+        "why": "wall of fzk-feet.ifc: length quantities in feet -> m (x 0.3048); area/volume units unchanged (m2, m3)",
+        "stepId": 21966,
+        "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+        "Kategorie": "IfcWallStandardCase",
+        "Name": "Wand-Ext-ERDG-1",
+        "Typ": "Leichtbeton 102890359 300",
+        "typeClass": "IFCWALLTYPE",
+        "Geschoss": "Erdgeschoss",
+        "Material": [
+          "Leichtbeton 102890359"
+        ],
+        "materialSource": "occurrence",
+        "materialAssociation": [
+          "IFCMATERIALLAYERSETUSAGE"
+        ],
+        "hasRepresentationInIfc": true,
+        "quantities": {
+          "BaseQuantities.Length": {
+            "value": 2.95656,
+            "unit": "m",
+            "raw": 9.7,
+            "measure": "IFCQUANTITYLENGTH",
+            "source": "occurrence"
+          },
+          "BaseQuantities.Width": {
+            "value": 0.09144,
+            "unit": "m",
+            "raw": 0.3,
+            "measure": "IFCQUANTITYLENGTH",
+            "source": "occurrence"
+          },
+          "BaseQuantities.GrossSideArea": {
+            "value": 25.59,
+            "unit": "m²",
+            "raw": 25.59,
+            "measure": "IFCQUANTITYAREA",
+            "source": "occurrence"
+          },
+          "BaseQuantities.NetVolume": {
+            "value": 5.80797,
+            "unit": "m³",
+            "raw": 5.80797,
+            "measure": "IFCQUANTITYVOLUME",
+            "source": "occurrence"
+          }
+        }
+      }
+    ],
+    "headers": {
+      "BaseQuantities.Length": "BaseQuantities.Length (m)",
+      "BaseQuantities.GrossSideArea": "BaseQuantities.GrossSideArea (m²)"
+    }
+  },
+  "fzk-unit-a-b": {
+    "property": "CalcTest_Units.Masse",
+    "a": {
+      "file": "fzk-unit-a.ifc",
+      "massUnit": "IfcSIUnit KILO GRAM",
+      "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+      "Name": "Wand-Ext-ERDG-1",
+      "value": 7857,
+      "measure": "IFCMASSMEASURE",
+      "carriers": [
+        "3rPX_Juz59peXXY6wDJl18"
+      ]
+    },
+    "b": {
+      "file": "fzk-unit-b.ifc",
+      "massUnit": "IfcConversionBasedUnit 'POUND' = 0.45359237 x (IfcSIUnit KILO GRAM)",
+      "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+      "Name": "Wand-Ext-ERDG-1",
+      "value": 7857,
+      "measure": "IFCMASSMEASURE",
+      "carriers": [
+        "3rPX_Juz59peXXY6wDJl18"
+      ]
+    },
+    "expected": {
+      "singleModel": "each file alone: value 7857 unchanged (mass is not converted, DEC-2), unit = the file's project mass unit (a: kg, b: pound)",
+      "bothLoaded": "header 'CalcTest_Units.Masse (gemischt)', unit gemischt, no group/total sums for this column"
+    }
+  },
+  "REQ-002-AC7": {
+    "file": "Ifc2x3_SampleCastle.ifc",
+    "schema": "IFC2X3",
+    "element": {
+      "stepId": 263912,
+      "GlobalId": "1j6lJOCJrBfhwVjXcDrBMU",
+      "Kategorie": "IfcBuildingElementProxy",
+      "Name": "kozijn",
+      "Tag": "6D1AF4D8-313D-4BA6-BE9F-B6198DD4B59E",
+      "Geschoss": "00 begane grond",
+      "hasRepresentationInIfc": true
+    },
+    "expected": {
+      "Geometrie": "Nein"
+    },
+    "evidence": "Has a representation in the IFC, but no geometry after fragments 3.4.7 conversion: spike scratchpad spike-extraction-check/miss.mjs (getItemsIdsWithGeometry) listed localIds 263912, 270253, 271891, 311100, 315576, 562146, 597457, 753581 among IfcWall/IfcWallStandardCase/IfcCovering/IfcBuildingElementProxy without geometry. GlobalId/class/name here are read from the STEP text."
+  },
+  "REQ-006-AC1": {
+    "file": "Ifc4_Revit_MEP.ifc",
+    "filter": {
+      "Kategorie": [
+        "IfcDuctSegment",
+        "IfcPipeSegment",
+        "IfcPlate",
+        "IfcCovering"
+      ]
+    },
+    "expectedCount": 2000,
+    "perKategorie": {
+      "IfcDuctSegment": 837,
+      "IfcPipeSegment": 491,
+      "IfcPlate": 629,
+      "IfcCovering": 43
+    },
+    "statusLine": "2.000 von <Y> Elementen",
+    "note": "Single Kategorie filter set with four checked values (OR). No single value or Kategorie x Geschoss/Material/Typ combination of the fetched fixtures gives exactly 2,000. The four counts equal the counts in the spike's fragments table (spike-extraction-check/out/mep.frag.table.json), so they do not depend on geometry. Y (all rows) depends on the extractor's class set and the IfcSpace option and is read from window.__calc at test time."
+  }
+}
