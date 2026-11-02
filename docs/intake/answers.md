@@ -19,6 +19,12 @@ Source: `user` | `user-confirmed` | `inferred` | `delegated` | `unknown`.
   - Bottom `OVERZICHT & SUBSELECTIE-TOTALEN`: group-by dropdown (`ifcType`), `Exporteer CSV`, grouped table with columns Aantal, Length (m), Thickness (m), Perimeter (m), Area (m²), Volume (m³), Area of Openings, Gross Area, Hoeveelheid (sums per group, sortable).
 - Technical basis named by the user: HTML Model Viewer — repository `erik-hellrung-str2/html-modelviewer` (`ifc-viewer-builder.html`: browser builder that produces an offline single-file viewer, That Open Fragments + web-ifc + three.js; filter, element tools, colouring, X-ray).
 
+## Follow-ups
+
+| ID | Question | Answer | Source |
+|---|---|---|---|
+| F-01 | (unprompted) role of the screenshot | "Nimm aus dem Bild nur die Struktur - die Farbgebung bleibt wie bei HTML Model Viewer" → screenshot = layout/structure reference only; colours/styling follow the HTML Model Viewer | user |
+
 ## Understanding (mirrored back to the user)
 - Purpose: generic tool to explore one or more building models (IFC) through PowerBI-like facet filters, 3D view and a configurable, exportable table.
 - Users/roles: open (C02).
