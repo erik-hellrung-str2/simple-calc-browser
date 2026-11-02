@@ -56,10 +56,25 @@ Source: `user` | `user-confirmed` | `inferred` | `delegated` | `unknown`.
 | ID | Answer | Source | Notes |
 |---|---|---|---|
 | FUN-01 | Use cases 1–9 as listed: (1) load several IFC, convert + index, "Modell" property; (2) configure filter sets (choose any property, order, remove); (3) filter model + table (OR within / AND between, hide impossible values); (4) model: hide/ghost outside filter, colour by property with legend, section plane; (5) table: single-element view and grouping view (≤ 2 levels, expandable to elements), choose/order columns, column filters, sort; (6) selection both ways: model click → details right + table row highlighted, table row click → element highlighted in model; (7) export current table view as CSV/Excel; (8) save/load configuration (filter sets, columns, grouping) as JSON; (9) offline HTML export for colleagues with models embedded, offering 2–7 but no IFC loading | user-confirmed | |
+| FUN-04 | Must: UC 1, 2, 3, 5, 7, 8, 9 · Should: UC 4 (colouring, section), UC 6 (selection both ways); all planned for the first release | user-confirmed | |
+| FUN-x4 | CSV export: semicolon separator, decimal comma, UTF-8 with BOM (German Excel); .xlsx stores real numbers | user-confirmed | |
 | FUN-x3 | Group row: element count + sum of every numeric column; text columns empty or the value when uniform within the group | user-confirmed | |
 | FUN-02 | Within one filter set several values = OR; between filter sets = AND | user (proposal) | |
 | FUN-x1 | Facet values without hits in the current combination are hidden; counts recomputed under the other filters; sibling values in the own set stay visible | user (proposal) | |
 | FUN-x2 | Elements outside the filter in 3D: switchable hide / ghost (X-ray), default ghost | user (proposal) | |
+
+## Topic: ui (depth S, part A)
+
+| ID | Answer | Source | Notes |
+|---|---|---|---|
+| UI-01 | One screen in the screenshot layout (filter sets left, model centre, element details right, table below); builder adds top bar `IFC laden`, `Konfiguration speichern`/`laden`, `HTML exportieren`; exported file same screen without IFC loading; desktop only, ≥ ~1280 px | user-confirmed | |
+| UI-02 | Light HTML Model Viewer styling (red `#D72622`, ink `#35383A`, "Segoe UI"), German UI; screenshot = structure only (F-01) | user-confirmed | |
+
+## Topic: stack (depth S)
+
+| ID | Answer | Source | Notes |
+|---|---|---|---|
+| STK-01 | Like html-modelviewer: one hand-written HTML file, plain JS, no build step; That Open Fragments 3.4.7 / three / web-ifc; offline HTML export | user | chosen over TypeScript + Vite; tests still required (kernel) |
 
 ## Topic: data (depth S)
 
@@ -74,11 +89,11 @@ Source: `user` | `user-confirmed` | `inferred` | `delegated` | `unknown`.
 | QLT-01 | Typical models up to ~100 MB IFC, several 10,000 elements, also several models together; filtering/table should feel instant (< ~0.5 s) | user-confirmed | |
 
 ## Tier
-- Proposed M (11/30) → user chose **S** (lean). Detail questions so far: 7 / ceiling 18.
+- Proposed M (11/30) → user chose **S** (lean). Detail questions so far: 11 / ceiling 18.
 
 ## Interview progress
 - Last completed: C00
 - Last completed: round 1 (summary, basis, users, autonomy)
 - Last completed: round 2 (export, save/load, multiple models, lifetime)
-- Last completed: detail round 2 (FUN-01, DAT-01, group aggregation, QLT-01)
-- Next: detail round 3 (FUN-04 priorities, FUN-03 example, UI-01 screens/devices, STK-01 stack + Excel)
+- Last completed: detail round 3 (UI-01/02, FUN-04, CSV format, STK-01)
+- Next: closing C99, coverage, state.yaml
