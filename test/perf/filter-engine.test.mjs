@@ -1,9 +1,9 @@
 // [perf] Node micro-benchmark of the TASK-003 filter engine (spec §5 TASK-003 acceptance, Testing T6):
 // 30,000 synthetic rows, 6 filter sets including one with ~30,000 distinct values (Name-like) and a multi-valued
 // one (Material), plus a numeric column filter. A "facet pass" = evaluate all filters, filtered row indices and the
-// values/counts of all 6 filter sets. Target: <= 50 ms, median of 3, for the pass on the column store (warm: columns
+// values/counts of all 6 filter sets. Target: <= 50 ms, median of 9 (3 stores x 3 selections), for the pass on the column store (warm: columns
 // cached, selection changed each time so the filter bitsets are rebuilt). Also reported and guarded: the cold pass,
-// which first builds the 7 columns from the rows (one-off when a property comes into use).
+// which first builds the 7 columns from the rows (one-off when a property comes into use), median of 3.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import os from "node:os";
@@ -69,7 +69,7 @@ function pass(store, variant) {
   return { ms, rows: rows.length, facets };
 }
 
-test("[perf] TASK-003 facet pass at 30k rows with 6 filter sets (incl. ~30k-value Name set) <= 50 ms, median of 3", () => {
+test("[perf] TASK-003 facet pass at 30k rows with 6 filter sets (incl. ~30k-value Name set) <= 50 ms, median of 9 warm passes (3 stores x 3 selections)", () => {
   const rows = syntheticRows();
   const cold = [];
   const warm = [];
@@ -103,7 +103,7 @@ test("[perf] TASK-003 facet pass at 30k rows with 6 filter sets (incl. ~30k-valu
     cpu: os.cpus()[0] && os.cpus()[0].model,
   };
   console.log("[perf] TASK-003 filter engine " + JSON.stringify(report));
-  // Acceptance (TASK-003): the facet pass on the column store, median of 3 runs.
+  // Acceptance (TASK-003): the facet pass on the column store, median of 9 warm passes (3 stores x 3 selections).
   assert.ok(median(warm) <= TARGET_MS, `facet pass median ${median(warm)} ms > ${TARGET_MS} ms`);
   // Regression guard, not the acceptance target: the cold pass also builds all 7 columns from the rows (one-off when
   // a property first comes into use; part of the NFR-001 500 ms budget, measured end to end in TASK-010).

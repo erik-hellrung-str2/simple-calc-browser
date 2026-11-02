@@ -8,7 +8,7 @@
       Calc Viewer Builder (spec docs/spec.md §4.2). Blocks:
         cv-css               shared styles (builder + viewer file)
         cv-core-src          pure logic, no DOM, no imports (extracted for node:test by test/load-core.mjs)
-        cv-ui-src            DOM: layout, status; imports calc-core
+        cv-ui-src            DOM: layout, filter area (virtualised value lists, catalogue dialog), status; imports calc-core
         cv-3d-src            engine start and model display; imports three, @thatopen/fragments, OrbitControls
         cv-app-src           entry: start({mode}) wires ui + 3d
         cv-viewer-bootstrap  classic bootstrap of the viewer file (TASK-009)
@@ -17,9 +17,11 @@
       TASK-001b walking skeleton: the builder needs internet access (jsDelivr) to load the libraries.
     -->
     <style id="cv-css">
+      /* Light HTML Model Viewer style (spec 2 User interface, UI-02; reference CSS ref L1714-1938, L18-115). */
       :root {
         --cv-accent: #d72622;
         --cv-accent-dark: #b81f1c;
+        --cv-accent-soft: rgba(215, 38, 34, 0.08);
         --cv-ink: #35383a;
         --cv-ink-2: #4e5355;
         --cv-muted: #6b6f73;
@@ -28,9 +30,14 @@
         --cv-bg-3d: #eceef0;
         --cv-line: #e1e3e5;
         --cv-err: #d72622;
+        --cv-hover: rgba(23, 24, 26, 0.05);
+        --cv-shadow: 0 12px 32px rgba(23, 24, 26, 0.16), 0 2px 6px rgba(23, 24, 26, 0.08);
       }
       * {
         box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
       }
       html,
       body {
@@ -47,49 +54,93 @@
         color: var(--cv-ink);
         background: var(--cv-bg);
       }
+      button,
+      input {
+        font: inherit;
+      }
       #cv-root {
         height: 100%;
       }
       .cv-app {
+        position: relative;
         display: grid;
-        grid-template-rows: 56px 1fr 28px;
+        grid-template-rows: 56px minmax(0, 1fr) 28px;
         height: 100%;
       }
+      .cv-icon {
+        display: inline-flex;
+        flex: none;
+      }
+      .cv-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      /* Header: logo, title, date, builder buttons */
       .cv-header {
         display: flex;
         align-items: center;
         gap: 12px;
+        min-width: 0;
         padding: 0 16px;
         background: #fff;
         border-bottom: 1px solid var(--cv-line);
-        border-left: 4px solid var(--cv-accent);
+        box-shadow: 0 1px 3px rgba(53, 56, 58, 0.06);
+      }
+      .cv-logo {
+        display: flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: var(--cv-accent);
+        color: #fff;
+      }
+      .cv-logo .cv-icon svg {
+        width: 22px;
+        height: 22px;
+      }
+      .cv-brand {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        padding-left: 12px;
+        border-left: 1px solid var(--cv-line);
+        line-height: 1.25;
       }
       .cv-title {
         margin: 0;
+        overflow: hidden;
         font-size: 16px;
         font-weight: 600;
+        white-space: nowrap;
+        text-overflow: ellipsis;
       }
       .cv-date {
         color: var(--cv-muted);
-        font-size: 13px;
+        font-size: 12px;
       }
       .cv-actions {
         display: flex;
+        flex: none;
+        align-items: center;
         gap: 8px;
         margin-left: auto;
       }
       .cv-btn {
-        font: inherit;
         font-size: 13px;
         padding: 6px 12px;
         border: 1px solid var(--cv-line);
-        border-radius: 6px;
+        border-radius: 8px;
         background: #fff;
         color: var(--cv-ink);
+        font-weight: 600;
         cursor: pointer;
       }
       .cv-btn:hover:not(:disabled) {
-        border-color: var(--cv-accent);
+        border-color: var(--cv-muted);
       }
       .cv-btn:disabled {
         color: var(--cv-faint);
@@ -102,15 +153,70 @@
       }
       .cv-btn.cv-primary:hover:not(:disabled) {
         background: var(--cv-accent-dark);
+        border-color: var(--cv-accent-dark);
       }
       .cv-btn.cv-primary:disabled {
         background: var(--cv-faint);
         border-color: var(--cv-faint);
       }
+      .cv-icon-btn {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: var(--cv-muted);
+        cursor: pointer;
+      }
+      .cv-icon-btn:hover:not(:disabled) {
+        background: var(--cv-accent-soft);
+        color: var(--cv-accent);
+      }
+      .cv-icon-btn:disabled {
+        opacity: 0.35;
+        color: var(--cv-faint);
+        cursor: default;
+      }
+      .cv-icon-btn:focus-visible,
+      .cv-btn:focus-visible,
+      .cv-link:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: 1px;
+      }
+      .cv-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: var(--cv-accent);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .cv-link:hover:not(:disabled) {
+        background: var(--cv-accent-soft);
+      }
+      .cv-link:disabled {
+        color: var(--cv-faint);
+        cursor: default;
+      }
+
+      /* Three columns: filter area ~280 px, centre, details ~320 px (collapsible) */
       .cv-main {
         display: grid;
         grid-template-columns: 280px minmax(0, 1fr) 320px;
         min-height: 0;
+      }
+      .cv-main.cv-details-collapsed {
+        grid-template-columns: 280px minmax(0, 1fr) 40px;
       }
       .cv-panel {
         min-height: 0;
@@ -124,6 +230,22 @@
       .cv-details {
         border-left: 1px solid var(--cv-line);
       }
+      .cv-details-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .cv-details-head h2 {
+        flex: 1;
+        margin: 0;
+      }
+      .cv-details-collapsed .cv-details {
+        padding: 10px 8px;
+        overflow: hidden;
+      }
+      .cv-details-collapsed .cv-details-head h2 {
+        display: none;
+      }
       .cv-panel h2 {
         margin: 0 0 8px;
         font-size: 12px;
@@ -133,12 +255,13 @@
         text-transform: uppercase;
       }
       .cv-hint {
+        margin: 6px 0;
         color: var(--cv-muted);
         font-size: 13px;
       }
       .cv-center {
         display: grid;
-        grid-template-rows: 55fr 45fr;
+        grid-template-rows: minmax(0, 55fr) 6px minmax(0, 45fr);
         min-height: 0;
         min-width: 0;
       }
@@ -153,8 +276,31 @@
         width: 100%;
         height: 100%;
       }
+      .cv-splitter {
+        position: relative;
+        background: var(--cv-line);
+        cursor: row-resize;
+        touch-action: none;
+      }
+      .cv-splitter::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 2px;
+        width: 36px;
+        height: 2px;
+        margin-left: -18px;
+        border-radius: 2px;
+        background: var(--cv-faint);
+      }
+      .cv-splitter:hover,
+      .cv-splitter.cv-dragging,
+      .cv-splitter:focus-visible {
+        outline: none;
+        background: var(--cv-accent);
+      }
       .cv-table {
-        border-top: 1px solid var(--cv-line);
+        min-height: 0;
       }
       .cv-overlay {
         position: absolute;
@@ -164,15 +310,13 @@
         justify-content: center;
         pointer-events: none;
       }
-      .cv-overlay[hidden] {
-        display: none;
-      }
       .cv-overlay-box {
         max-width: 80%;
         padding: 10px 16px;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.86);
         border-left: 4px solid var(--cv-accent);
+        box-shadow: var(--cv-shadow);
         font-size: 13px;
         pointer-events: auto;
       }
@@ -189,8 +333,363 @@
         background: #fff;
         border-top: 1px solid var(--cv-line);
       }
+      .cv-status {
+        color: var(--cv-ink);
+        font-weight: 600;
+      }
+
+      /* Models and messages */
+      .cv-models {
+        margin: 0 0 6px;
+        padding: 0;
+        list-style: none;
+      }
+      .cv-model {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 0;
+        font-size: 13px;
+      }
+      .cv-model-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .cv-model-count {
+        color: var(--cv-muted);
+        font-size: 12px;
+      }
+      .cv-model-remove,
+      .cv-message-close {
+        padding: 0 6px;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: var(--cv-muted);
+        cursor: pointer;
+      }
+      .cv-model-remove:hover:not(:disabled),
+      .cv-message-close:hover {
+        background: var(--cv-accent-soft);
+        color: var(--cv-accent);
+      }
+      .cv-option {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 12px;
+        color: var(--cv-ink-2);
+        font-size: 13px;
+      }
+      .cv-option input,
+      .cv-fs-value input {
+        accent-color: var(--cv-accent);
+      }
+      .cv-message {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        margin-bottom: 8px;
+        padding: 6px 8px;
+        border-left: 3px solid var(--cv-err);
+        border-radius: 4px;
+        background: #fdf3f2;
+        color: var(--cv-err);
+        font-size: 12px;
+      }
+      .cv-message-text {
+        flex: 1;
+        overflow-wrap: anywhere;
+      }
+
+      /* Filter area and filter sets (REQ-003, REQ-004) */
+      .cv-filter-area {
+        padding-top: 10px;
+        border-top: 1px solid var(--cv-line);
+      }
+      .cv-fa-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .cv-fa-head h2 {
+        margin: 0;
+      }
+      .cv-fa-reset {
+        margin: 2px 0 8px -8px;
+        font-weight: 400;
+      }
+      .cv-fa-sets {
+        display: grid;
+        gap: 8px;
+      }
+      .cv-fs {
+        border: 1px solid var(--cv-line);
+        border-radius: 10px;
+        background: #fff;
+      }
+      .cv-fs.cv-dragging {
+        opacity: 0.45;
+      }
+      .cv-fs.cv-drop-before {
+        box-shadow: 0 -3px 0 var(--cv-accent);
+      }
+      .cv-fs.cv-drop-after {
+        box-shadow: 0 3px 0 var(--cv-accent);
+      }
+      .cv-fs-head {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 5px 4px 5px 4px;
+        border-radius: 10px 10px 0 0;
+        background: var(--cv-bg);
+        cursor: grab;
+      }
+      .cv-fs.cv-collapsed .cv-fs-head {
+        border-radius: 10px;
+      }
+      .cv-fs-grip {
+        color: var(--cv-faint);
+      }
+      .cv-fs-grip svg {
+        width: 14px;
+        height: 14px;
+      }
+      .cv-fs-toggle .cv-icon svg {
+        transform: rotate(90deg);
+        transition: transform 0.15s;
+      }
+      .cv-fs.cv-collapsed .cv-fs-toggle .cv-icon svg {
+        transform: none;
+      }
+      .cv-fs-title {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color: var(--cv-ink);
+      }
+      .cv-fs-unit {
+        flex: none;
+        color: var(--cv-muted);
+        font-size: 12px;
+      }
+      .cv-fs-unit:empty {
+        display: none;
+      }
+      .cv-fs-badge {
+        flex: none;
+        min-width: 18px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: var(--cv-accent);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 18px;
+        text-align: center;
+      }
+      .cv-fs-body {
+        padding: 6px 6px 6px;
+      }
+      .cv-search {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 30px;
+        padding: 0 8px;
+        border: 1px solid var(--cv-faint);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--cv-muted);
+      }
+      .cv-search:focus-within {
+        border-color: var(--cv-accent);
+        box-shadow: 0 0 0 3px rgba(215, 38, 34, 0.12);
+      }
+      .cv-search input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        outline: none;
+        background: transparent;
+        color: var(--cv-ink);
+        font-size: 13px;
+      }
+      .cv-vlist {
+        position: relative;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      .cv-vspacer {
+        width: 1px;
+      }
+      .cv-vrow {
+        position: absolute;
+        left: 0;
+        right: 0;
+      }
+      .cv-fs-values {
+        margin-top: 4px;
+      }
+      .cv-fs-value {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 6px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .cv-fs-value:hover {
+        background: var(--cv-hover);
+      }
+      .cv-fs-value input {
+        flex: none;
+        width: 14px;
+        height: 14px;
+        margin: 0;
+      }
+      .cv-dot {
+        flex: none;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        visibility: hidden;
+      }
+      .cv-dot.cv-dot-on {
+        visibility: visible;
+        box-shadow: inset 0 0 0 1px rgba(23, 24, 26, 0.12);
+      }
+      .cv-fs-label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .cv-fs-label.cv-empty-value {
+        color: var(--cv-muted);
+        font-style: italic;
+      }
+      .cv-fs-count {
+        flex: none;
+        color: var(--cv-muted);
+        font-size: 12px;
+      }
+      .cv-fs-value.cv-zero .cv-fs-count {
+        color: var(--cv-faint);
+      }
+
+      /* Dialogs: property catalogue */
+      .cv-backdrop {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(53, 56, 58, 0.28);
+      }
+      .cv-dialog {
+        display: flex;
+        flex-direction: column;
+        width: min(520px, 100%);
+        max-height: 100%;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: var(--cv-shadow);
+        overflow: hidden;
+      }
+      .cv-dialog-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 12px 12px 20px;
+        border-bottom: 1px solid var(--cv-line);
+      }
+      .cv-dialog-title {
+        flex: 1;
+        font-size: 17px;
+        font-weight: 600;
+      }
+      .cv-dialog-close {
+        width: 30px;
+        height: 30px;
+      }
+      .cv-dialog-body {
+        display: grid;
+        gap: 8px;
+        min-height: 0;
+        padding: 14px 20px 10px;
+      }
+      .cv-cat-list {
+        height: min(420px, 55vh);
+        border: 1px solid var(--cv-line);
+        border-radius: 8px;
+      }
+      .cv-cat-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 0 12px;
+        border: 0;
+        background: none;
+        color: var(--cv-ink);
+        font-size: 13px;
+        text-align: left;
+        cursor: pointer;
+      }
+      .cv-cat-entry:hover:not(:disabled) {
+        background: var(--cv-accent-soft);
+        color: var(--cv-accent);
+      }
+      .cv-cat-entry {
+        padding-left: 24px;
+      }
+      .cv-cat-group {
+        background: var(--cv-bg);
+        color: var(--cv-ink-2);
+        font-size: 12px;
+        font-weight: 700;
+        cursor: default;
+      }
+      .cv-cat-entry.cv-used {
+        color: var(--cv-faint);
+        cursor: default;
+      }
+      .cv-cat-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .cv-cat-note {
+        font-size: 11px;
+      }
+      .cv-cat-count {
+        flex: none;
+        color: var(--cv-muted);
+        font-size: 12px;
+      }
+      .cv-cat-info {
+        margin: 0;
+        font-size: 12px;
+      }
+
       @media (max-width: 1279px) {
-        .cv-main {
+        .cv-main,
+        .cv-main.cv-details-collapsed {
           grid-template-columns: 0 minmax(0, 1fr) 0;
         }
         .cv-filters,
@@ -1003,9 +1502,15 @@
 
       const COLLATOR = new Intl.Collator("de");
 
-      /** True for "no value": undefined, null, "" and []. */
+      /** True for "no value": undefined, null, "", [] and non-finite numbers (NaN, +-Infinity; TASK-003 D4). */
       export function isEmptyValue(value) {
-        return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+        return (
+          value === undefined ||
+          value === null ||
+          value === "" ||
+          (typeof value === "number" && !Number.isFinite(value)) ||
+          (Array.isArray(value) && value.length === 0)
+        );
       }
 
       /**
@@ -1013,8 +1518,8 @@
        * then code units, so the order is total); null (empty) last.
        */
       export function compareValues(a, b) {
-        const ae = a === null || a === undefined;
-        const be = b === null || b === undefined;
+        const ae = a === null || a === undefined || (typeof a === "number" && !Number.isFinite(a));
+        const be = b === null || b === undefined || (typeof b === "number" && !Number.isFinite(b));
         if (ae || be) return ae === be ? 0 : ae ? 1 : -1;
         const an = typeof a === "number";
         const bn = typeof b === "number";
@@ -1038,7 +1543,7 @@
       /** Text shown for a cell value: multi-values joined with ", " (REQ-002), empty as "". */
       export function displayValue(value) {
         if (isEmptyValue(value)) return "";
-        return Array.isArray(value) ? value.join(", ") : String(value);
+        return Array.isArray(value) ? value.filter((v) => !isEmptyValue(v)).join(", ") : String(value);
       }
 
       const wordsFor = (n) => (n + 31) >>> 5;
@@ -1080,7 +1585,7 @@
         for (let i = 0; i < n; i++) {
           start[i] = used;
           const value = rows[i].values[key];
-          nums[i] = typeof value === "number" ? value : NaN;
+          nums[i] = typeof value === "number" && Number.isFinite(value) ? value : NaN;
           if (isEmptyValue(value)) {
             push(-1);
             empties = true;
@@ -1149,7 +1654,25 @@
 
       const asStore = (source) => (Array.isArray(source) ? createColumnStore(source) : source);
 
-      const noBound = (b) => b === null || b === undefined || b === "" || (typeof b === "number" && Number.isNaN(b));
+      /** A range bound that restricts nothing: null, undefined, NaN, "" or whitespace only (TASK-003 D1). */
+      const noBound = (b) =>
+        b === null ||
+        b === undefined ||
+        (typeof b === "string" && b.trim() === "") ||
+        (typeof b === "number" && Number.isNaN(b));
+
+      /** Distinct values of a selection; undefined is the empty value null (TASK-003 D5). */
+      function distinctValues(values) {
+        const seen = new Set();
+        const out = [];
+        for (const v of values) {
+          const value = v === undefined ? null : v;
+          if (seen.has(value)) continue;
+          seen.add(value);
+          out.push(value);
+        }
+        return out;
+      }
 
       /**
        * Normalises a filter: { id?, key, type: 'values', values: [...] } (checklist / filter set; OR within; null =
@@ -1165,7 +1688,7 @@
           if (min === null && max === null) return null;
           return { id, key: filter.key, type: "range", min, max };
         }
-        const values = Array.isArray(filter.values) ? filter.values : [];
+        const values = Array.isArray(filter.values) ? distinctValues(filter.values) : [];
         if (!values.length) return null;
         return { id, key: filter.key, type: "values", values };
       }
@@ -1352,7 +1875,7 @@
 
       /**
        * Sort key of a column, built once (REQ-006): numbers for single-number cells, else the rank of the displayed
-       * text (multi-values joined with ", ") among all displayed values; NaN = empty (always last).
+       * text (a cell's distinct values joined with ", ") among all displayed values; NaN = empty (always last).
        */
       function sortKeyOf(col, rows) {
         if (col.sortKey) return col.sortKey;
@@ -1365,7 +1888,8 @@
           const distinct = new Set();
           for (let i = 0; i < n; i++) {
             const value = rows[i].values[col.key];
-            shown[i] = isEmptyValue(value) ? null : Array.isArray(value) ? displayValue(value) : value;
+            const cell = Array.isArray(value) ? [...new Set(value.filter((v) => !isEmptyValue(v)))] : value;
+            shown[i] = isEmptyValue(cell) ? null : Array.isArray(cell) ? displayValue(cell) : cell;
             if (shown[i] !== null) distinct.add(shown[i]);
           }
           const rank = new Map([...distinct].sort(compareValues).map((v, r) => [v, r]));
@@ -1402,11 +1926,11 @@
 
       /**
        * Sorts any items by a value (e.g. group rows by their sums; REQ-006-AC5): same order rules as sortRows,
-       * empty (null, undefined, "", NaN) last in both directions, stable.
+       * empty (null, undefined, "", [], non-finite numbers) last in both directions, stable.
        */
       export function sortByValue(items, valueOf, dir) {
         const sign = dir === "desc" ? -1 : 1;
-        const isNone = (v) => isEmptyValue(v) || (typeof v === "number" && Number.isNaN(v));
+        const isNone = isEmptyValue;
         return items
           .map((item, p) => ({ item, p, v: valueOf(item) }))
           .sort((a, b) => {
@@ -1423,7 +1947,7 @@
 
     <!-- DOM: layout, model list, messages, progress and status (builder and viewer file). ASCII only. -->
     <script type="text/plain" id="cv-ui-src">
-      import { coreInfo } from "calc-core";
+      import { EMPTY_LABEL, coreInfo } from "calc-core";
 
       function el(tag, className, text) {
         const node = document.createElement(tag);
@@ -1432,16 +1956,515 @@
         return node;
       }
 
-      /** Builds the one-screen layout of spec 2 User interface into root; returns the parts the app needs. */
+      // Inline SVG icons (constant markup only; values from the model are always set as text, never as HTML).
+      const ICON_PATHS = {
+        plus: '<path d="M12 5v14M5 12h14"/>',
+        close: '<path d="M6 6l12 12M18 6L6 18"/>',
+        up: '<path d="M6 15l6-6 6 6"/>',
+        down: '<path d="M6 9l6 6 6-6"/>',
+        chevron: '<path d="M9 6l6 6-6 6"/>',
+        reset: '<path d="M4 4v6h6"/><path d="M5.5 15a7 7 0 1 0 1.6-7.3L4 10"/>',
+        grip: '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
+        search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+        cube: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
+        panelRight: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
+      };
+
+      function icon(name) {
+        const span = el("span", "cv-icon");
+        span.setAttribute("aria-hidden", "true");
+        span.innerHTML =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+          ICON_PATHS[name] +
+          "</svg>";
+        return span;
+      }
+
+      function iconButton(name, label, className) {
+        const button = el("button", "cv-icon-btn" + (className ? " " + className : ""));
+        button.type = "button";
+        button.title = label;
+        button.setAttribute("aria-label", label);
+        button.append(icon(name));
+        return button;
+      }
+
+      const formatCount = (n) => n.toLocaleString("de-DE");
+
+      /** Text of a filter value: numbers in German format, the empty value as "(leer)" (REQ-004). */
+      export function valueLabel(value) {
+        if (value === null || value === undefined) return EMPTY_LABEL;
+        if (typeof value === "number") return value.toLocaleString("de-DE", { maximumFractionDigits: 6 });
+        return String(value);
+      }
+
+      /**
+       * Virtualised list (REQ-004 "render only the visible entries", NFR-001): a scroll box with a spacer of the full
+       * height and a small pool of absolutely positioned row nodes that are reused while scrolling. options:
+       * { className, rowHeight, maxRows (auto height up to this many rows; 0 = height from CSS), createRow() -> node,
+       * updateRow(node, item, index) }. Rows never number more than the visible ones plus an overscan.
+       */
+      export function createVirtualList(options) {
+        const rowHeight = options.rowHeight;
+        const overscan = 6;
+        const box = el("div", "cv-vlist" + (options.className ? " " + options.className : ""));
+        const spacer = el("div", "cv-vspacer");
+        box.append(spacer);
+        const pool = [];
+        let items = [];
+
+        function render() {
+          const fallback = (options.maxRows || 12) * rowHeight;
+          const viewHeight = box.clientHeight || fallback;
+          const top = box.scrollTop;
+          const first = Math.max(0, Math.floor(top / rowHeight) - overscan);
+          const last = Math.min(items.length, Math.ceil((top + viewHeight) / rowHeight) + overscan);
+          while (pool.length < last - first) {
+            const node = options.createRow();
+            node.classList.add("cv-vrow");
+            node.style.height = rowHeight + "px";
+            box.append(node);
+            pool.push(node);
+          }
+          for (let p = 0; p < pool.length; p++) {
+            const node = pool[p];
+            const index = first + p;
+            if (index < last) {
+              node.hidden = false;
+              node.style.top = index * rowHeight + "px";
+              node.cvIndex = index;
+              options.updateRow(node, items[index], index);
+            } else {
+              node.hidden = true;
+              node.cvIndex = -1;
+              delete node.dataset.key;
+            }
+          }
+        }
+
+        box.addEventListener("scroll", render, { passive: true });
+        return {
+          element: box,
+          /** Replaces the items; resetScroll scrolls back to the first entry (e.g. after a new search). */
+          setItems(list, resetScroll) {
+            items = list;
+            spacer.style.height = list.length * rowHeight + "px";
+            if (options.maxRows) box.style.height = Math.min(list.length, options.maxRows) * rowHeight + "px";
+            if (resetScroll) box.scrollTop = 0;
+            render();
+          },
+          /** The item shown by a row node (or a node inside it), else undefined. */
+          itemOf(node) {
+            const row = node && node.closest ? node.closest(".cv-vrow") : null;
+            return row && row.cvIndex >= 0 ? items[row.cvIndex] : undefined;
+          },
+          items: () => items,
+          render,
+        };
+      }
+
+      const VALUE_ROW_HEIGHT = 26;
+      const VALUE_MAX_ROWS = 10;
+
+      /**
+       * One filter set (REQ-003, REQ-004): header (drag handle, collapse, title, checked count, reset, up/down, remove)
+       * and body (search field, virtualised value list with checkbox, colour dot placeholder, value, count).
+       */
+      function createFilterSet(spec, handlers) {
+        const id = spec.id;
+        let title = spec.title;
+        const root = el("section", "cv-fs");
+        root.dataset.id = id;
+        root.dataset.key = spec.key;
+        const head = el("div", "cv-fs-head");
+        head.draggable = true;
+        head.title = "Ziehen, um die Reihenfolge zu \u00e4ndern";
+        const grip = icon("grip");
+        grip.classList.add("cv-fs-grip");
+        const toggle = iconButton("chevron", "", "cv-fs-toggle");
+        const titleNode = el("span", "cv-fs-title");
+        const unitNode = el("span", "cv-fs-unit");
+        const badge = el("span", "cv-fs-badge");
+        const reset = iconButton("reset", "", "cv-fs-reset");
+        const up = iconButton("up", "", "cv-fs-up");
+        const down = iconButton("down", "", "cv-fs-down");
+        const remove = iconButton("close", "", "cv-fs-remove");
+        head.append(grip, toggle, titleNode, unitNode, badge, reset, up, down, remove);
+
+        const body = el("div", "cv-fs-body");
+        const search = el("label", "cv-search cv-fs-search");
+        const searchInput = el("input");
+        searchInput.type = "search";
+        searchInput.placeholder = "Werte suchen";
+        search.append(icon("search"), searchInput);
+        const empty = el("p", "cv-hint cv-fs-empty");
+        const list = createVirtualList({
+          className: "cv-fs-values",
+          rowHeight: VALUE_ROW_HEIGHT,
+          maxRows: VALUE_MAX_ROWS,
+          createRow() {
+            const row = el("label", "cv-fs-value");
+            const box = el("input");
+            box.type = "checkbox";
+            const dot = el("span", "cv-dot");
+            dot.setAttribute("aria-hidden", "true");
+            row.append(box, dot, el("span", "cv-fs-label"), el("span", "cv-fs-count"));
+            return row;
+          },
+          updateRow(row, item) {
+            const [box, dot, label, count] = row.children;
+            const text = valueLabel(item.value);
+            box.checked = item.checked;
+            box.setAttribute("aria-label", text);
+            row.classList.toggle("cv-checked", item.checked);
+            row.classList.toggle("cv-zero", item.count === 0);
+            dot.style.background = item.colour || "";
+            dot.classList.toggle("cv-dot-on", Boolean(item.colour));
+            label.textContent = text;
+            label.title = text;
+            label.classList.toggle("cv-empty-value", item.value === null);
+            count.textContent = formatCount(item.count);
+          },
+        });
+        body.append(search, list.element, empty);
+        root.append(head, body);
+
+        let facet = { values: [], checkedCount: 0, total: 0 };
+        let query = "";
+
+        function applySearch(resetScroll) {
+          let shown = facet.values;
+          if (query) {
+            shown = [];
+            for (const item of facet.values) if (valueLabel(item.value).toLowerCase().includes(query)) shown.push(item);
+          }
+          list.setItems(shown, resetScroll);
+          empty.hidden = shown.length > 0;
+          empty.textContent = facet.values.length ? "Keine Treffer." : "Keine Werte.";
+          list.element.hidden = shown.length === 0;
+        }
+
+        function setTitle(text, unit) {
+          title = text;
+          titleNode.textContent = text;
+          titleNode.title = text;
+          unitNode.textContent = unit ? "(" + unit + ")" : "";
+          const set = (button, label) => {
+            button.title = label;
+            button.setAttribute("aria-label", label + ": " + text);
+          };
+          set(reset, "Auswahl zur\u00fccksetzen");
+          set(up, "Filtersatz nach oben");
+          set(down, "Filtersatz nach unten");
+          set(remove, "Filtersatz entfernen");
+          searchInput.setAttribute("aria-label", "Werte suchen: " + text);
+          setCollapsed(root.classList.contains("cv-collapsed"));
+        }
+
+        function setCollapsed(collapsed) {
+          root.classList.toggle("cv-collapsed", collapsed);
+          body.hidden = collapsed;
+          toggle.setAttribute("aria-expanded", String(!collapsed));
+          const label = collapsed ? "Filtersatz ausklappen" : "Filtersatz einklappen";
+          toggle.title = label;
+          toggle.setAttribute("aria-label", label + ": " + title);
+          if (!collapsed) list.render();
+        }
+
+        list.element.addEventListener("change", (event) => {
+          const item = list.itemOf(event.target);
+          if (item) handlers.toggle(id, item.value, event.target.checked);
+        });
+        searchInput.addEventListener("input", () => {
+          query = searchInput.value.trim().toLowerCase();
+          applySearch(true);
+        });
+        toggle.addEventListener("click", () => handlers.collapse(id, !root.classList.contains("cv-collapsed")));
+        reset.addEventListener("click", () => handlers.resetSet(id));
+        up.addEventListener("click", () => handlers.step(id, -1));
+        down.addEventListener("click", () => handlers.step(id, 1));
+        remove.addEventListener("click", () => handlers.remove(id));
+
+        setTitle(spec.title, spec.unit);
+        setCollapsed(Boolean(spec.collapsed));
+
+        return {
+          id,
+          root,
+          head,
+          setTitle,
+          setCollapsed,
+          setPosition(index, count) {
+            up.disabled = index === 0;
+            down.disabled = index === count - 1;
+          },
+          /** New values and counts of this set (facetCounts entry); keeps the search and the scroll position. */
+          update(next) {
+            facet = next || { values: [], checkedCount: 0, total: 0 };
+            badge.textContent = facet.checkedCount ? String(facet.checkedCount) : "";
+            badge.hidden = !facet.checkedCount;
+            badge.title = facet.checkedCount + " ausgew\u00e4hlt";
+            reset.disabled = !facet.checkedCount;
+            applySearch(false);
+          },
+        };
+      }
+
+      /**
+       * Filter area (REQ-003, REQ-004): "+ Filtersatz", "Alle Filter zuruecksetzen" and the filter sets in order.
+       * handlers: { add(), toggle(id, value, checked), resetSet(id), resetAll(), move(id, toIndex), step(id, delta),
+       * remove(id), collapse(id, collapsed) }.
+       */
+      function createFilterArea(container, handlers) {
+        const head = el("div", "cv-fa-head");
+        const heading = el("h2", "", "Filter");
+        const add = el("button", "cv-link cv-fa-add");
+        add.type = "button";
+        add.id = "cv-add-filterset";
+        add.append(icon("plus"), document.createTextNode("Filtersatz"));
+        add.setAttribute("aria-label", "+ Filtersatz");
+        add.title = "Filtersatz hinzuf\u00fcgen";
+        head.append(heading, add);
+        const resetAll = el("button", "cv-link cv-fa-reset", "Alle Filter zur\u00fccksetzen");
+        resetAll.type = "button";
+        resetAll.id = "cv-reset-all";
+        resetAll.disabled = true;
+        const list = el("div", "cv-fa-sets");
+        list.id = "cv-filtersets";
+        container.append(head, resetAll, list);
+        add.addEventListener("click", () => handlers.add());
+        resetAll.addEventListener("click", () => handlers.resetAll());
+
+        const sets = new Map(); // id -> component
+        let order = [];
+        let dragId = null;
+        const DRAG_TYPE = "application/x-cv-filterset";
+
+        function clearDropMarks() {
+          for (const set of sets.values()) set.root.classList.remove("cv-drop-before", "cv-drop-after", "cv-dragging");
+        }
+
+        function wireDrag(set) {
+          set.head.addEventListener("dragstart", (event) => {
+            dragId = set.id;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData(DRAG_TYPE, set.id);
+            event.dataTransfer.setData("text/plain", set.id);
+            set.root.classList.add("cv-dragging");
+          });
+          set.head.addEventListener("dragend", () => {
+            dragId = null;
+            clearDropMarks();
+          });
+          set.root.addEventListener("dragover", (event) => {
+            if (dragId === null) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            const box = set.root.getBoundingClientRect();
+            const before = event.clientY < box.top + box.height / 2;
+            set.root.classList.toggle("cv-drop-before", before);
+            set.root.classList.toggle("cv-drop-after", !before);
+          });
+          set.root.addEventListener("dragleave", (event) => {
+            if (!set.root.contains(event.relatedTarget)) set.root.classList.remove("cv-drop-before", "cv-drop-after");
+          });
+          set.root.addEventListener("drop", (event) => {
+            if (dragId === null) return;
+            event.preventDefault();
+            const box = set.root.getBoundingClientRect();
+            const before = event.clientY < box.top + box.height / 2;
+            const source = dragId;
+            dragId = null;
+            clearDropMarks();
+            if (source === set.id) return;
+            const from = order.indexOf(source);
+            let to = order.indexOf(set.id) + (before ? 0 : 1);
+            if (from < to) to--;
+            if (from !== to) handlers.move(source, to);
+          });
+        }
+
+        return {
+          /** Shows the sets [{ id, key, title, unit, collapsed }] in this order (components are kept, not rebuilt). */
+          setSets(specs) {
+            const keep = new Set(specs.map((s) => s.id));
+            for (const [id, set] of sets)
+              if (!keep.has(id)) {
+                set.root.remove();
+                sets.delete(id);
+              }
+            order = specs.map((s) => s.id);
+            specs.forEach((spec, index) => {
+              let set = sets.get(spec.id);
+              if (!set) {
+                set = createFilterSet(spec, handlers);
+                wireDrag(set);
+                sets.set(spec.id, set);
+              } else {
+                set.setTitle(spec.title, spec.unit);
+                set.setCollapsed(Boolean(spec.collapsed));
+              }
+              set.setPosition(index, specs.length);
+              if (list.children[index] !== set.root) list.insertBefore(set.root, list.children[index] || null);
+            });
+          },
+          /** Values and counts per set (Map id -> facetCounts entry); anyActive enables the reset-all button. */
+          update(facets, anyActive) {
+            for (const [id, set] of sets) set.update(facets.get(id));
+            resetAll.disabled = !anyActive;
+          },
+        };
+      }
+
+      const CATALOG_ROW_HEIGHT = 32;
+
+      /** Name of a catalogue entry inside its group (the pset prefix is shown by the group header). */
+      function entryName(entry) {
+        const pset = entry.group.indexOf("Typ: ") === 0 ? entry.group.slice(5) : entry.group;
+        return entry.label.indexOf(pset + ".") === 0 ? entry.label.slice(pset.length + 1) : entry.label;
+      }
+
+      /**
+       * Property catalogue dialog (REQ-003): search, entries grouped (`Allgemein` first, then pset names, as the
+       * catalogue orders them) with their element counts, virtualised for thousands of entries. entries: catalogue
+       * entries in order; used: Set of keys that already have a filter set; onPick(key).
+       */
+      function openCatalogue(host, entries, used, onPick) {
+        const backdrop = el("div", "cv-backdrop");
+        const dialog = el("div", "cv-dialog cv-catalogue");
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("aria-labelledby", "cv-catalogue-title");
+        const head = el("div", "cv-dialog-head");
+        const title = el("div", "cv-dialog-title", "Filtersatz hinzuf\u00fcgen");
+        title.id = "cv-catalogue-title";
+        const close = iconButton("close", "Schlie\u00dfen", "cv-dialog-close");
+        head.append(title, close);
+        const body = el("div", "cv-dialog-body");
+        const search = el("label", "cv-search");
+        const input = el("input");
+        input.type = "search";
+        input.placeholder = "Eigenschaft suchen";
+        input.setAttribute("aria-label", "Eigenschaft suchen");
+        search.append(icon("search"), input);
+        const list = createVirtualList({
+          className: "cv-cat-list",
+          rowHeight: CATALOG_ROW_HEIGHT,
+          maxRows: 0,
+          createRow() {
+            const row = el("button", "cv-cat-row");
+            row.type = "button";
+            row.append(el("span", "cv-cat-name"), el("span", "cv-cat-note"), el("span", "cv-cat-count"));
+            return row;
+          },
+          updateRow(row, item) {
+            const [name, note, count] = row.children;
+            if (item.group !== undefined) {
+              row.className = "cv-cat-row cv-cat-group cv-vrow";
+              row.disabled = true;
+              row.tabIndex = -1;
+              delete row.dataset.key;
+              row.removeAttribute("aria-label");
+              row.removeAttribute("title");
+              name.textContent = item.group;
+              note.textContent = "";
+              count.textContent = "";
+              return;
+            }
+            const entry = item.entry;
+            const isUsed = used.has(entry.key);
+            row.className = "cv-cat-row cv-cat-entry cv-vrow" + (isUsed ? " cv-used" : "");
+            row.disabled = isUsed;
+            row.tabIndex = 0;
+            row.dataset.key = entry.key;
+            row.title = entry.header;
+            row.setAttribute(
+              "aria-label",
+              entry.label + ", " + formatCount(entry.count) + " Elemente" + (isUsed ? ", bereits als Filtersatz" : ""),
+            );
+            name.textContent = entryName(entry);
+            note.textContent = isUsed ? "vorhanden" : "";
+            count.textContent = formatCount(entry.count);
+          },
+        });
+        const info = el("p", "cv-hint cv-cat-info");
+        body.append(search, list.element, info);
+        dialog.append(head, body);
+        backdrop.append(dialog);
+        host.append(backdrop);
+
+        function build() {
+          const query = input.value.trim().toLowerCase();
+          const items = [];
+          let group = null;
+          let matches = 0;
+          for (const entry of entries) {
+            if (
+              query &&
+              entry.label.toLowerCase().indexOf(query) === -1 &&
+              entry.group.toLowerCase().indexOf(query) === -1
+            )
+              continue;
+            if (entry.group !== group) {
+              group = entry.group;
+              items.push({ group });
+            }
+            items.push({ entry });
+            matches++;
+          }
+          list.setItems(items, true);
+          if (!entries.length) info.textContent = "Keine Eigenschaften. Zuerst ein IFC-Modell laden.";
+          else if (!matches) info.textContent = "Keine Treffer.";
+          else info.textContent = formatCount(matches) + " von " + formatCount(entries.length) + " Eigenschaften";
+        }
+
+        function onKey(event) {
+          if (event.key === "Escape") finish();
+        }
+        function finish() {
+          document.removeEventListener("keydown", onKey, true);
+          backdrop.remove();
+        }
+        document.addEventListener("keydown", onKey, true);
+        backdrop.addEventListener("click", (event) => {
+          if (event.target === backdrop) finish();
+        });
+        close.addEventListener("click", finish);
+        input.addEventListener("input", build);
+        list.element.addEventListener("click", (event) => {
+          const row = event.target.closest(".cv-cat-entry");
+          if (!row || row.disabled) return;
+          const key = row.dataset.key;
+          finish();
+          onPick(key);
+        });
+        build();
+        input.focus();
+        return { close: finish, element: dialog };
+      }
+
+      /**
+       * Builds the one-screen layout of spec 2 User interface into root and returns the parts the app needs: header
+       * (logo, title, date, builder buttons), filter area (~280 px), 3D view and table with a splitter (55 / 45 %),
+       * details (~320 px, collapsible), status line `X von Y Elementen`.
+       */
       export function renderLayout(root, options) {
         const mode = options.mode;
+        const handlers = options.filterHandlers;
         const app = el("div", "cv-app");
         app.dataset.core = coreInfo().name;
 
         const header = el("header", "cv-header");
+        const logo = el("div", "cv-logo");
+        logo.id = "cv-logo";
+        logo.title = "Logo";
+        logo.append(icon("cube"));
+        const brand = el("div", "cv-brand");
         const title = el("h1", "cv-title", options.title || "Calc Viewer Builder");
         title.id = "cv-title";
         const date = el("span", "cv-date", new Date().toLocaleDateString("de-DE"));
+        date.id = "cv-date";
+        brand.append(title, date);
         const actions = el("div", "cv-actions");
         const fileInput = el("input");
         fileInput.type = "file";
@@ -1453,21 +2476,15 @@
         loadButton.id = "cv-load";
         loadButton.disabled = true;
         loadButton.addEventListener("click", () => fileInput.click());
-        let spacesToggle = null;
         if (mode === "builder") {
-          const option = el("label", "cv-option");
-          spacesToggle = el("input");
-          spacesToggle.type = "checkbox";
-          spacesToggle.id = "cv-opt-spaces";
-          option.append(spacesToggle, document.createTextNode(" R\u00e4ume (IfcSpace) einbeziehen"));
-          actions.append(option, fileInput, loadButton);
+          actions.append(fileInput, loadButton);
           for (const label of ["Konfiguration speichern", "Konfiguration laden", "HTML exportieren"]) {
             const button = el("button", "cv-btn", label);
             button.disabled = true;
             actions.append(button);
           }
         }
-        header.append(title, date, actions);
+        header.append(logo, brand, actions);
 
         const main = el("div", "cv-main");
         const filters = el("aside", "cv-panel cv-filters");
@@ -1478,9 +2495,23 @@
         const modelsTitle = el("h2", "", "Modelle");
         const modelList = el("ul", "cv-models");
         modelList.id = "cv-models";
-        filters.append(messages, modelsTitle, modelList, el("h2", "", "Filter"), el("p", "cv-hint", "Filters\u00e4tze folgen."));
+        filters.append(messages, modelsTitle, modelList);
+        let spacesToggle = null;
+        if (mode === "builder") {
+          const option = el("label", "cv-option");
+          spacesToggle = el("input");
+          spacesToggle.type = "checkbox";
+          spacesToggle.id = "cv-opt-spaces";
+          option.append(spacesToggle, document.createTextNode(" R\u00e4ume (IfcSpace) einbeziehen"));
+          filters.append(option);
+        }
+        const filterBox = el("div", "cv-filter-area");
+        filterBox.id = "cv-filter-area";
+        filters.append(filterBox);
+        const filterArea = createFilterArea(filterBox, handlers);
 
         const center = el("div", "cv-center");
+        center.id = "cv-center";
         const viewport = el("div", "cv-viewport");
         viewport.id = "cv-viewport";
         const overlay = el("div", "cv-overlay");
@@ -1495,23 +2526,83 @@
         overlayBox.append(overlayText, progressBar);
         overlay.append(overlayBox);
         viewport.append(overlay);
+        const splitter = el("div", "cv-splitter");
+        splitter.id = "cv-splitter";
+        splitter.tabIndex = 0;
+        splitter.setAttribute("role", "separator");
+        splitter.setAttribute("aria-orientation", "horizontal");
+        splitter.setAttribute("aria-label", "Aufteilung 3D-Modell / Tabelle");
+        splitter.setAttribute("aria-valuemin", "15");
+        splitter.setAttribute("aria-valuemax", "85");
         const table = el("section", "cv-panel cv-table");
         table.id = "cv-table";
         table.append(el("h2", "", "Tabelle"), el("p", "cv-hint", "Die Mengentabelle folgt."));
-        center.append(viewport, table);
+        center.append(viewport, splitter, table);
 
         const details = el("aside", "cv-panel cv-details");
         details.id = "cv-details";
-        details.append(el("h2", "", "Element-Details"), el("p", "cv-hint", "Klick auf ein Element zeigt seine Eigenschaften."));
+        const detailsHead = el("div", "cv-details-head");
+        const detailsToggle = iconButton("panelRight", "Details einklappen", "cv-details-toggle");
+        detailsToggle.id = "cv-details-toggle";
+        detailsHead.append(el("h2", "", "Element-Details"), detailsToggle);
+        const detailsBody = el("div", "cv-details-body");
+        detailsBody.append(el("p", "cv-hint", "Klick auf ein Element zeigt seine Eigenschaften."));
+        details.append(detailsHead, detailsBody);
         main.append(filters, center, details);
 
         const statusline = el("footer", "cv-statusline");
-        const status = el("span", "", "");
+        const status = el("span", "cv-status", "");
         status.id = "cv-status";
-        statusline.append(status);
+        const statusModels = el("span", "cv-status-models", "");
+        statusModels.id = "cv-status-models";
+        statusline.append(status, statusModels);
 
         app.append(header, main, statusline);
         root.replaceChildren(app);
+
+        // Splitter between 3D model and table (default 55 / 45 %), pointer and keyboard.
+        const layout = { split: 55, detailsCollapsed: false };
+        function setSplit(percent) {
+          layout.split = Math.round(Math.min(85, Math.max(15, percent)) * 10) / 10;
+          center.style.gridTemplateRows = "minmax(0, " + layout.split + "fr) 6px minmax(0, " + (100 - layout.split) + "fr)";
+          splitter.setAttribute("aria-valuenow", String(Math.round(layout.split)));
+        }
+        setSplit(55);
+        splitter.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          splitter.setPointerCapture(event.pointerId);
+          splitter.classList.add("cv-dragging");
+        });
+        splitter.addEventListener("pointermove", (event) => {
+          if (!splitter.hasPointerCapture(event.pointerId)) return;
+          const box = center.getBoundingClientRect();
+          setSplit(((event.clientY - box.top) / box.height) * 100);
+        });
+        const endDrag = (event) => {
+          if (splitter.hasPointerCapture(event.pointerId)) splitter.releasePointerCapture(event.pointerId);
+          splitter.classList.remove("cv-dragging");
+        };
+        splitter.addEventListener("pointerup", endDrag);
+        splitter.addEventListener("pointercancel", endDrag);
+        splitter.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowUp") setSplit(layout.split - 5);
+          else if (event.key === "ArrowDown") setSplit(layout.split + 5);
+          else return;
+          event.preventDefault();
+        });
+
+        // Details panel collapsible (spec 2 User interface).
+        function setDetailsCollapsed(collapsed) {
+          layout.detailsCollapsed = collapsed;
+          main.classList.toggle("cv-details-collapsed", collapsed);
+          detailsBody.hidden = collapsed;
+          const label = collapsed ? "Details ausklappen" : "Details einklappen";
+          detailsToggle.title = label;
+          detailsToggle.setAttribute("aria-label", label);
+          detailsToggle.setAttribute("aria-expanded", String(!collapsed));
+        }
+        setDetailsCollapsed(false);
+        detailsToggle.addEventListener("click", () => setDetailsCollapsed(!layout.detailsCollapsed));
 
         let busy = false;
         const removeButtons = [];
@@ -1521,6 +2612,12 @@
           loadButton,
           spacesToggle,
           viewport,
+          layout,
+          filters: filterArea,
+          /** Opens the property catalogue dialog; onPick(key) adds a filter set. */
+          openCatalogue(entries, used, onPick) {
+            return openCatalogue(app, entries, used, onPick);
+          },
           /** Shows a message over the 3D view (isError: error style); null hides it. */
           overlay(text, isError) {
             overlay.hidden = text === null;
@@ -1538,8 +2635,10 @@
             if (percent !== null) progressBar.value = percent;
             return percent;
           },
-          status(text) {
-            status.textContent = text;
+          /** Status line `X von Y Elementen` and the number of models. */
+          status(shown, total, modelCount) {
+            status.textContent = formatCount(shown) + " von " + formatCount(total) + " Elementen";
+            statusModels.textContent = modelCount === 1 ? "1 Modell" : formatCount(modelCount) + " Modelle";
           },
           /** Adds a persistent message (error) to the filter area; the user can close it. */
           addMessage(text) {
@@ -1564,7 +2663,7 @@
               item.dataset.modelId = model.id;
               const name = el("span", "cv-model-name", model.name);
               name.title = model.name;
-              const count = el("span", "cv-model-count", model.elements.toLocaleString("de-DE"));
+              const count = el("span", "cv-model-count", formatCount(model.elements));
               item.append(name, count);
               if (onRemove) {
                 const remove = el("button", "cv-model-remove", "\u00d7");
@@ -1728,11 +2827,18 @@
       import {
         LoadError,
         buildCatalog,
+        createColumnStore,
+        evaluateFilters,
+        facetCounts,
+        filterRows,
         loadErrorMessage,
         modelNameFromFile,
         uniqueModelName,
         visibleRows,
       } from "calc-core";
+
+      /** Filter sets of a new configuration (REQ-003). */
+      export const DEFAULT_FILTER_SETS = ["Kategorie", "Geschoss", "Material"];
 
       /**
        * Test hook (read-only for tests except `test`): phase "starting" | "ready" | "loading" | "error"; error (fatal
@@ -1743,6 +2849,11 @@
        * finished load, remove or option actions, for waiting; a batch with queued files counts once); options
        * { includeSpaces }. `test` holds test-only switches read by the
        * builder's conversion (crashNextConversion, neverStartNextConversion, startTimeoutMs).
+       * filter (TASK-004): { sets [{ id, key, title, collapsed, selected }] in display order (the configuration part of
+       * REQ-003-AC2), active (normalised core filters), count (rows passing all filters), total, keys (row keys passing
+       * all filters, ascending row order; the set 3D and table follow), facets ({ id -> { total, checkedCount, values
+       * [{ value, count, checked }] } }), updates (number of filter evaluations), lastMs (duration of the last
+       * evaluation incl. filter-area update) }. layout: { split (model share in %), detailsCollapsed }.
        */
       const hook = {
         phase: "starting",
@@ -1757,6 +2868,8 @@
         progress: null,
         error: null,
         options: { includeSpaces: false },
+        filter: { sets: [], active: [], count: 0, total: 0, keys: [], facets: {}, updates: 0, lastMs: 0 },
+        layout: null,
         test: { crashNextConversion: false, neverStartNextConversion: false, startTimeoutMs: null },
       };
       window.__calc = hook;
@@ -1775,7 +2888,142 @@
        *     -> Promise<{ rows, properties, spaceProperties, spaceIds }> (builder) }.
        */
       export async function start(options) {
-        const ui = renderLayout(options.root, { mode: options.mode, title: options.title });
+        // Filter state (REQ-003, REQ-004): filter sets in display order; one filter per set, id = property key.
+        const filterSets = DEFAULT_FILTER_SETS.map((key) => ({ id: key, key, collapsed: false, selected: [] }));
+        let catalog = new Map();
+        let store = createColumnStore([]);
+        let view = { evaluation: null, indices: new Uint32Array(0), facets: new Map() };
+        const filterListeners = [];
+
+        const setById = (id) => filterSets.find((s) => s.id === id);
+        const coreFilters = () => filterSets.map((s) => ({ id: s.id, key: s.key, type: "values", values: s.selected }));
+
+        function setSpecs() {
+          return filterSets.map((s) => {
+            const entry = catalog.get(s.key);
+            const unit = entry && entry.kind === "number" ? entry.unit : null;
+            return { id: s.id, key: s.key, title: entry ? entry.label : s.key, unit, collapsed: s.collapsed };
+          });
+        }
+
+        function publishSets() {
+          const specs = setSpecs();
+          ui.filters.setSets(specs);
+          hook.filter.sets = specs.map((spec, i) => ({
+            id: spec.id,
+            key: spec.key,
+            title: spec.title,
+            collapsed: spec.collapsed,
+            selected: filterSets[i].selected.slice(),
+          }));
+        }
+
+        /**
+         * Evaluates all filters once (evaluateFilters) and updates the filter sets, the status line and the hook. The
+         * row set passing all filters (view.indices) is what 3D (TASK-005) and table (TASK-006a) show.
+         */
+        function refresh() {
+          const t0 = performance.now();
+          const filters = coreFilters();
+          const evaluation = evaluateFilters(store, filters);
+          const indices = filterRows(evaluation);
+          const facets = facetCounts(evaluation, null, filterSets.map((s) => ({ id: s.id, key: s.key })));
+          view = { evaluation, indices, facets };
+          ui.filters.update(facets, evaluation.filters.length > 0);
+          ui.status(indices.length, store.size, hook.modelCount);
+          const rows = store.rows;
+          let keys = null;
+          let plainFacets = null;
+          hook.filter.active = evaluation.filters.map((f) => ({ ...f, values: f.values ? f.values.slice() : undefined }));
+          hook.filter.count = indices.length;
+          hook.filter.total = store.size;
+          // keys and facets are built only when read (tests, later tasks), not on every click
+          Object.defineProperty(hook.filter, "keys", {
+            configurable: true,
+            enumerable: true,
+            get() {
+              if (!keys) keys = Array.from(indices, (i) => rows[i].key);
+              return keys;
+            },
+          });
+          Object.defineProperty(hook.filter, "facets", {
+            configurable: true,
+            enumerable: true,
+            get() {
+              if (!plainFacets) {
+                plainFacets = {};
+                for (const [id, f] of facets)
+                  plainFacets[id] = { total: f.total, checkedCount: f.checkedCount, values: f.values };
+              }
+              return plainFacets;
+            },
+          });
+          hook.filter.updates++;
+          hook.filter.lastMs = performance.now() - t0;
+          for (const listener of filterListeners) listener(view);
+        }
+
+        function changed() {
+          publishSets();
+          refresh();
+        }
+
+        const filterHandlers = {
+          add() {
+            const used = new Set(filterSets.map((s) => s.key));
+            ui.openCatalogue([...catalog.values()], used, (key) => {
+              if (filterSets.some((s) => s.key === key)) return;
+              filterSets.push({ id: key, key, collapsed: false, selected: [] });
+              changed();
+            });
+          },
+          toggle(id, value, checked) {
+            const set = setById(id);
+            if (!set) return;
+            const at = set.selected.indexOf(value);
+            if (checked && at === -1) set.selected.push(value);
+            else if (!checked && at !== -1) set.selected.splice(at, 1);
+            else return;
+            changed();
+          },
+          resetSet(id) {
+            const set = setById(id);
+            if (!set || !set.selected.length) return;
+            set.selected = [];
+            changed();
+          },
+          /** Clears every filter (filter sets; the table's column filters join here in TASK-006a; REQ-004-AC4). */
+          resetAll() {
+            for (const set of filterSets) set.selected = [];
+            changed();
+          },
+          move(id, to) {
+            const from = filterSets.findIndex((s) => s.id === id);
+            if (from === -1 || to < 0 || to >= filterSets.length || from === to) return;
+            const [set] = filterSets.splice(from, 1);
+            filterSets.splice(to, 0, set);
+            publishSets();
+          },
+          step(id, delta) {
+            filterHandlers.move(id, filterSets.findIndex((s) => s.id === id) + delta);
+          },
+          remove(id) {
+            const at = filterSets.findIndex((s) => s.id === id);
+            if (at === -1) return;
+            filterSets.splice(at, 1);
+            store.retain(filterSets.map((s) => s.key));
+            changed();
+          },
+          collapse(id, collapsed) {
+            const set = setById(id);
+            if (!set) return;
+            set.collapsed = collapsed;
+            publishSets();
+          },
+        };
+
+        const ui = renderLayout(options.root, { mode: options.mode, title: options.title, filterHandlers });
+        hook.layout = ui.layout;
         ui.overlay("3D-Ansicht wird gestartet ...");
         const engine = createEngine(ui.viewport, options.workerUrl);
         const models = []; // { id, name, fileName, rows, properties, spaceProperties, spaceIds, fragBytes }
@@ -1796,7 +3044,9 @@
           const rows = [];
           for (const model of models) for (const row of visibleRows(model.rows, includeSpaces)) rows.push(row);
           hook.rows = rows;
-          hook.catalog = [...buildCatalog(rows, models).values()];
+          catalog = buildCatalog(rows, models);
+          hook.catalog = [...catalog.values()];
+          store = createColumnStore(rows); // new row set: new column store (TASK-003)
           hook.models = models.map((m) => {
             const visible = visibleRows(m.rows, includeSpaces);
             return {
@@ -1813,7 +3063,8 @@
             hook.models.map((m) => ({ id: m.id, name: m.modell, elements: m.elements })),
             options.mode === "builder" ? removeModel : null,
           );
-          ui.status(hook.elementCount.toLocaleString("de-DE") + " Elemente in " + hook.modelCount + " Modell(en)");
+          publishSets();
+          refresh();
           settleOverlay();
         }
 
@@ -1946,7 +3197,17 @@
         }
         publish();
         hook.phase = "ready";
-        return { loadFiles, removeModel, setIncludeSpaces };
+        return {
+          loadFiles,
+          removeModel,
+          setIncludeSpaces,
+          /** Current filter result: { evaluation, indices (rows passing all filters), facets }. */
+          filterView: () => view,
+          /** Calls listener(view) after every filter evaluation (3D coupling and table, TASK-005 / TASK-006a). */
+          onFilterChange(listener) {
+            filterListeners.push(listener);
+          },
+        };
       }
 
       /** Shows a fatal start error (library loading, drift guard) in root. */

@@ -393,6 +393,93 @@ test("[unit] edge cases: no rows, single row, everything filtered out, unknown p
   assert.deepEqual(f.get("set:K").values, []);
 });
 
+// ---------------------------------------------------------------------------------------------------------------
+// TASK-003 verification follow-ups D1, D4, D5 (fixed in TASK-004)
+// ---------------------------------------------------------------------------------------------------------------
+
+test("[unit] D1 DEC-17 whitespace-only range bounds mean no bound; bounds are trimmed", () => {
+  const values = [-3, 0, 2, 7, undefined];
+  const rows = values.map((v, i) => row("r" + i, v === undefined ? {} : { Wert: v }));
+  const keep = (min, max) =>
+    [...filterRows(rows, [{ key: "Wert", type: "range", min, max }])].map((i) => rows[i].values.Wert);
+  assert.equal(core.normaliseFilter({ key: "Wert", type: "range", min: "  ", max: "\t" }), null);
+  assert.equal(keep(" ", "  ").length, rows.length, "whitespace bounds restrict nothing (not min 0)");
+  assert.deepEqual(keep(" ", 2), [-3, 0, 2], "whitespace min is open, not 0");
+  assert.deepEqual(keep(" 2 ", "\n"), [2, 7]);
+  assert.deepEqual(core.normaliseFilter({ key: "Wert", type: "range", min: " 2 ", max: " " }), {
+    id: "Wert",
+    key: "Wert",
+    type: "range",
+    min: 2,
+    max: null,
+  });
+});
+
+test("[unit] D4 non-finite numbers (NaN, Infinity) are empty values in compare, sort and facets", () => {
+  assert.equal(core.isEmptyValue(NaN), true);
+  assert.equal(core.isEmptyValue(Infinity), true);
+  assert.equal(core.isEmptyValue(-Infinity), true);
+  assert.equal(core.isEmptyValue(0), false);
+  assert.equal(core.compareValues(NaN, 1), 1, "NaN after numbers");
+  assert.equal(core.compareValues(1, NaN), -1);
+  assert.equal(core.compareValues(NaN, "a"), 1, "NaN after texts");
+  assert.equal(core.compareValues(Infinity, null), 0, "non-finite equals empty");
+  assert.equal(core.compareValues(-Infinity, 5), 1);
+  // a total order: sorting a mixed list puts every empty-like value last and keeps numbers ordered
+  const mixed = [3, NaN, "b", -Infinity, 1, null, Infinity, "a"].sort(core.compareValues);
+  assert.deepEqual(mixed.slice(0, 4), [1, 3, "a", "b"]);
+  assert.ok(mixed.slice(4).every((v) => v === null || !Number.isFinite(v)));
+  const rows = [
+    row("a", { N: 2 }),
+    row("b", { N: NaN }),
+    row("c", { N: 1 }),
+    row("d", { N: Infinity }),
+    row("e", {}),
+    row("f", { N: -Infinity }),
+    row("g", { N: 3, M: [NaN, "x", Infinity] }),
+  ];
+  const facet = facetCounts(rows, [], ["N", "M"]);
+  assert.deepEqual(facet.get("N").values, [
+    { value: 1, count: 1, checked: false },
+    { value: 2, count: 1, checked: false },
+    { value: 3, count: 1, checked: false },
+    { value: null, count: 4, checked: false },
+  ]);
+  assert.deepEqual(valueMap(facet.get("M")), { x: 1, "(leer)": 6 });
+  const keys = (indices) => [...indices].map((i) => rows[i].key);
+  const all = filterRows(rows, []);
+  assert.deepEqual(keys(sortRows(rows, all, { key: "N", dir: "asc" })), ["c", "a", "g", "b", "d", "e", "f"]);
+  assert.deepEqual(keys(sortRows(rows, all, { key: "N", dir: "desc" })), ["g", "a", "c", "b", "d", "e", "f"]);
+  // (leer) selects the non-finite cells; a range bound excludes them like other empty cells (DEC-17)
+  assert.deepEqual(keys(filterRows(rows, [{ key: "N", type: "values", values: [null] }])), ["b", "d", "e", "f"]);
+  assert.deepEqual(keys(filterRows(rows, [{ key: "N", type: "range", min: 2, max: null }])), ["a", "g"]);
+  assert.deepEqual(keys(filterRows(rows, [{ key: "N", type: "range", min: null, max: 1 }])), ["c"]);
+  const items = [{ v: Infinity }, { v: 2 }, { v: NaN }, { v: 1 }, { v: -Infinity }];
+  assert.deepEqual(
+    sortByValue(items, (i) => i.v, "desc").map((i) => i.v),
+    [2, 1, Infinity, NaN, -Infinity],
+  );
+  assert.equal(core.displayValue(NaN), "");
+});
+
+test("[unit] D5 a selection with duplicate values counts each distinct value once (checkedCount)", () => {
+  const rows = [row("a", { K: "A" }), row("b", { K: "B" }), row("c", {})];
+  const count = (values) => facetCounts(rows, [{ key: "K", type: "values", values }], ["K"]).get("K");
+  assert.equal(count(["A", "A"]).checkedCount, 1);
+  assert.equal(count(["Fehlt", "Fehlt"]).checkedCount, 1, "missing values too");
+  const missing = count(["Fehlt", "Fehlt", "A"]);
+  assert.equal(missing.checkedCount, 2);
+  assert.equal(missing.values.filter((e) => e.value === "Fehlt").length, 1);
+  assert.equal(count([null, undefined, null]).checkedCount, 1, "null and undefined are the same (leer) value");
+  assert.equal(count([1, "1"]).checkedCount, 2, "1 and '1' stay different values (DEC-5)");
+  assert.deepEqual(core.normaliseFilter({ key: "K", values: ["A", "A", undefined, null] }), {
+    id: "K",
+    key: "K",
+    type: "values",
+    values: ["A", null],
+  });
+});
+
 /** Deterministic pseudo-random generator (mulberry32). */
 function rng(seed) {
   let a = seed >>> 0;
@@ -405,62 +492,115 @@ function rng(seed) {
   };
 }
 
-test("[unit] property check: filterRows and facetCounts equal a naive implementation on 200 random cases", () => {
-  const cell = (v) =>
-    v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length) ? [null] : [].concat(v);
+test("[unit] property check: filterRows, facetCounts and sortRows equal a naive implementation on 300 random cases", () => {
+  // Naive reference, written from the spec rules only (REQ-004, REQ-006, DEC-14, DEC-17, TASK-003 D1/D4/D5).
+  const isEmpty = (v) => v === undefined || v === null || v === "" || (typeof v === "number" && !Number.isFinite(v));
+  const cell = (v) => {
+    const list = [].concat(v === undefined ? [] : v).filter((x) => !isEmpty(x));
+    return list.length ? [...new Set(list)] : [null];
+  };
+  const bound = (b) => (b === null || b === undefined || (typeof b === "string" && !b.trim()) ? null : Number(b));
   const matches = (r, f) => {
     if (f.type === "range") {
       const v = r.values[f.key];
-      if (typeof v !== "number") return false;
-      return (f.min === null || v >= f.min) && (f.max === null || v <= f.max);
+      if (typeof v !== "number" || !Number.isFinite(v)) return false;
+      return (f.lo === null || v >= f.lo) && (f.hi === null || v <= f.hi);
     }
-    return cell(r.values[f.key]).some((v) => f.values.includes(v));
+    return cell(r.values[f.key]).some((v) => f.wanted.has(v));
   };
-  for (let seed = 1; seed <= 200; seed++) {
+  const BOUNDS = [null, undefined, "", " ", "\t", 0, 2, 7, "3", " 5 ", -1, 2.5];
+  for (let seed = 1; seed <= 300; seed++) {
     const rand = rng(seed);
     const pick = (list) => list[Math.floor(rand() * list.length)];
     const n = Math.floor(rand() * 40);
     const rows = [];
     for (let i = 0; i < n; i++) {
       const values = {};
-      if (rand() < 0.8) values.A = pick(["x", "y", "z", 1, 2]);
-      if (rand() < 0.7) values.B = Array.from({ length: Math.floor(rand() * 3) }, () => pick(["p", "q", "r"]));
-      if (rand() < 0.7) values.N = Math.round(rand() * 100) / 10;
+      if (rand() < 0.8) values.A = pick(["x", "y", "z", "X", 1, 2, "1", NaN]);
+      if (rand() < 0.7) values.B = Array.from({ length: Math.floor(rand() * 3) }, () => pick(["p", "q", "r", ""]));
+      if (rand() < 0.7) values.N = rand() < 0.1 ? pick([Infinity, NaN]) : Math.round(rand() * 100) / 10;
       rows.push(row("k" + i, values));
     }
+    // filter sets (id = key) and column filters with their own ids on the same properties
     const filters = [];
-    if (rand() < 0.6) filters.push({ key: "A", type: "values", values: [pick(["x", "y", 1, null])] });
-    if (rand() < 0.6) filters.push({ key: "B", type: "values", values: [pick(["p", "q", null]), pick(["r", "w"])] });
-    if (rand() < 0.5)
-      filters.push({ key: "N", type: "range", min: rand() < 0.7 ? 2 : null, max: rand() < 0.7 ? 7 : null });
-    const active = filters.filter((f) => f.type !== "range" || f.min !== null || f.max !== null);
-    const expected = rows.map((r, i) => (active.every((f) => matches(r, f)) ? i : -1)).filter((i) => i >= 0);
-    assert.deepEqual([...filterRows(rows, filters)], expected, `seed ${seed}`);
-    const facets = facetCounts(rows, filters, ["A", "B"]);
-    for (const key of ["A", "B"]) {
-      const others = active.filter((f) => f.key !== key);
-      const counts = new Map();
-      for (const r of rows) {
-        if (!others.every((f) => matches(r, f))) continue;
-        for (const v of new Set(cell(r.values[key]))) counts.set(v, (counts.get(v) || 0) + 1);
+    const sel = (list, k) => Array.from({ length: k }, () => pick(list));
+    if (rand() < 0.6)
+      filters.push({ key: "A", type: "values", values: sel(["x", "y", 1, "1", null, "nix"], (1 + rand() * 3) | 0) });
+    if (rand() < 0.4)
+      filters.push({ id: "col:A", key: "A", type: "values", values: sel(["x", "z", 2, null], (1 + rand() * 2) | 0) });
+    if (rand() < 0.6)
+      filters.push({ key: "B", type: "values", values: sel(["p", "q", null, "w"], (1 + rand() * 3) | 0) });
+    if (rand() < 0.5) filters.push({ id: "col:N", key: "N", type: "range", min: pick(BOUNDS), max: pick(BOUNDS) });
+    const active = [];
+    for (const f of filters) {
+      const id = f.id === undefined ? f.key : f.id;
+      if (f.type === "range") {
+        const lo = bound(f.min);
+        const hi = bound(f.max);
+        if (lo !== null || hi !== null) active.push({ ...f, id, lo, hi });
+      } else {
+        const wanted = new Set(f.values.map((v) => (v === undefined ? null : v)));
+        if (wanted.size) active.push({ ...f, id, wanted });
       }
-      const own = active.find((f) => f.key === key);
-      const want = [...counts].filter(([, c]) => c > 0).map(([v]) => v);
-      for (const v of own ? own.values : []) if (!want.includes(v)) want.push(v);
-      want.sort(core.compareValues);
-      const got = facets.get(key).values;
-      assert.deepEqual(
-        got.map((e) => e.value),
-        want,
-        `seed ${seed} ${key} values`,
-      );
-      for (const e of got) assert.equal(e.count, counts.get(e.value) || 0, `seed ${seed} ${key}=${e.value}`);
     }
-    const sorted = [...sortRows(rows, expected, { key: "N", dir: "desc" })].map((i) => rows[i].values.N);
-    const firstEmpty = sorted.findIndex((v) => v === undefined);
-    const head = firstEmpty === -1 ? sorted : sorted.slice(0, firstEmpty);
-    if (firstEmpty !== -1) assert.ok(sorted.slice(firstEmpty).every((v) => v === undefined));
-    for (let i = 1; i < head.length; i++) assert.ok(head[i - 1] >= head[i], `seed ${seed} sort`);
+    const expected = rows.map((r, i) => (active.every((f) => matches(r, f)) ? i : -1)).filter((i) => i >= 0);
+    assert.deepEqual([...filterRows(rows, filters)], expected, `seed ${seed} filterRows`);
+
+    const facetSpecs = [{ key: "A" }, { id: "col:A", key: "A" }, { key: "B" }, { id: "set:N", key: "N" }];
+    const facets = facetCounts(rows, filters, facetSpecs);
+    for (const spec of facetSpecs) {
+      const id = spec.id === undefined ? spec.key : spec.id;
+      const others = active.filter((f) => f.id !== id);
+      const base = rows.filter((r) => others.every((f) => matches(r, f)));
+      const counts = new Map();
+      for (const r of base) for (const v of cell(r.values[spec.key])) counts.set(v, (counts.get(v) || 0) + 1);
+      const own = active.find((f) => f.id === id && f.type === "values");
+      const checked = own ? own.wanted : new Set();
+      const want = [...counts.keys()];
+      for (const v of checked) if (!counts.has(v)) want.push(v);
+      want.sort(core.compareValues);
+      const got = facets.get(id);
+      assert.equal(got.id, id, `seed ${seed} ${id} id`);
+      assert.equal(got.key, spec.key, `seed ${seed} ${id} key`);
+      assert.equal(got.total, base.length, `seed ${seed} ${id} total`);
+      assert.equal(got.checkedCount, checked.size, `seed ${seed} ${id} checkedCount`);
+      assert.deepEqual(
+        got.values.map((e) => e.value),
+        want,
+        `seed ${seed} ${id} values`,
+      );
+      for (const e of got.values) {
+        assert.equal(e.count, counts.get(e.value) || 0, `seed ${seed} ${id}=${e.value} count`);
+        assert.equal(e.checked, checked.has(e.value), `seed ${seed} ${id}=${e.value} checked`);
+      }
+    }
+
+    // sorting: stable (ties keep the given order), empty last in both directions; the given order is shuffled
+    const given = [...expected];
+    for (let i = given.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [given[i], given[j]] = [given[j], given[i]];
+    }
+    const shown = (r, key) => {
+      const v = r.values[key];
+      if (Array.isArray(v)) {
+        const list = [...new Set(v.filter((x) => !isEmpty(x)))]; // a cell's distinct values, as the facets count them
+        return list.length ? list.join(", ") : null;
+      }
+      return isEmpty(v) ? null : v;
+    };
+    for (const key of ["A", "B", "N"])
+      for (const dir of ["asc", "desc"]) {
+        const sign = dir === "desc" ? -1 : 1;
+        const naive = given
+          .map((i, p) => ({ i, p, v: shown(rows[i], key) }))
+          .sort((a, b) => {
+            if (a.v === null || b.v === null) return a.v === b.v ? a.p - b.p : a.v === null ? 1 : -1;
+            return sign * core.compareValues(a.v, b.v) || a.p - b.p;
+          })
+          .map((e) => e.i);
+        assert.deepEqual([...sortRows(rows, given, { key, dir })], naive, `seed ${seed} sort ${key} ${dir}`);
+      }
   }
 });
 

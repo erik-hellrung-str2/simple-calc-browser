@@ -61,7 +61,9 @@ test("@smoke builder loads AC20-FZK-Haus.ifc and shows it in 3D @REQ-001", async
   expect(hook.models).toHaveLength(1);
   expect(hook.models[0].name).toBe("AC20-FZK-Haus.ifc");
   expect(hook.elementCount).toBeGreaterThan(0);
-  await expect(page.locator("#cv-status")).toContainText("Elemente in 1 Modell");
+  const total = hook.elementCount.toLocaleString("de-DE");
+  await expect(page.locator("#cv-status")).toHaveText(`${total} von ${total} Elementen`);
+  await expect(page.locator("#cv-status-models")).toHaveText("1 Modell");
   await expect(page.locator("#cv-overlay")).toBeHidden();
 
   // Canvas non-empty: the rendered model covers a clear share of the view (the empty view is background only).
