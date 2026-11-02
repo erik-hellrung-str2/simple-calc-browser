@@ -25,7 +25,7 @@ blocking_questions: []
 active_changes: []
 pending_release: []
 reserved_ids: {}
-next_action: "Workflow fix002-task003 running: fixes for TASK-002 verification defects (drop queue, overlay, hook fields, catalogue from visible rows, trailer check, records) + recheck, then TASK-003 filter engine + independent verification. On completion: review reports, commit, mark tasks done in spec §5, continue with TASK-004."
+next_action: "Implement TASK-004 (spec §5: layout, filter area, virtualised value lists, catalogue dialog, defaults, reset, status line) plus TASK-003 follow-ups D1, D4, D5, W1, W4 (docs/tasks/TASK-003.md); independent verification afterwards. Avoid parallel test runs on the shared .cache/core.mjs (load-core race) — fix load-core to use a per-process temp file."
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
@@ -37,3 +37,4 @@ history:
   - {date: 2026-11-02, event: "TASK-001a/001b done and independently verified; R-1 resolved (classic worker works from file://)"}
   - {date: 2026-11-02, event: "TASK-002 implemented (extraction, units, multi-model, error classes; 128 MB smoke no crash, ~68 s/100 MB); independent verification running"}
   - {date: 2026-11-02, event: "TASK-002 verified: PASS with defects (A drop lost, B overlay, minor); fix pass started together with TASK-003"}
+  - {date: 2026-11-02, event: "TASK-002 fixes verified (11/11 PASS); TASK-003 filter engine done and independently verified (PASS, D1-D5 low follow-ups)"}

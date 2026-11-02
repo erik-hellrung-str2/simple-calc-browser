@@ -56,6 +56,17 @@ test("@integration @acceptance @REQ-002-AC1 AC20-FZK-Haus reference elements equ
     expect(row.values.Geometrie).toBe("Nein");
   }
 
+  // The whole row set: every element of the STEP text is one row, except IfcOpeningElement (not an importer element
+  // class; openings are voids, not elements). Expected counts come from the reference data only.
+  const { IfcOpeningElement, ...expectedByKategorie } = fzkRef.elementsInStepTextByKategorie;
+  expect(IfcOpeningElement).toBeGreaterThan(0);
+  expect(await countBy(page, "Kategorie")).toEqual(expectedByKategorie);
+  const expectedTotal = Object.values(expectedByKategorie).reduce((sum, n) => sum + n, 0);
+  expect(await page.evaluate(() => window.__calc.rows.length)).toBe(expectedTotal);
+  const [model] = await page.evaluate(() => window.__calc.models);
+  expect(model.elements).toBe(expectedTotal);
+  expect(model.withGeometry).toBe(await page.evaluate(() => window.__calc.rows.filter((r) => r.geometry).length));
+
   // Data basis of the REQ-004 reference filters: the row sets and per-storey category counts match.
   const walls = await page.evaluate(() =>
     window.__calc.rows
@@ -349,4 +360,86 @@ test("@integration @robustness @REQ-001 removing the last model leaves an empty,
     ).toEqual([0, 0, 0]);
     await expect(page.locator("#cv-load")).toBeEnabled();
   }
+});
+
+/** Drops files (paths) on the builder page as a real drag-and-drop would, without waiting. */
+async function dropFiles(page, paths) {
+  const files = paths.map((p) => ({ name: p.split("/").pop(), data: readFileSync(p).toString("base64") }));
+  await page.evaluate((list) => {
+    const transfer = new DataTransfer();
+    for (const { name, data } of list) {
+      const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+      transfer.items.add(new File([bytes], name));
+    }
+    const target = document.querySelector(".cv-app");
+    target.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true }));
+  }, files);
+}
+
+test("@integration @robustness @REQ-001 a file dropped while a load runs is queued and loaded after it", async ({
+  page,
+}) => {
+  const errors = await openBuilder(page);
+  const before = await page.evaluate(() => window.__calc.loads);
+  await page.locator("#cv-file-input").setInputFiles(FZK);
+  await page.waitForFunction(() => window.__calc.phase === "loading");
+  await dropFiles(page, [DUPLEX]);
+  // still the first load: the dropped file waits in the queue
+  expect(await page.evaluate(() => [window.__calc.phase, window.__calc.queued])).toEqual(["loading", 1]);
+  await page.waitForFunction((n) => window.__calc.loads > n && window.__calc.phase === "ready", before, {
+    timeout: 120_000,
+  });
+  // one batch: both files loaded, nothing lost, no error
+  expect(await page.evaluate(() => window.__calc.loads)).toBe(before + 1);
+  expect(await page.evaluate(() => window.__calc.models.map((m) => m.modell))).toEqual([
+    "AC20-FZK-Haus",
+    "Ifc2x3_Duplex_Architecture",
+  ]);
+  expect(await page.evaluate(() => [window.__calc.queued, window.__calc.loadErrors, window.__calc.modelCount])).toEqual(
+    [0, [], 2],
+  );
+  await expect(page.locator("#cv-overlay")).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("@integration @robustness @REQ-001 a failed last file does not leave its error over the 3D view", async ({
+  page,
+}) => {
+  await openBuilder(page);
+  await loadFiles(page, FZK);
+  await loadFiles(page, fixture("error-empty.ifc"));
+  await expect(page.locator("#cv-messages")).toContainText("error-empty.ifc ist leer.");
+  await expect(page.locator("#cv-overlay")).toBeHidden();
+  // load errors are not fatal errors: the fatal-error field stays empty
+  expect(await page.evaluate(() => [window.__calc.error, window.__calc.loadErrors.length])).toEqual([null, 1]);
+
+  // no model left: the start hint, not the old error
+  await removeModel(page, "AC20-FZK-Haus");
+  await expect(page.locator("#cv-overlay")).toBeVisible();
+  await expect(page.locator("#cv-overlay-text")).toHaveText("IFC-Datei laden, um zu beginnen.");
+  await loadFiles(page, fixture("error-renamed-pdf.ifc"));
+  await expect(page.locator("#cv-overlay-text")).toHaveText("IFC-Datei laden, um zu beginnen.");
+  await expect(page.locator("#cv-overlay")).not.toHaveClass(/cv-error/);
+  await expect(page.locator("#cv-messages")).toContainText("error-renamed-pdf.ifc ist keine IFC-Datei.");
+  expect(await page.evaluate(() => window.__calc.error)).toBeNull();
+});
+
+test("@integration @robustness @REQ-001 a valid file with a comment and > 1 KiB blank space after the trailer loads", async ({
+  page,
+}) => {
+  await openBuilder(page);
+  const padded = Buffer.concat([
+    readFileSync(FZK),
+    Buffer.from("/* appended by an exporter */\r\n" + " \r\n".repeat(2048), "latin1"),
+  ]);
+  await loadFiles(page, [{ name: "fzk-padded.ifc", mimeType: "application/octet-stream", buffer: padded }]);
+  expect(await page.evaluate(() => window.__calc.loadErrors)).toEqual([]);
+  expect(await page.evaluate(() => window.__calc.models.map((m) => [m.modell, m.elements]))).toEqual([
+    [
+      "fzk-padded",
+      Object.entries(fzkRef.elementsInStepTextByKategorie)
+        .filter(([k]) => k !== "IfcOpeningElement")
+        .reduce((sum, [, n]) => sum + n, 0),
+    ],
+  ]);
 });

@@ -1,0 +1,1401 @@
+{
+ "source": "AC20-FZK-Haus.ifc",
+ "generatedBy": "test/integration/fzk-rows-snapshot.spec.mjs",
+ "keys": [
+  "Modell",
+  "Kategorie",
+  "Name",
+  "GlobalId",
+  "Typ",
+  "Geschoss",
+  "Material",
+  "Geometrie",
+  "BaseQuantities.Length",
+  "BaseQuantities.GrossSideArea",
+  "BaseQuantities.NetVolume"
+ ],
+ "rows": [
+  {
+   "guid": "06JZMOVBX8VucSQwQ3o$8d",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-25",
+    "GlobalId": "06JZMOVBX8VucSQwQ3o$8d",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "07Enbsqm9C7AQC9iyBwfSD",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcSlab",
+    "Name": "Dach-1",
+    "GlobalId": "07Enbsqm9C7AQC9iyBwfSD",
+    "Typ": "Solid 397409098 200",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid 397409098"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.NetVolume": 16.5122177149
+   }
+  },
+  {
+   "guid": "09OmJpUcj4WvNp2dXHFMWj",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-22",
+    "GlobalId": "09OmJpUcj4WvNp2dXHFMWj",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "09axaKU7X1_O8n6dmmiZ1E",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcRailing",
+    "GlobalId": "09axaKU7X1_O8n6dmmiZ1E",
+    "Typ": "Geländer_horizontal 13",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0B1RwEzzP3CfME5NR$Vqh5",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "EG-Fenster-7",
+    "GlobalId": "0B1RwEzzP3CfME5NR$Vqh5",
+    "Typ": "IFC Fenster - zwei Panele - Vertikal",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0CWpGkM7zEROS7WsgthNfA",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "0CWpGkM7zEROS7WsgthNfA",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "0DTRkEz0r6gvzG6VdDr24n",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-36",
+    "GlobalId": "0DTRkEz0r6gvzG6VdDr24n",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0OKCG9uG53i9K16_x3YNfz",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-20",
+    "GlobalId": "0OKCG9uG53i9K16_x3YNfz",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0OL3LCjon8C8eMGVs718Tk",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "0OL3LCjon8C8eMGVs718Tk",
+    "Geschoss": "Dachgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "0VzptM87L6uOjQj08tTXIQ",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-15",
+    "GlobalId": "0VzptM87L6uOjQj08tTXIQ",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0dGzbiP6H1sPcT0NmqaFGO",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "0dGzbiP6H1sPcT0NmqaFGO",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "0eaC0nL3XAOfFxRXK_2iAr",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcBeam",
+    "Name": "Pfette-2-1",
+    "GlobalId": "0eaC0nL3XAOfFxRXK_2iAr",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0hRh9WB$jCLwlAiq3vfmg9",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-31",
+    "GlobalId": "0hRh9WB$jCLwlAiq3vfmg9",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0j7WClqLTB0gkHE605BLnY",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "0j7WClqLTB0gkHE605BLnY",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "0knNIAVBPBFvBy_m5QVHsU",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Ext-OG-1",
+    "GlobalId": "0knNIAVBPBFvBy_m5QVHsU",
+    "Typ": "Leichtbeton 102890359 300",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 9.7,
+    "BaseQuantities.GrossSideArea": 19.2577759676,
+    "BaseQuantities.NetVolume": 5.54440602973
+   }
+  },
+  {
+   "guid": "0nsN_jkIrBQBuGFMg_zMEg",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-5",
+    "GlobalId": "0nsN_jkIrBQBuGFMg_zMEg",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0o5vgCKyTBzO5$QJcI2YDP",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcRailing",
+    "GlobalId": "0o5vgCKyTBzO5$QJcI2YDP",
+    "Typ": "Geländer_horizontal 13",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0oTQ6V1VbChulreA_hfmUa",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-1",
+    "GlobalId": "0oTQ6V1VbChulreA_hfmUa",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0pGAjlJMP3ifYPATVF5xAR",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcDoor",
+    "Name": "Innentuer-2",
+    "GlobalId": "0pGAjlJMP3ifYPATVF5xAR",
+    "Typ": "IFC Tür - Eine Öffnunsgrichtung",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0q1clcN4jF4gdikC9OySy7",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-18",
+    "GlobalId": "0q1clcN4jF4gdikC9OySy7",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "0wuj6ac_Rv$ZYWzILFrlw0",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcVirtualElement",
+    "GlobalId": "0wuj6ac_Rv$ZYWzILFrlw0",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "1$wmdwWPjDYuku_ghVkynE",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Int-ERDG-5",
+    "GlobalId": "1$wmdwWPjDYuku_ghVkynE",
+    "Typ": "Leichtbeton 102890359 240",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 3.5,
+    "BaseQuantities.GrossSideArea": 8.75,
+    "BaseQuantities.NetVolume": 2.08896189111
+   }
+  },
+  {
+   "guid": "11pyNSTMP9zfUCy679gsvT",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "11pyNSTMP9zfUCy679gsvT",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "13aSY79zb8fP4HApEJ0z_e",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "EG-Fenster-8",
+    "GlobalId": "13aSY79zb8fP4HApEJ0z_e",
+    "Typ": "IFC Fenster - zwei Panele - Vertikal",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "16DNNqzfP2thtfaOflvsKA",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Ext-ERDG-4",
+    "GlobalId": "16DNNqzfP2thtfaOflvsKA",
+    "Typ": "Leichtbeton 102890359 300",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 11.7,
+    "BaseQuantities.GrossSideArea": 31.59,
+    "BaseQuantities.NetVolume": 6.604875
+   }
+  },
+  {
+   "guid": "17MHCgVYn2YPLX56yXUJbL",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-29",
+    "GlobalId": "17MHCgVYn2YPLX56yXUJbL",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1DiYqhfzH9xxuJdVHwXCNa",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "EG-Fenster-3",
+    "GlobalId": "1DiYqhfzH9xxuJdVHwXCNa",
+    "Typ": "IFC Fenster - zwei Panele - Vertikal",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1M$gxUrX1Fiwe3P64ww7U5",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcDoor",
+    "Name": "Terrassentuer",
+    "GlobalId": "1M$gxUrX1Fiwe3P64ww7U5",
+    "Typ": "Schiebetür_3-teilig",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1NBDw_i_jD$u7IjvwmbPmx",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-32",
+    "GlobalId": "1NBDw_i_jD$u7IjvwmbPmx",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1OckORehXEoB_KILQGJao5",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-4",
+    "GlobalId": "1OckORehXEoB_KILQGJao5",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1Oms875aH3Wg$9l65H2ZGw",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcDoor",
+    "Name": "Innentuer-1",
+    "GlobalId": "1Oms875aH3Wg$9l65H2ZGw",
+    "Typ": "IFC Tür - Eine Öffnunsgrichtung",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1TAI4ouKX4Xx4lBDZIu5qM",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "EG-Fenster-1",
+    "GlobalId": "1TAI4ouKX4Xx4lBDZIu5qM",
+    "Typ": "IFC Fenster - zwei Panele - Vertikal",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1TKECZOIj9cBBj4ne6lhuA",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "1TKECZOIj9cBBj4ne6lhuA",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "1WAtLpg_nDBxKhzIXT_jnH",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "1WAtLpg_nDBxKhzIXT_jnH",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "1bzfVsJqn8De5PukCrqylz",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Ext-ERDG-2",
+    "GlobalId": "1bzfVsJqn8De5PukCrqylz",
+    "Typ": "Leichtbeton 102890359 300",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 11.7,
+    "BaseQuantities.GrossSideArea": 30.99,
+    "BaseQuantities.NetVolume": 7.317
+   }
+  },
+  {
+   "guid": "1fzvgX3pDB88Tz63VWPBLu",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "1fzvgX3pDB88Tz63VWPBLu",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "1nGDFBBHvBJ9NmlweQO0fX",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-9",
+    "GlobalId": "1nGDFBBHvBJ9NmlweQO0fX",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1pPHnf7cXCpPsNEnQf8_6B",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcSlab",
+    "Name": "Bodenplatte",
+    "GlobalId": "1pPHnf7cXCpPsNEnQf8_6B",
+    "Typ": "Stahlbeton 65690 200",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Stahlbeton 65690"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.NetVolume": 24
+   }
+  },
+  {
+   "guid": "1qMEiq1Qz6guq8g1GCODiJ",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-34",
+    "GlobalId": "1qMEiq1Qz6guq8g1GCODiJ",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1srAI$R4T8ihLXSNHmUSET",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "EG-Fenster-6",
+    "GlobalId": "1srAI$R4T8ihLXSNHmUSET",
+    "Typ": "IFC Fenster - zwei Panele - Vertikal",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1tpUOcVEPCGgFqSz0VbniQ",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-2",
+    "GlobalId": "1tpUOcVEPCGgFqSz0VbniQ",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1ulHlNTuj798Os3k9phhVC",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-3",
+    "GlobalId": "1ulHlNTuj798Os3k9phhVC",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "1zOBw0Gej5Wf0QAJfHnOc0",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "OG-Fenster-2",
+    "GlobalId": "1zOBw0Gej5Wf0QAJfHnOc0",
+    "Typ": "Rundfenster 13",
+    "Geschoss": "Dachgeschoss",
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "20AsUDMgH0JwAitydKgsOm",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-27",
+    "GlobalId": "20AsUDMgH0JwAitydKgsOm",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "20bTaetQDApP5w8egFxj13",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcBeam",
+    "Name": "First",
+    "GlobalId": "20bTaetQDApP5w8egFxj13",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "22oN_bO9T4jO5eG4GKW7be",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-40",
+    "GlobalId": "22oN_bO9T4jO5eG4GKW7be",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "23pmL_2aH88OVqWp_5Lfkf",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-24",
+    "GlobalId": "23pmL_2aH88OVqWp_5Lfkf",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "25OWQvmXj5BPgyergP43tY",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Ext-OG-2",
+    "GlobalId": "25OWQvmXj5BPgyergP43tY",
+    "Typ": "Leichtbeton 102890359 300",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 11.7,
+    "BaseQuantities.GrossSideArea": 6.83726896031,
+    "BaseQuantities.NetVolume": 2.05637684052
+   }
+  },
+  {
+   "guid": "25fsbPyk15VvuXI$yNKenK",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Ext-ERDG-3",
+    "GlobalId": "25fsbPyk15VvuXI$yNKenK",
+    "Typ": "Leichtbeton 102890359 300",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 9.7,
+    "BaseQuantities.GrossSideArea": 25.89,
+    "BaseQuantities.NetVolume": 6.417
+   }
+  },
+  {
+   "guid": "25nJxEpYf8LRDJNkMUVO0m",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "EG-Fenster-4",
+    "GlobalId": "25nJxEpYf8LRDJNkMUVO0m",
+    "Typ": "IFC Fenster - zwei Panele - Vertikal",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2ACmFFQhT1Ouf0x4YRUh9m",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "OG-Fenster-1",
+    "GlobalId": "2ACmFFQhT1Ouf0x4YRUh9m",
+    "Typ": "Rundfenster 13",
+    "Geschoss": "Dachgeschoss",
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2AxITdtlD1h9Y3ye8U93bV",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-35",
+    "GlobalId": "2AxITdtlD1h9Y3ye8U93bV",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2BEAsxujfCOxQo3wTVr7Wr",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "2BEAsxujfCOxQo3wTVr7Wr",
+    "Geschoss": "Dachgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "2CxE0$jXr8iOH1VC2gLCXX",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-16",
+    "GlobalId": "2CxE0$jXr8iOH1VC2gLCXX",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2DH$OLoObDkAtwqVzNdUnS",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-33",
+    "GlobalId": "2DH$OLoObDkAtwqVzNdUnS",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2EQh_jhP1B_A_AMuSJc5E0",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "EG-Fenster-9",
+    "GlobalId": "2EQh_jhP1B_A_AMuSJc5E0",
+    "Typ": "IFC Fenster - zwei Panele - Vertikal",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2HtybvLgf93veGIhadqbJ9",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "2HtybvLgf93veGIhadqbJ9",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "2IxUUNUVPB6Ob$eicCfP2N",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcSlab",
+    "Name": "Dach-2",
+    "GlobalId": "2IxUUNUVPB6Ob$eicCfP2N",
+    "Typ": "Solid 397409098 200",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid 397409098"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.NetVolume": 16.5122177149
+   }
+  },
+  {
+   "guid": "2Ml9lHXiTBN8zH$beU1ns5",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "2Ml9lHXiTBN8zH$beU1ns5",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "2O1epMSyD6ol5XOFRviRIZ",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcVirtualElement",
+    "GlobalId": "2O1epMSyD6ol5XOFRviRIZ",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "2OHMT7B69F5PRG_f3rMcjF",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-13",
+    "GlobalId": "2OHMT7B69F5PRG_f3rMcjF",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2Q9w7oRXP249jBobEMVqlZ",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "EG-Fenster-2",
+    "GlobalId": "2Q9w7oRXP249jBobEMVqlZ",
+    "Typ": "IFC Fenster - zwei Panele - Vertikal",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2RGlQk4xH47RHK93zcTzUL",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcSlab",
+    "Name": "Slab-033",
+    "GlobalId": "2RGlQk4xH47RHK93zcTzUL",
+    "Typ": "Solid 397409098 200",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid 397409098"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.NetVolume": 19.9671549157
+   }
+  },
+  {
+   "guid": "2SfSpj_pX9nvTeCOxeKqTd",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-28",
+    "GlobalId": "2SfSpj_pX9nvTeCOxeKqTd",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2TSghi3E94BuNE_F6jBcWe",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "2TSghi3E94BuNE_F6jBcWe",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "2XPyKWY018sA1ygZKgQPtU",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Int-ERDG-4",
+    "GlobalId": "2XPyKWY018sA1ygZKgQPtU",
+    "Typ": "Leichtbeton 102890359 240",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 4.17,
+    "BaseQuantities.GrossSideArea": 10.425,
+    "BaseQuantities.NetVolume": 2.49624
+   }
+  },
+  {
+   "guid": "2XyYurmzzDOAIoZ52R97Jm",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-30",
+    "GlobalId": "2XyYurmzzDOAIoZ52R97Jm",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2in0QvfYXEawl1f3MP1bq2",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-41",
+    "GlobalId": "2in0QvfYXEawl1f3MP1bq2",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2jBFZiQw110vV7XY77KKfx",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-39",
+    "GlobalId": "2jBFZiQw110vV7XY77KKfx",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2jTRqchjf7oB0yhQ6462T0",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcDoor",
+    "Name": "Haustuer",
+    "GlobalId": "2jTRqchjf7oB0yhQ6462T0",
+    "Typ": "Eingangstür",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "2ptk1k7qn8_Qk22vjh$0DE",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Int-ERDG-1",
+    "GlobalId": "2ptk1k7qn8_Qk22vjh$0DE",
+    "Typ": "Leichtbeton 102890359 240",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 3.71,
+    "BaseQuantities.GrossSideArea": 9.275,
+    "BaseQuantities.NetVolume": 2.226
+   }
+  },
+  {
+   "guid": "2qiPPF3FrF8OIqfrKiSUqm",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcDoor",
+    "Name": "Innentuer-3",
+    "GlobalId": "2qiPPF3FrF8OIqfrKiSUqm",
+    "Typ": "IFC Tür - Eine Öffnunsgrichtung",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "31Quw2HAvFqv$9_JgCuemp",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-6",
+    "GlobalId": "31Quw2HAvFqv$9_JgCuemp",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "31ry3UPYD7weLluBlhQxXZ",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-26",
+    "GlobalId": "31ry3UPYD7weLluBlhQxXZ",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "34zPS2PUTBDOe7g7RIRXK0",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-14",
+    "GlobalId": "34zPS2PUTBDOe7g7RIRXK0",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "35W3cFc4L7MhJR0gIk9uis",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-7",
+    "GlobalId": "35W3cFc4L7MhJR0gIk9uis",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "36KGWr2Rv8QuUhNnocm2nH",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-19",
+    "GlobalId": "36KGWr2Rv8QuUhNnocm2nH",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "37ab3q_iz8XRterfnMKTQX",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-11",
+    "GlobalId": "37ab3q_iz8XRterfnMKTQX",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "38a9vdh9bF5Qg28GWyHhlr",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcStair",
+    "Name": "Wendeltreppe",
+    "GlobalId": "38a9vdh9bF5Qg28GWyHhlr",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3BFcylCsX74PQAoRAe5fNv",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWindow",
+    "Name": "EG-Fenster-5",
+    "GlobalId": "3BFcylCsX74PQAoRAe5fNv",
+    "Typ": "IFC Fenster - zwei Panele - Vertikal",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Holz"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3BTqRqk7D5EhoEfLy$YPgs",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "3BTqRqk7D5EhoEfLy$YPgs",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "3CS1rsE3bB7vMHAdjyaamh",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-38",
+    "GlobalId": "3CS1rsE3bB7vMHAdjyaamh",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3EgsECVVb6zQXnK3YFcWAu",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-42",
+    "GlobalId": "3EgsECVVb6zQXnK3YFcWAu",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3F58AqxJfF$QkuoceQhWg3",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-8",
+    "GlobalId": "3F58AqxJfF$QkuoceQhWg3",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3PfS__Y_DBAfq5naM6zD2Z",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Int-ERDG-2",
+    "GlobalId": "3PfS__Y_DBAfq5naM6zD2Z",
+    "Typ": "Leichtbeton 102890359 240",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 5.57,
+    "BaseQuantities.GrossSideArea": 13.601,
+    "BaseQuantities.NetVolume": 2.909316
+   }
+  },
+  {
+   "guid": "3Ttjr$59XEWfWN1WUHjelZ",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Ext-OG-4",
+    "GlobalId": "3Ttjr$59XEWfWN1WUHjelZ",
+    "Typ": "Leichtbeton 102890359 300",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 11.7,
+    "BaseQuantities.GrossSideArea": 6.83726896031,
+    "BaseQuantities.NetVolume": 2.05637684052
+   }
+  },
+  {
+   "guid": "3UTqpydzf7i8J6iMY2tHil",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-37",
+    "GlobalId": "3UTqpydzf7i8J6iMY2tHil",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3VCarUKgH1buLo22Ozxe6J",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Ext-OG-3",
+    "GlobalId": "3VCarUKgH1buLo22Ozxe6J",
+    "Typ": "Leichtbeton 102890359 300",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 9.7,
+    "BaseQuantities.GrossSideArea": 19.2577759676,
+    "BaseQuantities.NetVolume": 5.54440602973
+   }
+  },
+  {
+   "guid": "3YZcx3Gb58SwNRLuheFOxL",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcAnnotation",
+    "GlobalId": "3YZcx3Gb58SwNRLuheFOxL",
+    "Geschoss": "Erdgeschoss",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "3ePWkSzvLApwXTt3b0I2nV",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-21",
+    "GlobalId": "3ePWkSzvLApwXTt3b0I2nV",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3iSL8frGLDweFar9j4zgJ_",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-23",
+    "GlobalId": "3iSL8frGLDweFar9j4zgJ_",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3jZHeNcfvDMf9wG$wx9XqG",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcBeam",
+    "Name": "Pfette-1-1",
+    "GlobalId": "3jZHeNcfvDMf9wG$wx9XqG",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3jjW3rL656ex34Gws22EfM",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Int-ERDG-3",
+    "GlobalId": "3jjW3rL656ex34Gws22EfM",
+    "Typ": "Leichtbeton 102890359 240",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 7.11,
+    "BaseQuantities.GrossSideArea": 17.475,
+    "BaseQuantities.NetVolume": 3.412152
+   }
+  },
+  {
+   "guid": "3qFc3Wrr9BBPJyb2wB$4Ra",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-10",
+    "GlobalId": "3qFc3Wrr9BBPJyb2wB$4Ra",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3rPX_Juz59peXXY6wDJl18",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcWallStandardCase",
+    "Name": "Wand-Ext-ERDG-1",
+    "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+    "Typ": "Leichtbeton 102890359 300",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Leichtbeton 102890359"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 9.7,
+    "BaseQuantities.GrossSideArea": 25.59,
+    "BaseQuantities.NetVolume": 5.80797
+   }
+  },
+  {
+   "guid": "3sG$iUZAX499eUK87UfZk_",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-17",
+    "GlobalId": "3sG$iUZAX499eUK87UfZk_",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  },
+  {
+   "guid": "3tCgZT92j6fw8fXgwCL3Jm",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcBeam",
+    "Name": "Unterzug-1",
+    "GlobalId": "3tCgZT92j6fw8fXgwCL3Jm",
+    "Typ": "Radial Gradient Fill 1515460218 200 x 240",
+    "Geschoss": "Erdgeschoss",
+    "Material": [
+     "Radial Gradient Fill 1515460218"
+    ],
+    "Geometrie": "Ja",
+    "BaseQuantities.Length": 4.07996060195,
+    "BaseQuantities.NetVolume": 0.195838108894
+   }
+  },
+  {
+   "guid": "3x5bWRj6N6PhHPHxSQnO1r",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcVirtualElement",
+    "GlobalId": "3x5bWRj6N6PhHPHxSQnO1r",
+    "Geometrie": "Nein"
+   }
+  },
+  {
+   "guid": "3xdLwxTMD7bw4hWoOQL41M",
+   "values": {
+    "Modell": "AC20-FZK-Haus",
+    "Kategorie": "IfcMember",
+    "Name": "Sparren-12",
+    "GlobalId": "3xdLwxTMD7bw4hWoOQL41M",
+    "Geschoss": "Dachgeschoss",
+    "Material": [
+     "Solid"
+    ],
+    "Geometrie": "Ja"
+   }
+  }
+ ]
+}

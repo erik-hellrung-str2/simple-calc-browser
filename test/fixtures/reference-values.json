@@ -276,7 +276,7 @@
         }
       },
       {
-        "why": "member without type object: Typ empty",
+        "why": "member whose type object has no Name (IfcMemberType #35265, Name $): Typ empty",
         "stepId": 35169,
         "GlobalId": "0oTQ6V1VbChulreA_hfmUa",
         "Kategorie": "IfcMember",

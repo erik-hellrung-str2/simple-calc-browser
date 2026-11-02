@@ -292,6 +292,30 @@
         }
       }
 
+      /** Upper bound of the trailer probe: read when the last TRAILER_PROBE_BYTES do not show the trailer. */
+      export const TRAILER_PROBE_MAX_BYTES = 65536;
+
+      /**
+       * End of a STEP file as it matters for the trailer check: NUL bytes removed, then trailing whitespace and
+       * complete trailing comments stripped repeatedly (a valid file may end with blank lines or a comment).
+       */
+      export function trailerText(tail) {
+        let end = String(tail || "")
+          .split(String.fromCharCode(0))
+          .join("")
+          .trimEnd();
+        for (;;) {
+          const stripped = end.replace(/\/\*(?:(?!\*\/)[\s\S])*\*\/$/, "").trimEnd();
+          if (stripped === end) return end;
+          end = stripped;
+        }
+      }
+
+      /** True if the given end of a file closes with END-ISO-10303-21; (after trailing whitespace and comments). */
+      export function trailerComplete(tail) {
+        return /END-ISO-10303-21;$/i.test(trailerText(tail));
+      }
+
       /**
        * Classifies a file before conversion from its size, the text of its first bytes (head) and of its last bytes
        * (tail). Returns null if the file looks like a complete IFC2X3/IFC4 STEP file, else { loadClass, detail }.
@@ -306,11 +330,7 @@
         if (!schema) return { loadClass: "unreadable", detail: "FILE_SCHEMA fehlt im Dateikopf" };
         const name = schema[1].trim().toUpperCase();
         if (SUPPORTED_SCHEMAS.indexOf(name) === -1) return { loadClass: "unsupported-schema", detail: schema[1].trim() };
-        const end = String(tail || "")
-          .split(String.fromCharCode(0))
-          .join("")
-          .trimEnd();
-        if (!/END-ISO-10303-21;$/i.test(end))
+        if (!trailerComplete(tail))
           return { loadClass: "unreadable", detail: "die Datei ist unvollst\u00e4ndig (END-ISO-10303-21 fehlt)" };
         return null;
       }
@@ -793,20 +813,22 @@
        * Creates an extractor for one model. options: { modelId, modelName, units (parseUnits), storeyOf (Map localId
        * -> storey name), withGeometry (Set of localIds), className (upper-case class -> Kategorie) }.
        * add(item) turns one getItemsData item into a row { key, model, localId, guid, geometry, values };
-       * result() returns { rows, properties } where properties maps each pset property key to
-       * { pset, name, occurrence, type, kinds, units } (input for buildCatalog).
+       * result() returns { rows, properties, spaceProperties } where properties maps each pset property key to
+       * { pset, name, occurrence, type, kinds, units } (input for buildCatalog). spaceProperties holds the same for
+       * IfcSpace rows, kept apart so that spaces hidden by the option do not influence the catalogue (DEC-13).
        */
       export function createExtractor(options) {
         const rows = [];
         const properties = new Map();
+        const spaceProperties = new Map();
         const units = options.units || {};
         const className = options.className || ((c) => c);
 
-        function note(key, pset, name, normalised, fromType) {
-          let meta = properties.get(key);
+        function note(target, key, pset, name, normalised, fromType) {
+          let meta = target.get(key);
           if (!meta) {
             meta = { pset, name, occurrence: false, type: false, kinds: new Set(), units: new Set() };
-            properties.set(key, meta);
+            target.set(key, meta);
           }
           if (fromType) meta.type = true;
           else meta.occurrence = true;
@@ -814,19 +836,20 @@
           if (normalised.kind === "number") meta.units.add(normalised.unit);
         }
 
-        function addPset(values, pset, fromType) {
+        function addPset(target, values, pset, fromType) {
           for (const [psetName, propName, attr] of psetEntries(pset)) {
             const normalised = normaliseValue(attr, units);
             if (!normalised) continue;
             const key = psetName + "." + propName;
             values[key] = normalised.value; // occurrence psets are applied after type psets: occurrence wins (DEC-1)
-            note(key, psetName, propName, normalised, fromType);
+            note(target, key, psetName, propName, normalised, fromType);
           }
         }
 
         function add(item) {
           const localId = val(item._localId);
           const category = String(val(item._category) || "");
+          const target = category === SPACE_CLASS ? spaceProperties : properties;
           const values = {};
           values.Modell = options.modelName;
           values.Kategorie = className(category);
@@ -847,10 +870,12 @@
           if (type) {
             const typeName = val(type.Name);
             if (typeName !== undefined && typeName !== null && typeName !== "") values.Typ = String(typeName);
-            for (const pset of type.HasPropertySets || []) if (isPset(String(val(pset._category)))) addPset(values, pset, true);
-            for (const pset of type.IsDefinedBy || []) if (isPset(String(val(pset._category)))) addPset(values, pset, true);
+            for (const pset of type.HasPropertySets || [])
+              if (isPset(String(val(pset._category)))) addPset(target, values, pset, true);
+            for (const pset of type.IsDefinedBy || [])
+              if (isPset(String(val(pset._category)))) addPset(target, values, pset, true);
           }
-          for (const pset of occurrencePsets) addPset(values, pset, false);
+          for (const pset of occurrencePsets) addPset(target, values, pset, false);
 
           const storey = options.storeyOf ? options.storeyOf.get(localId) : undefined;
           if (storey) values.Geschoss = storey;
@@ -875,14 +900,17 @@
         return {
           add,
           result() {
-            return { rows, properties };
+            return { rows, properties, spaceProperties };
           },
         };
       }
 
+      /** Kategorie of IfcSpace rows (DEC-13). */
+      const SPACE_KATEGORIE = "IfcSpace";
+
       /** Rows shown under the IfcSpace option (DEC-13). */
       export function visibleRows(rows, includeSpaces) {
-        return includeSpaces ? rows : rows.filter((row) => row.values.Kategorie !== "IfcSpace");
+        return includeSpaces ? rows : rows.filter((row) => row.values.Kategorie !== SPACE_KATEGORIE);
       }
 
       /** Column header of a catalogue entry: label plus unit for numbers (REQ-002). */
@@ -894,14 +922,18 @@
 
       /**
        * Property catalogue (spec 4.3) over the given rows: Map propertyKey -> { key, label, group, kind, unit, count,
-       * header }, ordered Allgemein first (fixed order), then by group and label. models: [{ id, properties }] with
-       * the extractor's properties per model; a numeric property whose unit differs between models is `gemischt`.
+       * header }, ordered Allgemein first (fixed order), then by group and label. models: [{ id, properties,
+       * spaceProperties }] with the extractor's properties per model; a numeric property whose unit differs between
+       * models is `gemischt`. Only the given (visible) rows decide: a model's spaceProperties count only if IfcSpace
+       * rows of that model are among them, so hidden spaces do not change kind, unit or group.
        */
       export function buildCatalog(rows, models) {
         const counts = new Map();
         const present = new Set();
+        const spacesPresent = new Set();
         for (const row of rows) {
           present.add(row.model);
+          if (row.values.Kategorie === SPACE_KATEGORIE) spacesPresent.add(row.model);
           for (const key in row.values) {
             const value = row.values[key];
             if (value === undefined || value === null || (Array.isArray(value) && !value.length)) continue;
@@ -911,7 +943,9 @@
         const merged = new Map();
         for (const model of models || []) {
           if (!present.has(model.id)) continue;
-          for (const [key, meta] of model.properties) {
+          const sources = [model.properties];
+          if (model.spaceProperties && spacesPresent.has(model.id)) sources.push(model.spaceProperties);
+          for (const [key, meta] of sources.flatMap((source) => [...source])) {
             let m = merged.get(key);
             if (!m) {
               m = { pset: meta.pset, name: meta.name, occurrence: false, kinds: new Set(), unitsByModel: [] };
@@ -958,6 +992,432 @@
         rest.sort((a, b) => compareText(a.group, b.group) || compareText(a.label, b.label));
         for (const entry of rest) catalog.set(entry.key, entry);
         return catalog;
+      }
+
+      // ---------------------------------------------------------------------------------------------------------
+      // Filter engine (TASK-003; REQ-004, REQ-006 filter/sort logic; spec 4.3 column store, 4.4)
+      // ---------------------------------------------------------------------------------------------------------
+
+      /** Label of the empty value in filter sets, checklists and groups (REQ-004); the value itself is null. */
+      export const EMPTY_LABEL = "(leer)";
+
+      const COLLATOR = new Intl.Collator("de");
+
+      /** True for "no value": undefined, null, "" and []. */
+      export function isEmptyValue(value) {
+        return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+      }
+
+      /**
+       * Order of distinct values (REQ-004): numbers numerically before texts, texts alphabetically (German collation,
+       * then code units, so the order is total); null (empty) last.
+       */
+      export function compareValues(a, b) {
+        const ae = a === null || a === undefined;
+        const be = b === null || b === undefined;
+        if (ae || be) return ae === be ? 0 : ae ? 1 : -1;
+        const an = typeof a === "number";
+        const bn = typeof b === "number";
+        if (an && bn) return a < b ? -1 : a > b ? 1 : 0;
+        if (an !== bn) return an ? -1 : 1;
+        const sa = String(a);
+        const sb = String(b);
+        return COLLATOR.compare(sa, sb) || (sa < sb ? -1 : sa > sb ? 1 : 0);
+      }
+
+      /** Distinct values in compareValues order; numbers and texts sorted apart (faster than one mixed comparator). */
+      function sortDistinct(distinct) {
+        const numbers = [];
+        const texts = [];
+        for (const v of distinct) (typeof v === "number" ? numbers : texts).push(v);
+        numbers.sort((a, b) => a - b);
+        texts.sort((a, b) => COLLATOR.compare(a, b) || (a < b ? -1 : a > b ? 1 : 0));
+        return numbers.concat(texts);
+      }
+
+      /** Text shown for a cell value: multi-values joined with ", " (REQ-002), empty as "". */
+      export function displayValue(value) {
+        if (isEmptyValue(value)) return "";
+        return Array.isArray(value) ? value.join(", ") : String(value);
+      }
+
+      const wordsFor = (n) => (n + 31) >>> 5;
+
+      /**
+       * Builds one dictionary-coded column for a property (spec 4.3): every row has one or more codes into `values`
+       * (distinct values sorted by compareValues; the empty value is the last code, emptyCode). Rows are stored as
+       * offsets (start, length n + 1) into flat codes; `single` is true when every row has exactly one code, then
+       * flat[i] is the code of row i. `index` maps a value to its code; nums holds the number of single-number cells
+       * (NaN otherwise) for range filters and numeric sorting.
+       */
+      function buildColumn(rows, key) {
+        const n = rows.length;
+        const tempIndex = new Map();
+        const distinct = [];
+        const start = new Uint32Array(n + 1);
+        let flat = new Int32Array(Math.max(n, 1));
+        let used = 0;
+        let single = true;
+        let empties = false;
+        const nums = new Float64Array(n);
+        const push = (code) => {
+          if (used === flat.length) {
+            const grown = new Int32Array(flat.length * 2);
+            grown.set(flat);
+            flat = grown;
+          }
+          flat[used++] = code;
+        };
+        const codeOf = (value) => {
+          let code = tempIndex.get(value);
+          if (code === undefined) {
+            code = distinct.length;
+            distinct.push(value);
+            tempIndex.set(value, code);
+          }
+          return code;
+        };
+        for (let i = 0; i < n; i++) {
+          start[i] = used;
+          const value = rows[i].values[key];
+          nums[i] = typeof value === "number" ? value : NaN;
+          if (isEmptyValue(value)) {
+            push(-1);
+            empties = true;
+          } else if (Array.isArray(value)) {
+            const before = used;
+            for (const v of value) {
+              if (isEmptyValue(v)) continue;
+              const code = codeOf(v);
+              let seen = false;
+              for (let j = before; j < used; j++) if (flat[j] === code) seen = true;
+              if (!seen) push(code);
+            }
+            if (used === before) {
+              push(-1);
+              empties = true;
+            }
+            if (used - before !== 1) single = false;
+          } else push(codeOf(value));
+        }
+        start[n] = used;
+        const sorted = sortDistinct(distinct);
+        const remap = new Int32Array(distinct.length);
+        const values = new Array(distinct.length + 1);
+        for (let rank = 0; rank < sorted.length; rank++) {
+          remap[tempIndex.get(sorted[rank])] = rank;
+          values[rank] = sorted[rank];
+        }
+        const emptyCode = distinct.length;
+        values[emptyCode] = null;
+        flat = flat.slice(0, used);
+        for (let j = 0; j < used; j++) flat[j] = flat[j] < 0 ? emptyCode : remap[flat[j]];
+        // value -> code, reusing the first-pass map (no second map over up to n distinct values)
+        const index = { get: (value) => (tempIndex.has(value) ? remap[tempIndex.get(value)] : undefined) };
+        return { key, n, values, index, emptyCode, empties, start, flat, single, nums, masks: new Map(), sortKey: null };
+      }
+
+      const MASK_CACHE_LIMIT = 16;
+
+      /**
+       * Lazy column store over the rows (spec 4.3): columns (dictionary codes, numbers) and filter bitsets are built
+       * only for properties that are asked for, cached, and dropped by retain(keys) when no longer in use. Create a
+       * new store whenever the row set changes (load, remove, IfcSpace option).
+       */
+      export function createColumnStore(rows) {
+        const columns = new Map();
+        return {
+          rows,
+          size: rows.length,
+          column(key) {
+            let col = columns.get(key);
+            if (!col) {
+              col = buildColumn(rows, key);
+              columns.set(key, col);
+            }
+            return col;
+          },
+          has: (key) => columns.has(key),
+          keys: () => [...columns.keys()],
+          /** Drops every cached column whose key is not in keys (filter sets, column filters, sort, grouping, colour). */
+          retain(keys) {
+            const keep = new Set(keys);
+            for (const key of [...columns.keys()]) if (!keep.has(key)) columns.delete(key);
+          },
+        };
+      }
+
+      const asStore = (source) => (Array.isArray(source) ? createColumnStore(source) : source);
+
+      const noBound = (b) => b === null || b === undefined || b === "" || (typeof b === "number" && Number.isNaN(b));
+
+      /**
+       * Normalises a filter: { id?, key, type: 'values', values: [...] } (checklist / filter set; OR within; null =
+       * empty) or { id?, key, type: 'range', min, max } (inclusive bounds, null or "" = no bound; DEC-17). id
+       * defaults to key. Returns null for a filter that does not restrict anything (no value checked, no bound).
+       */
+      export function normaliseFilter(filter) {
+        if (!filter || !filter.key) return null;
+        const id = filter.id === undefined ? filter.key : filter.id;
+        if (filter.type === "range") {
+          const min = noBound(filter.min) ? null : Number(filter.min);
+          const max = noBound(filter.max) ? null : Number(filter.max);
+          if (min === null && max === null) return null;
+          return { id, key: filter.key, type: "range", min, max };
+        }
+        const values = Array.isArray(filter.values) ? filter.values : [];
+        if (!values.length) return null;
+        return { id, key: filter.key, type: "values", values };
+      }
+
+      /** The filters that restrict something (none after resetting all filters; REQ-004-AC4). */
+      export function activeFilters(filters) {
+        return (filters || []).map(normaliseFilter).filter(Boolean);
+      }
+
+      /** Bitset (Uint32Array, one bit per row) of the rows passing one normalised filter; cached on its column. */
+      function filterMask(store, filter) {
+        const col = store.column(filter.key);
+        const signature =
+          filter.type === "range"
+            ? "r" + filter.min + "|" + filter.max
+            : "v" + JSON.stringify(filter.values.map((v) => (typeof v === "number" ? [v] : v)));
+        const cached = col.masks.get(signature);
+        if (cached) return cached;
+        const n = col.n;
+        const bits = new Uint32Array(wordsFor(n));
+        if (filter.type === "range") {
+          const lo = filter.min === null ? -Infinity : filter.min;
+          const hi = filter.max === null ? Infinity : filter.max;
+          for (let i = 0; i < n; i++) {
+            const v = col.nums[i];
+            if (v >= lo && v <= hi) bits[i >>> 5] |= 1 << (i & 31);
+          }
+        } else {
+          const wanted = new Uint8Array(col.values.length);
+          let any = false;
+          for (const v of filter.values) {
+            const code = v === null || v === undefined ? col.emptyCode : col.index.get(v);
+            if (code !== undefined) {
+              wanted[code] = 1;
+              any = true;
+            }
+          }
+          if (any) {
+            const { start, flat } = col;
+            for (let i = 0; i < n; i++) {
+              for (let j = start[i]; j < start[i + 1]; j++) {
+                if (wanted[flat[j]]) {
+                  bits[i >>> 5] |= 1 << (i & 31);
+                  break;
+                }
+              }
+            }
+          }
+        }
+        if (col.masks.size >= MASK_CACHE_LIMIT) col.masks.clear();
+        col.masks.set(signature, bits);
+        return bits;
+      }
+
+      function allBits(n) {
+        const bits = new Uint32Array(wordsFor(n)).fill(0xffffffff);
+        if (n & 31) bits[bits.length - 1] = (1 << (n & 31)) - 1;
+        return bits;
+      }
+
+      function andInto(target, bits) {
+        for (let w = 0; w < target.length; w++) target[w] &= bits[w];
+        return target;
+      }
+
+      /**
+       * Evaluates the filters once (REQ-004, REQ-006): `pass` = bitset of rows passing ALL active filters (AND across
+       * filters, OR within a filter); `except(id)` = bitset of rows passing all active filters except the one with
+       * that id (the base of that filter set's facet counts).
+       */
+      export function evaluateFilters(source, filters) {
+        const store = asStore(source);
+        const active = activeFilters(filters);
+        const masks = active.map((f) => filterMask(store, f));
+        const n = store.size;
+        const k = masks.length;
+        // prefix[i] = AND of masks[0..i-1], suffix[i] = AND of masks[i..k-1]; except(i) = prefix[i] AND suffix[i+1]
+        const prefix = [allBits(n)];
+        for (let i = 0; i < k; i++) prefix.push(andInto(prefix[i].slice(), masks[i]));
+        const suffix = new Array(k + 1);
+        suffix[k] = allBits(n);
+        for (let i = k - 1; i >= 0; i--) suffix[i] = andInto(suffix[i + 1].slice(), masks[i]);
+        const pass = prefix[k];
+        return {
+          store,
+          filters: active,
+          pass,
+          except(id) {
+            const i = active.findIndex((f) => f.id === id);
+            return i === -1 ? pass : andInto(prefix[i].slice(), suffix[i + 1]);
+          },
+        };
+      }
+
+      /** Row indices (ascending) whose bit is set. */
+      export function bitsToIndices(bits, n) {
+        let count = 0;
+        for (let w = 0; w < bits.length; w++) {
+          let x = bits[w];
+          while (x) {
+            x &= x - 1;
+            count++;
+          }
+        }
+        const out = new Uint32Array(count);
+        let o = 0;
+        for (let w = 0; w < bits.length; w++) {
+          let x = bits[w];
+          while (x) {
+            const t = x & -x;
+            const i = (w << 5) + (31 - Math.clz32(t));
+            if (i < n) out[o++] = i;
+            x ^= t;
+          }
+        }
+        return o === count ? out : out.slice(0, o);
+      }
+
+      /**
+       * Indices (ascending, Uint32Array) of the rows that pass all filters: filter sets and column filters combined
+       * with AND, checked values within one filter with OR; a multi-valued cell matches if any of its values is
+       * checked (REQ-004, REQ-006, DEC-17). source: a column store or a row array.
+       */
+      export function filterRows(source, filters) {
+        const ev = source && source.pass ? source : evaluateFilters(source, filters);
+        return bitsToIndices(ev.pass, ev.store.size);
+      }
+
+      /**
+       * Values and counts of filter sets (REQ-004, DEC-14). facets: [{ id?, key }] or keys (id defaults to key); each
+       * facet counts under all active filters except the filter with its own id, so checking a value never hides the
+       * other values of the same set. Returns Map id -> { id, key, total, checkedCount, values: [{ value, count,
+       * checked }] } with values in compareValues order (numbers numerically, empty value null last). Values with
+       * count 0 are left out, except checked values (count 0, kept so they can be unchecked). A multi-valued cell
+       * counts once for each of its distinct values.
+       */
+      export function facetCounts(source, filters, facets) {
+        const ev = source && source.pass ? source : evaluateFilters(source, filters);
+        const { store } = ev;
+        const out = new Map();
+        for (const facet of facets || []) {
+          const key = typeof facet === "string" ? facet : facet.key;
+          const id = typeof facet === "string" ? facet : facet.id === undefined ? key : facet.id;
+          const col = store.column(key);
+          const base = ev.except(id);
+          const counts = new Int32Array(col.values.length);
+          const { start, flat, single } = col;
+          let total = 0;
+          for (let w = 0; w < base.length; w++) {
+            let x = base[w];
+            while (x) {
+              const t = x & -x;
+              const i = (w << 5) + (31 - Math.clz32(t));
+              x ^= t;
+              total++;
+              if (single) counts[flat[i]]++;
+              else for (let j = start[i]; j < start[i + 1]; j++) counts[flat[j]]++;
+            }
+          }
+          const own = ev.filters.find((f) => f.id === id && f.type === "values");
+          const checked = new Set();
+          const extra = [];
+          if (own)
+            for (const v of own.values) {
+              const value = v === undefined ? null : v;
+              const code = value === null ? col.emptyCode : col.index.get(value);
+              if (code === undefined) extra.push(value);
+              else checked.add(code);
+            }
+          let values = [];
+          for (let c = 0; c < counts.length; c++) {
+            const isChecked = checked.has(c);
+            if (counts[c] > 0 || isChecked) values.push({ value: col.values[c], count: counts[c], checked: isChecked });
+          }
+          if (extra.length) {
+            for (const value of extra)
+              if (!values.some((e) => e.value === value)) values.push({ value, count: 0, checked: true });
+            values = values.sort((a, b) => compareValues(a.value, b.value));
+          }
+          out.set(id, { id, key, total, checkedCount: checked.size + extra.length, values });
+        }
+        return out;
+      }
+
+      /**
+       * Sort key of a column, built once (REQ-006): numbers for single-number cells, else the rank of the displayed
+       * text (multi-values joined with ", ") among all displayed values; NaN = empty (always last).
+       */
+      function sortKeyOf(col, rows) {
+        if (col.sortKey) return col.sortKey;
+        const n = col.n;
+        const key = new Float64Array(n);
+        if (col.single) {
+          for (let i = 0; i < n; i++) key[i] = col.flat[i] === col.emptyCode ? NaN : col.flat[i];
+        } else {
+          const shown = new Array(n);
+          const distinct = new Set();
+          for (let i = 0; i < n; i++) {
+            const value = rows[i].values[col.key];
+            shown[i] = isEmptyValue(value) ? null : Array.isArray(value) ? displayValue(value) : value;
+            if (shown[i] !== null) distinct.add(shown[i]);
+          }
+          const rank = new Map([...distinct].sort(compareValues).map((v, r) => [v, r]));
+          for (let i = 0; i < n; i++) key[i] = shown[i] === null ? NaN : rank.get(shown[i]);
+        }
+        col.sortKey = key;
+        return key;
+      }
+
+      /**
+       * Sorts row indices by one column (REQ-006): sort = { key, dir: 'asc' | 'desc' }; numbers numerically, texts
+       * alphabetically (compareValues), empty values last in both directions, ties keep the given order. Returns a
+       * new Uint32Array; without sort.key the order is unchanged.
+       */
+      export function sortRows(source, indices, sort) {
+        const store = asStore(source);
+        const out = Uint32Array.from(indices);
+        if (!sort || !sort.key) return out;
+        const key = sortKeyOf(store.column(sort.key), store.rows);
+        const sign = sort.dir === "desc" ? -1 : 1;
+        const keys = new Float64Array(out.length);
+        for (let p = 0; p < out.length; p++) keys[p] = key[out[p]];
+        const order = new Uint32Array(out.length).map((_, p) => p);
+        order.sort((a, b) => {
+          const ka = keys[a];
+          const kb = keys[b];
+          const ea = Number.isNaN(ka);
+          const eb = Number.isNaN(kb);
+          if (ea || eb) return ea === eb ? a - b : ea ? 1 : -1;
+          return (ka < kb ? -sign : ka > kb ? sign : 0) || a - b;
+        });
+        return order.map((p) => out[p]);
+      }
+
+      /**
+       * Sorts any items by a value (e.g. group rows by their sums; REQ-006-AC5): same order rules as sortRows,
+       * empty (null, undefined, "", NaN) last in both directions, stable.
+       */
+      export function sortByValue(items, valueOf, dir) {
+        const sign = dir === "desc" ? -1 : 1;
+        const isNone = (v) => isEmptyValue(v) || (typeof v === "number" && Number.isNaN(v));
+        return items
+          .map((item, p) => ({ item, p, v: valueOf(item) }))
+          .sort((a, b) => {
+            const ea = isNone(a.v);
+            const eb = isNone(b.v);
+            if (ea || eb) return ea === eb ? a.p - b.p : ea ? 1 : -1;
+            const va = Array.isArray(a.v) ? displayValue(a.v) : a.v;
+            const vb = Array.isArray(b.v) ? displayValue(b.v) : b.v;
+            return sign * compareValues(va, vb) || a.p - b.p;
+          })
+          .map((e) => e.item);
       }
     </script>
 
@@ -1275,10 +1735,12 @@
       } from "calc-core";
 
       /**
-       * Test hook (read-only for tests except `test`): phase "starting" | "ready" | "loading" | "error"; models
-       * [{ id, name (file name), modell, elements, withGeometry }]; rows (visible element rows, spec 4.3); catalog
-       * (property catalogue entries in order); loadErrors [{ fileName, loadClass, message }]; progress (last
-       * { file, step, percent } or null); loads (number of finished load or remove actions, for waiting); options
+       * Test hook (read-only for tests except `test`): phase "starting" | "ready" | "loading" | "error"; error (fatal
+       * start error only, else null; load errors are in loadErrors); models [{ id, name (file name), modell, elements,
+       * withGeometry (visible rows with 3D geometry) }]; rows (visible element rows, spec 4.3); catalog (property
+       * catalogue entries in order); loadErrors [{ fileName, loadClass, message }]; progress (last { file, step,
+       * percent } or null); queued (files dropped during a running action, loaded after it); loads (number of
+       * finished load, remove or option actions, for waiting; a batch with queued files counts once); options
        * { includeSpaces }. `test` holds test-only switches read by the
        * builder's conversion (crashNextConversion, neverStartNextConversion, startTimeoutMs).
        */
@@ -1291,6 +1753,7 @@
         catalog: [],
         loadErrors: [],
         loads: 0,
+        queued: 0,
         progress: null,
         error: null,
         options: { includeSpaces: false },
@@ -1309,15 +1772,24 @@
        * options: { mode: "builder" | "viewer", root, workerUrl,
        *   convert(file, onProgress(fraction|null, step?)) -> Promise<{ bytes, elementClasses }> (builder),
        *   extract(model, { modelId, modelName, elementClasses, withGeometry }, onProgress(fraction))
-       *     -> Promise<{ rows, properties, spaceIds }> (builder) }.
+       *     -> Promise<{ rows, properties, spaceProperties, spaceIds }> (builder) }.
        */
       export async function start(options) {
         const ui = renderLayout(options.root, { mode: options.mode, title: options.title });
         ui.overlay("3D-Ansicht wird gestartet ...");
         const engine = createEngine(ui.viewport, options.workerUrl);
-        const models = []; // { id, name, fileName, rows, properties, spaceIds, withGeometry, fragBytes }
+        const models = []; // { id, name, fileName, rows, properties, spaceProperties, spaceIds, fragBytes }
+        const queued = []; // files dropped while an action runs; loaded right after it
         let nextId = 1;
         let busy = false;
+
+        /**
+         * Overlay when no action runs: the start hint while the builder has no model, else hidden. A load error
+         * shown in the overlay does not stay over the 3D view; its message remains in #cv-messages.
+         */
+        function settleOverlay() {
+          ui.overlay(options.mode === "builder" && !models.length ? "IFC-Datei laden, um zu beginnen." : null);
+        }
 
         function publish() {
           const includeSpaces = hook.options.includeSpaces;
@@ -1325,13 +1797,16 @@
           for (const model of models) for (const row of visibleRows(model.rows, includeSpaces)) rows.push(row);
           hook.rows = rows;
           hook.catalog = [...buildCatalog(rows, models).values()];
-          hook.models = models.map((m) => ({
-            id: m.id,
-            name: m.fileName,
-            modell: m.name,
-            elements: visibleRows(m.rows, includeSpaces).length,
-            withGeometry: m.withGeometry,
-          }));
+          hook.models = models.map((m) => {
+            const visible = visibleRows(m.rows, includeSpaces);
+            return {
+              id: m.id,
+              name: m.fileName,
+              modell: m.name,
+              elements: visible.length,
+              withGeometry: visible.filter((row) => row.geometry).length,
+            };
+          });
           hook.modelCount = engine.modelCount();
           hook.elementCount = rows.length;
           ui.renderModels(
@@ -1339,6 +1814,7 @@
             options.mode === "builder" ? removeModel : null,
           );
           ui.status(hook.elementCount.toLocaleString("de-DE") + " Elemente in " + hook.modelCount + " Modell(en)");
+          settleOverlay();
         }
 
         function progress(file, step, fraction) {
@@ -1374,8 +1850,8 @@
               fileName: file.name,
               rows: data.rows,
               properties: data.properties,
+              spaceProperties: data.spaceProperties,
               spaceIds: data.spaceIds,
-              withGeometry: loaded.withGeometry.length,
               fragBytes: converted.bytes,
             });
             publish();
@@ -1384,7 +1860,6 @@
             if (shown) await engine.removeModel(id).catch(() => {});
             const classified = toLoadError(error, file.name);
             const message = classified.message || loadErrorMessage(classified.loadClass, file.name, classified.detail);
-            hook.error = message;
             hook.loadErrors.push({ fileName: file.name, loadClass: classified.loadClass, message });
             ui.addMessage(message);
             ui.overlay(message, true);
@@ -1392,21 +1867,41 @@
           }
         }
 
+        /** Ends a busy action; files dropped meanwhile start loading at once (phase stays "loading"). */
+        function finishAction() {
+          settleOverlay();
+          hook.progress = null;
+          busy = false;
+          ui.setBusy(false);
+          hook.phase = "ready";
+          hook.loads++;
+          if (queued.length) loadFiles([]);
+        }
+
+        /**
+         * Loads files one after another. While another action runs, the files are queued and loaded right after
+         * it (a drop is never lost); files queued during this batch are loaded in the same batch.
+         */
         async function loadFiles(files) {
-          if (busy || !files.length) return;
+          if (busy) {
+            queued.push(...files);
+            hook.queued = queued.length;
+            return;
+          }
+          let batch = [...queued.splice(0), ...files];
+          hook.queued = 0;
+          if (!batch.length) return;
           busy = true;
           ui.setBusy(true);
           hook.phase = "loading";
-          let lastOk = false;
           try {
-            for (const file of files) lastOk = await loadOne(file);
+            while (batch.length) {
+              for (const file of batch) await loadOne(file);
+              batch = queued.splice(0);
+              hook.queued = 0;
+            }
           } finally {
-            if (lastOk) ui.overlay(null);
-            hook.progress = null;
-            busy = false;
-            ui.setBusy(false);
-            hook.phase = "ready";
-            hook.loads++;
+            finishAction();
           }
         }
 
@@ -1421,10 +1916,7 @@
             await engine.removeModel(id);
             publish();
           } finally {
-            busy = false;
-            ui.setBusy(false);
-            hook.phase = "ready";
-            hook.loads++;
+            finishAction();
           }
         }
 
@@ -1438,10 +1930,7 @@
             for (const model of models) await engine.setItemsVisible(model.id, model.spaceIds, hook.options.includeSpaces);
             publish();
           } finally {
-            busy = false;
-            ui.setBusy(false);
-            hook.phase = "ready";
-            hook.loads++;
+            finishAction();
           }
         }
 
@@ -1455,7 +1944,6 @@
           ui.spacesToggle.addEventListener("change", () => setIncludeSpaces(ui.spacesToggle.checked));
           ui.loadButton.disabled = false;
         }
-        ui.overlay(options.mode === "builder" ? "IFC-Datei laden, um zu beginnen." : null);
         publish();
         hook.phase = "ready";
         return { loadFiles, removeModel, setIncludeSpaces };
@@ -1670,7 +2158,11 @@
         const core = lib.core;
         const decode = async (blob) => new TextDecoder("latin1").decode(await blob.arrayBuffer());
         const head = file.size ? await decode(file.slice(0, core.HEADER_PROBE_BYTES)) : "";
-        const tail = file.size ? await decode(file.slice(Math.max(0, file.size - core.TRAILER_PROBE_BYTES))) : "";
+        const readTail = (bytes) => decode(file.slice(Math.max(0, file.size - bytes)));
+        let tail = file.size ? await readTail(core.TRAILER_PROBE_BYTES) : "";
+        // A valid file may end with more blank space or comments than the short probe holds: read up to 64 KiB.
+        if (file.size > core.TRAILER_PROBE_BYTES && !core.trailerComplete(tail))
+          tail = await readTail(core.TRAILER_PROBE_MAX_BYTES);
         const problem = core.classifyIfcFile(file.size, head, tail);
         if (problem) throw new core.LoadError(problem.loadClass, file.name, problem.detail);
       }
@@ -1781,7 +2273,7 @@
           await nextTask();
         }
         const result = extractor.result();
-        return { rows: result.rows, properties: result.properties, spaceIds };
+        return { rows: result.rows, properties: result.properties, spaceProperties: result.spaceProperties, spaceIds };
       }
 
       const root = document.getElementById("cv-root");

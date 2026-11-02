@@ -63,6 +63,24 @@ test("[unit] REQ-001 classifyIfcFile: each error class", () => {
   });
 });
 
+test("[unit] REQ-001 trailer check: trailing whitespace and comments after END-ISO-10303-21; are valid", () => {
+  // more than the 1 KiB probe of trailing blank space, and comments after the trailer
+  const blank = " \r\n\t".repeat(1024);
+  assert.equal(core.classifyIfcFile(100, HEAD_OK, TAIL_OK + blank), null);
+  assert.equal(core.classifyIfcFile(100, HEAD_OK, TAIL_OK + "/* exported by X */\n"), null);
+  assert.equal(core.classifyIfcFile(100, HEAD_OK, TAIL_OK + "/* a */ \n/* b\n * c */" + blank), null);
+  assert.equal(core.trailerText("END-ISO-10303-21;\n/* x */\n\u0000"), "END-ISO-10303-21;");
+  assert.equal(core.trailerText(blank), "");
+  assert.equal(core.trailerComplete("END-ISO-10303-21; /* x */"), true);
+  // still truncated: an unterminated comment, a comment before a missing trailer, a probe of blank space only
+  assert.equal(core.trailerComplete("END-ISO-10303-21; /* x"), false);
+  assert.equal(core.trailerComplete("#1=IFCWALL($);\n/* END-ISO-10303-21; */"), false);
+  assert.equal(core.trailerComplete(blank), false);
+  assert.equal(core.classifyIfcFile(100, HEAD_OK, "#1=IFCWALL($);\n/* note */\n" + blank).loadClass, "unreadable");
+  // the probe sizes: 1 KiB first, up to 64 KiB when that does not show the trailer
+  assert.deepEqual([core.TRAILER_PROBE_BYTES, core.TRAILER_PROBE_MAX_BYTES], [1024, 65536]);
+});
+
 test("[unit] REQ-001 loadErrorMessage: German text with file name per class", () => {
   assert.equal(core.loadErrorMessage("empty", "a.ifc"), "a.ifc ist leer.");
   assert.equal(core.loadErrorMessage("not-ifc", "a.ifc"), "a.ifc ist keine IFC-Datei.");
@@ -595,6 +613,66 @@ test("[unit] REQ-002-AC6 the same numeric property with different units in two m
   const none = extractModel("m3", "c", item("IFCDERIVEDUNIT", { UnitType: "LUMINOUSFLUXUNIT" }), [massElement(1, 1)]);
   assert.equal(core.buildCatalog([...a1.rows, ...none.rows], [a1, none]).get("CalcTest_Units.Masse").unit, "gemischt");
   assert.equal(core.buildCatalog([], [a1]).has("CalcTest_Units.Masse"), false);
+});
+
+test("[unit] DEC-13 buildCatalog: properties of hidden IfcSpace rows do not change kind, unit or group", () => {
+  const className = (c) => ({ IFCSPACE: "IfcSpace", IFCWALL: "IfcWall" })[c] || c;
+  const units = core.parseUnits([
+    item("IFCUNITASSIGNMENT", {}, { Units: [siUnit("MASSUNIT", "GRAM", "KILO"), siUnit("LENGTHUNIT", "METRE")] }),
+  ]);
+  const extractor = core.createExtractor({ modelId: "m1", modelName: "A", units, className });
+  // wall: Shared.Code is a number in kg on the occurrence
+  extractor.add(element(1, "IFCWALL", {}, { IsDefinedBy: [pset("Shared", [prop("Code", 5, "IFCMASSMEASURE")])] }));
+  // space: Shared.Code is text; Shared.Group is on the space occurrence
+  extractor.add(
+    element(
+      2,
+      "IFCSPACE",
+      {},
+      { IsDefinedBy: [pset("Shared", [prop("Code", "R1", "IFCLABEL"), prop("Group", "x", "IFCLABEL")])] },
+    ),
+  );
+  // wall: Shared.Group only on its type -> group `Typ: Shared` as long as the space is hidden
+  extractor.add(
+    element(
+      3,
+      "IFCWALL",
+      {},
+      {
+        IsDefinedBy: [
+          item("IFCWALLTYPE", { Name: "W" }, { HasPropertySets: [pset("Shared", [prop("Group", "y", "IFCLABEL")])] }),
+        ],
+      },
+    ),
+  );
+  const model = { id: "m1", ...extractor.result() };
+  assert.deepEqual([...model.spaceProperties.keys()].sort(), ["Shared.Code", "Shared.Group"]);
+  assert.deepEqual([...model.properties.keys()].sort(), ["Shared.Code", "Shared.Group"]);
+  assert.deepEqual(
+    [model.properties.get("Shared.Group").occurrence, model.properties.get("Shared.Group").type],
+    [false, true],
+  );
+
+  // option off: only the walls are visible, so the catalogue equals one built without the space
+  const hidden = core.buildCatalog(core.visibleRows(model.rows, false), [model]);
+  assert.deepEqual(hidden.get("Shared.Code"), {
+    key: "Shared.Code",
+    label: "Shared.Code",
+    group: "Shared",
+    kind: "number",
+    unit: "kg",
+    count: 1,
+    header: "Shared.Code (kg)",
+  });
+  assert.equal(hidden.get("Shared.Group").group, "Typ: Shared");
+  assert.equal(hidden.get("Kategorie").count, 2);
+
+  // option on: the space rows are visible and their properties count
+  const shown = core.buildCatalog(core.visibleRows(model.rows, true), [model]);
+  assert.deepEqual([shown.get("Shared.Code").kind, shown.get("Shared.Code").unit], ["text", null]);
+  assert.equal(shown.get("Shared.Code").count, 2);
+  assert.equal(shown.get("Shared.Group").group, "Shared");
+  assert.equal(shown.get("Kategorie").count, 3);
 });
 
 test("[unit] spec 4.3 headerLabel shows units of numeric properties only", () => {

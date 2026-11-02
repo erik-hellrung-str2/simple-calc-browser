@@ -57,7 +57,7 @@ touches: [calc-viewer-builder.html, test/unit/extraction.test.mjs, test/integrat
   - It imports web-ifc next to fragments. It adds the four extra classes by their web-ifc codes, so a wrong name fails loudly.
   - It always converts IfcSpace, as transparent (`forceTransparentSpaces`); the option only hides or shows spaces.
   - It returns the names of the importer's element classes together with the `.frag` bytes.
-- **Pre-check.** `checkFile` reads the first 64 KiB and the last 1 KiB of the file and classifies them before any worker starts.
+- **Pre-check.** `checkFile` reads the first 64 KiB and the last 1 KiB of the file and classifies them before any worker starts. If the last 1 KiB does not show the trailer, it reads the last 64 KiB (see Verification fixes).
 - **Error mapping.**
   - A worker `error` event gives `too-large`.
   - A worker `error` message (an exception in parsing or conversion) gives `unreadable` with its cause.
@@ -81,7 +81,7 @@ touches: [calc-viewer-builder.html, test/unit/extraction.test.mjs, test/integrat
 - **Model list** `#cv-models` shows Modell name, element count and a remove button (`Modell entfernen: <Modell>`).
 - **Option** checkbox `Räume (IfcSpace) einbeziehen`, default off.
 - **Progress overlay** shows `<file> – <step>: <n> %` with a `<progress>` bar. Steps: `Prüfung`, `Konverter wird gestartet`, `Konverter wird geladen`, `Datei wird gelesen`, `Konvertierung` (with %), `Anzeige`, `Extraktion` (with %).
-- **Test hook `window.__calc`:** `phase`, `models [{ id, name (file name), modell, elements, withGeometry }]`, `rows`, `catalog` (entries in order), `loadErrors [{ fileName, loadClass, message }]`, `loads` (counter of finished load/remove/option actions, used for waiting), `progress`, `options.includeSpaces`, `test`.
+- **Test hook `window.__calc`:** `phase`, `error` (fatal start error only), `models [{ id, name (file name), modell, elements, withGeometry (visible rows with geometry) }]`, `rows`, `catalog` (entries in order), `loadErrors [{ fileName, loadClass, message }]`, `queued`, `loads` (counter of finished load/remove/option actions, used for waiting), `progress`, `options.includeSpaces`, `test`.
 
 ## Tests
 | AC / NFR | Test | Type | Result |
@@ -141,9 +141,32 @@ touches: [calc-viewer-builder.html, test/unit/extraction.test.mjs, test/integrat
 - **Placement of the extraction code.** The extraction orchestration (engine calls) is in `cv-builder`, and the pure rules are in `cv-core`. `cv-3d` only gained `removeModel` and `setItemsVisible`. The viewer file does not extract (DEC-7).
 - **Status line.** It still reads `N Elemente in M Modell(en)`. The `X von Y Elementen` form comes with the filter engine (TASK-004).
 
+## Verification fixes
+The independent verification of TASK-002 passed with defects. These are fixed; each fix has a test that fails on the previous code.
+
+| Finding | Fix | Test |
+|---|---|---|
+| **Defect A (medium).** A file dropped while a load ran was silently lost: `loadFiles` returned early when busy, and drag and drop stayed active. | Files dropped during any running action (load, remove, IfcSpace option) are queued (`window.__calc.queued`). Files queued during a load are loaded in the same batch; after a remove or option change the queued files start loading at once. The batch counts once in `loads`. | `extraction.spec.mjs` `@robustness` "a file dropped while a load runs is queued and loaded after it" |
+| **Defect B (low).** The error overlay stayed over the 3D view when the last file of a batch failed (`finally` cleared it only if the last file loaded). | `settleOverlay()` runs at the end of every action (load batch, remove, option) and in `publish()`. With a model loaded the overlay is hidden; with none, the builder shows its start hint. The message stays in `#cv-messages`. | `@robustness` "a failed last file does not leave its error over the 3D view" |
+| `hook.error` was set on every load error and never reset. | `hook.error` holds only fatal start errors (`fail()`); load errors are only in `loadErrors`. | the same test asserts `error` stays `null` after load errors |
+| `hook.models[].withGeometry` counted `getItemsIdsWithGeometry`, which includes non-row items. | It now counts the model's visible rows with `geometry: true`. The perf test only records the value. | `@REQ-002-AC1` |
+| AC1 test had no assertion on the whole row set. | Rows per Kategorie equal `elementsInStepTextByKategorie` without IfcOpeningElement (99 for FZK); `rows.length` and `models[0].elements` equal the sum. The expected values come from the reference data only. | `@REQ-002-AC1` |
+| `buildCatalog` merged properties seen only on hidden IfcSpace rows (kind, unit, `Typ:` group). | `createExtractor` keeps `spaceProperties` apart from `properties`. `buildCatalog` uses a model's `spaceProperties` only if IfcSpace rows of that model are among the given (visible) rows. | `[unit] DEC-13 buildCatalog: properties of hidden IfcSpace rows do not change kind, unit or group` |
+| The trailer check rejected valid files with more than 1 KiB of trailing blank space, or a comment after `END-ISO-10303-21;`. | `trailerText`/`trailerComplete` in cv-core strip NULs, trailing whitespace and complete trailing `/* … */` comments. `checkFile` reads up to 64 KiB (`TRAILER_PROBE_MAX_BYTES`) when the last 1 KiB does not show the trailer. A truncated file (also one ending in an unterminated comment) is still `unreadable`. | `[unit] REQ-001 trailer check: …`; `@robustness` "a valid file with a comment and > 1 KiB blank space after the trailer loads" |
+| `reference-values.json` "why" for `0oTQ6V1VbChulreA_hfmUa` said "member without type object". | Reworded: the type object `#35265` exists, only its Name is `$`. No expected value changed. | n/a |
+| IfcSpace always converted: deviation from §4.3 recorded only here. | Recorded in `docs/process-log.md` as a design detail, with its effect on TASK-005. | n/a |
+
+### Deferrals recorded by the verification
+- **REQ-002-AC4, filter part** ("filtering by any one of them matches the element") is covered here only at data level (`Material` lists every layer material). The filter part is deferred to TASK-004 (filter engine) and TASK-006a/006b.
+- **REQ-002-AC5, UI part** ("left-aligned, not summed") is covered here only at data level (the value stays text, catalogue kind `text`). The table rendering and sums are deferred to TASK-006a/006b.
+- **Conversion worker hanging mid-conversion.** The load watchdog covers only a worker that never starts. A worker that hangs after it started has no timeout. Deferred to TASK-010.
+
 ## Open points
 - **NFR-002 timing.** The 100 MB multi-model set takes ≈ 68 s per 100 MB alone, against the 60 s target. Breakdown and tuning are in TASK-010 (candidates: worker reuse, conversion settings, chunk size).
 - **Deferred to TASK-004/005/006a.** REQ-001-AC3 ("filters on remaining values stay active", 3D) and REQ-001-AC4 (3D and filter sets) are covered here only at data level. The 3D side of the IfcSpace option (spaces hidden with the option off) is implemented but not asserted; `CalcView.state()` comes in TASK-005.
 - **"No sums are shown"** for a `gemischt` column (REQ-002-AC6) is covered here at data level (`unit: "gemischt"`). The sums themselves are TASK-006b.
 - **Quantity units.** A quantity with its own `Unit` attribute (IfcPhysicalSimpleQuantity.Unit) is converted with the project unit, not its own. No fixture uses this; the tester's reference reader supports it. Candidate for T7 robustness.
 - **Unit labels.** Derived units are labelled from a small table by UnitType, or by their UserDefinedType. IfcDerivedUnitElement is not imported (not in the importer's class set), so other derived units show their UnitType name.
+- **REQ-002-AC4 filter part and REQ-002-AC5 UI part.** Deferred to TASK-004/006a/006b (see Verification fixes).
+- **Worker hang mid-conversion.** No timeout yet; TASK-010.
+- **IfcSpace 3D side.** TASK-005 must keep spaces hidden through ghost/hide resets and out of `CalcView.state()` (`docs/process-log.md`).
