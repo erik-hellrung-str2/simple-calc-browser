@@ -55,16 +55,30 @@ Source: `user` | `user-confirmed` | `inferred` | `delegated` | `unknown`.
 
 | ID | Answer | Source | Notes |
 |---|---|---|---|
+| FUN-01 | Use cases 1–9 as listed: (1) load several IFC, convert + index, "Modell" property; (2) configure filter sets (choose any property, order, remove); (3) filter model + table (OR within / AND between, hide impossible values); (4) model: hide/ghost outside filter, colour by property with legend, section plane; (5) table: single-element view and grouping view (≤ 2 levels, expandable to elements), choose/order columns, column filters, sort; (6) selection both ways: model click → details right + table row highlighted, table row click → element highlighted in model; (7) export current table view as CSV/Excel; (8) save/load configuration (filter sets, columns, grouping) as JSON; (9) offline HTML export for colleagues with models embedded, offering 2–7 but no IFC loading | user-confirmed | |
+| FUN-x3 | Group row: element count + sum of every numeric column; text columns empty or the value when uniform within the group | user-confirmed | |
 | FUN-02 | Within one filter set several values = OR; between filter sets = AND | user (proposal) | |
 | FUN-x1 | Facet values without hits in the current combination are hidden; counts recomputed under the other filters; sibling values in the own set stay visible | user (proposal) | |
 | FUN-x2 | Elements outside the filter in 3D: switchable hide / ghost (X-ray), default ghost | user (proposal) | |
 
+## Topic: data (depth S)
+
+| ID | Answer | Source | Notes |
+|---|---|---|---|
+| DAT-01 | All IFC data selectable as filter set / column: attributes (Name, type, GUID …), all property sets and quantities (Qto) of the element and its type, storey, material, model; numbers parsed as numbers | user-confirmed | storey, material, type psets are new vs. html-modelviewer |
+
+## Topic: quality (depth S)
+
+| ID | Answer | Source | Notes |
+|---|---|---|---|
+| QLT-01 | Typical models up to ~100 MB IFC, several 10,000 elements, also several models together; filtering/table should feel instant (< ~0.5 s) | user-confirmed | |
+
 ## Tier
-- Proposed M (11/30) → user chose **S** (lean). Detail questions so far: 3 / ceiling 18.
+- Proposed M (11/30) → user chose **S** (lean). Detail questions so far: 7 / ceiling 18.
 
 ## Interview progress
 - Last completed: C00
 - Last completed: round 1 (summary, basis, users, autonomy)
 - Last completed: round 2 (export, save/load, multiple models, lifetime)
-- Last completed: detail round 1 (tier, FUN-02, facets, model behaviour)
-- Next: detail round 2 (FUN-01 use cases, DAT-01 columns/properties, grouping aggregation, QLT-01 model size)
+- Last completed: detail round 2 (FUN-01, DAT-01, group aggregation, QLT-01)
+- Next: detail round 3 (FUN-04 priorities, FUN-03 example, UI-01 screens/devices, STK-01 stack + Excel)
