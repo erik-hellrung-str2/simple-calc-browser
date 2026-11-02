@@ -1,0 +1,10 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('ViewDefinition [ReferenceView]'),'2;1');
+FILE_NAME('error-ifc4x3-header.ifc','2026-11-02T00:00:00',(''),(''),'calc-viewer-builder test fixture','','');
+FILE_SCHEMA(('IFC4X3_ADD2'));
+ENDSEC;
+DATA;
+#1=IFCPROJECT('0YvctVUKr0kugbFTf53O9L',$,'IFC4X3 fixture',$,$,$,$,$,$);
+ENDSEC;
+END-ISO-10303-21;

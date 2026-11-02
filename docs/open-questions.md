@@ -8,6 +8,7 @@ relates_to: [ASM-001, ASM-002, ASM-003, ASM-004, ASM-005, ASM-006, ASM-007, ASM-
 
 | ID | Question | Raised by / in | Blocking | Status | Answer |
 |---|---|---|---|---|---|
+| Q-001 | Licence of the committed test fixture `Ifc2x3_Duplex_Architecture.ifc` (source repo youshengCode/IfcSampleFiles states none; origin buildingSMART/NIBS Common BIM Files) — keep, replace, or confirm | TASK-001a | no (before release) | open | |
 
 Status: `open` | `answered` | `obsolete`. Blocking questions are also listed in `docs/state.yaml` → `blocking_questions`.
 

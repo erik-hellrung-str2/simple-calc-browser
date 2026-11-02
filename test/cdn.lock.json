@@ -1,0 +1,11 @@
+{
+  "/npm/@thatopen/fragments@3.4.7/+esm": "aa37ecdb1e5f4f82cf0eb0e4404998b3cacbdf80a5d0c37b65918055f1ec6f7a",
+  "/npm/@thatopen/fragments@3.4.7/dist/Worker/worker.min.mjs": "92a7209ca809c5d88a8374c3d3e923949e82c18b9bcc128070c5d32196dc51f9",
+  "/npm/three@0.185.1/+esm": "b34cca931725037c47fa003e0f6ab29e7dae3427fac0a4d894f32467306b40c3",
+  "/npm/three@0.185.1/examples/jsm/controls/OrbitControls.js/+esm": "bd187a7f0b09d9cd97612f4f791d55c06f7948aeca3451b961066208df7953ea",
+  "/npm/three@0.185.1/examples/jsm/lines/Line2.js/+esm": "7157c62243b250f868a033b08e73b6a34ac79370d992046a7ca04863324607ef",
+  "/npm/three@0.185.1/examples/jsm/lines/LineGeometry.js/+esm": "c6227be26412c56275b572e8970afb873064c4bea29cf92901a1f31e06022b1b",
+  "/npm/three@0.185.1/examples/jsm/lines/LineMaterial.js/+esm": "b4598a79887189bcb84ee253b47380ed6eccc2d9032e0b5b4fd309a7f9807543",
+  "/npm/web-ifc@0.0.77/+esm": "24920e598d50aa7c740b29a5d9874e43c204f92ecbaf0bafcb848759ad7011e6",
+  "/npm/web-ifc@0.0.77/web-ifc.wasm": "392b547232aa63df84961d9d3d6e2a7a259cd832b888830cab2ee30778bf28a0"
+}

@@ -1,0 +1,16 @@
+node_modules/
+.cache/
+test-cache/
+coverage/
+test-results/
+playwright-report/
+test/fixtures/
+package-lock.json
+# process documents and agent/tool configuration are prose, not code: not formatted by prettier
+*.md
+*.yaml
+*.yml
+docs/
+process/
+.github/
+.claude/

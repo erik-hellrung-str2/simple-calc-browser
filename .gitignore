@@ -1,2 +1,10 @@
 __pycache__/
 *.pyc
+node_modules/
+# extracted cv-core for node:test/c8 (test/load-core.mjs)
+.cache/
+# jsDelivr cache (scripts/vendor-cdn.mjs) and downloaded/generated large fixtures (scripts/fetch-fixtures.mjs)
+test-cache/
+coverage/
+test-results/
+playwright-report/

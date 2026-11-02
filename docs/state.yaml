@@ -25,7 +25,7 @@ blocking_questions: []
 active_changes: []
 pending_release: []
 reserved_ids: {}
-next_action: "Implement TASK-001a (spec §5): toolchain (package.json, prettier, eslint, c8, Playwright, openpyxl), scripts/vendor-cdn.mjs + lock, scripts/fetch-fixtures.mjs (incl. synthetic >=100 MB IFC), scripts/serve.mjs, scripts/check.mjs, .githooks/pre-commit; verify AGENTS.md §4 commands. Then TASK-001b (file:// walking skeleton, risk R-1)."
+next_action: "Implement TASK-002 (spec §5): extraction and property model, error classes, multi-model, IfcSpace option, reference-values.json prepared independently, unit fixtures fzk-feet/fzk-unit-a/b; add load timeout for hanging worker; 100 MB smoke (R-2). Wait on __calc.phase, not data-cv-ready."
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
@@ -34,3 +34,4 @@ history:
   - {date: 2026-11-02, event: "spec draft written; spikes confirmed ASM-004/ASM-005; independent spec review started"}
   - {date: 2026-11-02, event: "spec review: 33 confirmed findings applied; AGENTS.md §4 filled; re-check started"}
   - {date: 2026-11-02, event: "spec approved (agent gate, independent review); implementation INC-1 started"}
+  - {date: 2026-11-02, event: "TASK-001a/001b done and independently verified; R-1 resolved (classic worker works from file://)"}

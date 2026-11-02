@@ -330,8 +330,8 @@ Every task: read `AGENTS.md`, this spec §2 entries it implements, §4; done whe
 
 | ID | Title | Implements | Depends on | Touches | Status |
 |---|---|---|---|---|---|
-| TASK-001a | Toolchain: package.json, prettier/eslint/c8/Playwright/openpyxl install, vendor-cdn + lock, fetch-fixtures (incl. synthetic 100 MB), serve, check.mjs, pre-commit, AGENTS.md §4 | enabler | – | repo root, scripts/, test/, .githooks/ | todo |
-| TASK-001b | Walking skeleton: builder links modules (drift guard), converts one IFC in a classic worker, shows it in 3D — via `file://` and http (R-1) | CON-002, REQ-001 (part) | 001a | calc-viewer-builder.html, test/e2e | todo |
+| TASK-001a | Toolchain: package.json, prettier/eslint/c8/Playwright/openpyxl install, vendor-cdn + lock, fetch-fixtures (incl. synthetic 100 MB), serve, check.mjs, pre-commit, AGENTS.md §4 | enabler | – | repo root, scripts/, test/, .githooks/ | done |
+| TASK-001b | Walking skeleton: builder links modules (drift guard), converts one IFC in a classic worker, shows it in 3D — via `file://` and http (R-1) | CON-002, REQ-001 (part) | 001a | calc-viewer-builder.html, test/e2e | done |
 | TASK-002 | Extraction and property model: importer config, element list, attributes/psets/type psets/storey/material/model/geometry, units, catalogue; multi-model, remove, duplicates, error classes, IfcSpace option; 100 MB smoke | REQ-001, REQ-002 | 001b | cv-core, cv-builder, test/ | todo |
 | TASK-003 | Filter engine: lazy column store, OR/AND, facet counts with hidden and checked-zero values, column filters (text, range), sorting | REQ-004 (logic), REQ-006 (filter/sort logic) | 002 | cv-core, test/unit | todo |
 | TASK-004 | Layout and filter area: screen layout, styles, virtualised value lists, filter sets (catalogue dialog, add/order/collapse/remove, defaults), reset, status line | REQ-003, REQ-004, REQ-001-AC1 (Modell set) | 003 | cv-css, cv-ui, cv-app, test/e2e | todo |
@@ -363,7 +363,7 @@ Task details (context to read · acceptance):
 |---|---|---|---|
 
 ## 7. Open points  _(working section)_
-- Risks: R-1 `file://` engine start (TASK-001b); R-2 memory at ≥ 100 MB IFC (smoke in TASK-002, tuning in TASK-010); R-3 Excel itself not available in the test environment (structure validated with openpyxl/LibreOffice; manual check at release); R-4 3D update time at 30k elements not yet measured (TASK-005/TASK-010).
+- Risks: R-1 `file://` engine start — resolved in TASK-001b (module workers from blob:null never start; classic worker works); R-2 memory at ≥ 100 MB IFC (smoke in TASK-002, tuning in TASK-010); R-3 Excel itself not available in the test environment (structure validated with openpyxl/LibreOffice; manual check at release); R-4 3D update time at 30k elements not yet measured (TASK-005/TASK-010).
 - Assumptions: `docs/open-questions.md` ASM-001…ASM-008.
 
 ## Change history

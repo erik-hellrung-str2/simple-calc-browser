@@ -1,0 +1,27 @@
+{
+  "name": "calc-viewer-builder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Calc Viewer Builder: dev tooling only (the product is calc-viewer-builder.html, no build step)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
+    "vendor": "node scripts/vendor-cdn.mjs",
+    "fixtures": "node scripts/fetch-fixtures.mjs",
+    "serve": "node scripts/serve.mjs",
+    "check": "node scripts/check.mjs",
+    "check:all": "node scripts/check.mjs --all"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.63.0",
+    "c8": "12.0.0",
+    "eslint": "9.39.5",
+    "eslint-plugin-html": "8.2.1",
+    "globals": "17.14.0",
+    "prettier": "3.9.10"
+  }
+}

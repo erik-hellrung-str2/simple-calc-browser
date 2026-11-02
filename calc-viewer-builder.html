@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calc Viewer Builder</title>
+    <!--
+      Calc Viewer Builder (spec docs/spec.md §4.2). Blocks:
+        cv-css               shared styles (builder + viewer file)
+        cv-core-src          pure logic, no DOM, no imports (extracted for node:test by test/load-core.mjs)
+        cv-ui-src            DOM: layout, status; imports calc-core
+        cv-3d-src            engine start and model display; imports three, @thatopen/fragments, OrbitControls
+        cv-app-src           entry: start({mode}) wires ui + 3d
+        cv-viewer-bootstrap  classic bootstrap of the viewer file (TASK-009)
+        cv-builder           builder-only real inline module: CDN crawl + drift guard, linking, conversion worker
+      The text/plain blocks are embedded into the viewer file later: ASCII only, no closing script tag.
+      TASK-001b walking skeleton: the builder needs internet access (jsDelivr) to load the libraries.
+    -->
+    <style id="cv-css">
+      :root {
+        --cv-accent: #d72622;
+        --cv-accent-dark: #b81f1c;
+        --cv-ink: #35383a;
+        --cv-ink-2: #4e5355;
+        --cv-muted: #6b6f73;
+        --cv-faint: #a4a8ac;
+        --cv-bg: #f4f5f6;
+        --cv-bg-3d: #eceef0;
+        --cv-line: #e1e3e5;
+        --cv-err: #d72622;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font:
+          14px/1.5 "Segoe UI",
+          system-ui,
+          Roboto,
+          Arial,
+          sans-serif;
+        color: var(--cv-ink);
+        background: var(--cv-bg);
+      }
+      #cv-root {
+        height: 100%;
+      }
+      .cv-app {
+        display: grid;
+        grid-template-rows: 56px 1fr 28px;
+        height: 100%;
+      }
+      .cv-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+        background: #fff;
+        border-bottom: 1px solid var(--cv-line);
+        border-left: 4px solid var(--cv-accent);
+      }
+      .cv-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .cv-date {
+        color: var(--cv-muted);
+        font-size: 13px;
+      }
+      .cv-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+      }
+      .cv-btn {
+        font: inherit;
+        font-size: 13px;
+        padding: 6px 12px;
+        border: 1px solid var(--cv-line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--cv-ink);
+        cursor: pointer;
+      }
+      .cv-btn:hover:not(:disabled) {
+        border-color: var(--cv-accent);
+      }
+      .cv-btn:disabled {
+        color: var(--cv-faint);
+        cursor: default;
+      }
+      .cv-btn.cv-primary {
+        background: var(--cv-accent);
+        border-color: var(--cv-accent);
+        color: #fff;
+      }
+      .cv-btn.cv-primary:hover:not(:disabled) {
+        background: var(--cv-accent-dark);
+      }
+      .cv-btn.cv-primary:disabled {
+        background: var(--cv-faint);
+        border-color: var(--cv-faint);
+      }
+      .cv-main {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr) 320px;
+        min-height: 0;
+      }
+      .cv-panel {
+        min-height: 0;
+        overflow: auto;
+        background: #fff;
+        padding: 12px 14px;
+      }
+      .cv-filters {
+        border-right: 1px solid var(--cv-line);
+      }
+      .cv-details {
+        border-left: 1px solid var(--cv-line);
+      }
+      .cv-panel h2 {
+        margin: 0 0 8px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: var(--cv-ink-2);
+        text-transform: uppercase;
+      }
+      .cv-hint {
+        color: var(--cv-muted);
+        font-size: 13px;
+      }
+      .cv-center {
+        display: grid;
+        grid-template-rows: 55fr 45fr;
+        min-height: 0;
+        min-width: 0;
+      }
+      .cv-viewport {
+        position: relative;
+        min-height: 0;
+        background: var(--cv-bg-3d);
+        overflow: hidden;
+      }
+      .cv-viewport canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .cv-table {
+        border-top: 1px solid var(--cv-line);
+      }
+      .cv-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .cv-overlay[hidden] {
+        display: none;
+      }
+      .cv-overlay-box {
+        max-width: 80%;
+        padding: 10px 16px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.86);
+        border-left: 4px solid var(--cv-accent);
+        font-size: 13px;
+        pointer-events: auto;
+      }
+      .cv-overlay.cv-error .cv-overlay-box {
+        color: var(--cv-err);
+      }
+      .cv-statusline {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 16px;
+        font-size: 12px;
+        color: var(--cv-muted);
+        background: #fff;
+        border-top: 1px solid var(--cv-line);
+      }
+      @media (max-width: 1279px) {
+        .cv-main {
+          grid-template-columns: 0 minmax(0, 1fr) 0;
+        }
+        .cv-filters,
+        .cv-details {
+          padding: 0;
+          overflow: hidden;
+          border: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cv-root"></div>
+
+    <!-- Pure logic, no DOM, no imports; extracted for node:test by test/load-core.mjs. ASCII only. -->
+    <script type="text/plain" id="cv-core-src">
+      export const CORE_NAME = "calc-core";
+
+      /** Identifies the core module (schemaVersion is the configuration schema, TASK-007). */
+      export function coreInfo() {
+        return { name: CORE_NAME, schemaVersion: 0 };
+      }
+
+      /** Library versions the builder accepts from the jsDelivr +esm graph of fragments 3.4.7 (spec 4.1, DEC-10). */
+      export const EXPECTED_THREE = "0.185.1";
+      export const EXPECTED_WEBIFC = "0.0.77";
+
+      /** Returns the sorted distinct versions of an npm package that occur in jsDelivr module keys ("/npm/<pkg>@<v>/..."). */
+      export function packageVersions(moduleKeys, pkg) {
+        const prefix = "/npm/" + pkg + "@";
+        const found = new Set();
+        for (const key of moduleKeys) {
+          if (key.indexOf(prefix) !== 0) continue;
+          const version = key.slice(prefix.length).split("/")[0];
+          if (version) found.add(version);
+        }
+        return [...found].sort();
+      }
+
+      /**
+       * Drift guard (spec 4.1): exactly one three version and the expected three and web-ifc versions must occur in
+       * the crawled module graph. Returns { three, webIfc }; otherwise throws the German error message of the spec.
+       */
+      export function checkLibraryVersions(moduleKeys, expected) {
+        const want = expected || { three: EXPECTED_THREE, webIfc: EXPECTED_WEBIFC };
+        const checks = [
+          ["three", packageVersions(moduleKeys, "three"), want.three],
+          ["web-ifc", packageVersions(moduleKeys, "web-ifc"), want.webIfc],
+        ];
+        for (const [lib, versions, wanted] of checks) {
+          if (versions.length !== 1 || versions[0] !== wanted) {
+            const found = versions.length ? versions.join(", ") : "keine";
+            throw new Error("Unerwartete Bibliotheksversion von jsDelivr: " + lib + " " + found + " statt " + wanted + ".");
+          }
+        }
+        return { three: checks[0][1][0], webIfc: checks[1][1][0] };
+      }
+    </script>
+
+    <!-- DOM: layout and status (builder and viewer file). ASCII only. -->
+    <script type="text/plain" id="cv-ui-src">
+      import { coreInfo } from "calc-core";
+
+      function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+
+      /** Builds the one-screen layout of spec 2 User interface into root; returns the parts the app needs. */
+      export function renderLayout(root, options) {
+        const mode = options.mode;
+        const app = el("div", "cv-app");
+        app.dataset.core = coreInfo().name;
+
+        const header = el("header", "cv-header");
+        const title = el("h1", "cv-title", options.title || "Calc Viewer Builder");
+        title.id = "cv-title";
+        const date = el("span", "cv-date", new Date().toLocaleDateString("de-DE"));
+        const actions = el("div", "cv-actions");
+        const fileInput = el("input");
+        fileInput.type = "file";
+        fileInput.accept = ".ifc";
+        fileInput.multiple = true;
+        fileInput.hidden = true;
+        fileInput.id = "cv-file-input";
+        const loadButton = el("button", "cv-btn cv-primary", "IFC laden");
+        loadButton.id = "cv-load";
+        loadButton.disabled = true;
+        loadButton.addEventListener("click", () => fileInput.click());
+        if (mode === "builder") {
+          actions.append(fileInput, loadButton);
+          for (const label of ["Konfiguration speichern", "Konfiguration laden", "HTML exportieren"]) {
+            const button = el("button", "cv-btn", label);
+            button.disabled = true;
+            actions.append(button);
+          }
+        }
+        header.append(title, date, actions);
+
+        const main = el("div", "cv-main");
+        const filters = el("aside", "cv-panel cv-filters");
+        filters.id = "cv-filters";
+        filters.append(el("h2", "", "Filter"), el("p", "cv-hint", "Filters\u00e4tze folgen."));
+
+        const center = el("div", "cv-center");
+        const viewport = el("div", "cv-viewport");
+        viewport.id = "cv-viewport";
+        const overlay = el("div", "cv-overlay");
+        overlay.id = "cv-overlay";
+        const overlayBox = el("div", "cv-overlay-box");
+        overlayBox.id = "cv-overlay-text";
+        overlay.append(overlayBox);
+        viewport.append(overlay);
+        const table = el("section", "cv-panel cv-table");
+        table.id = "cv-table";
+        table.append(el("h2", "", "Tabelle"), el("p", "cv-hint", "Die Mengentabelle folgt."));
+        center.append(viewport, table);
+
+        const details = el("aside", "cv-panel cv-details");
+        details.id = "cv-details";
+        details.append(el("h2", "", "Element-Details"), el("p", "cv-hint", "Klick auf ein Element zeigt seine Eigenschaften."));
+        main.append(filters, center, details);
+
+        const statusline = el("footer", "cv-statusline");
+        const status = el("span", "", "");
+        status.id = "cv-status";
+        statusline.append(status);
+
+        app.append(header, main, statusline);
+        root.replaceChildren(app);
+
+        return {
+          fileInput,
+          loadButton,
+          viewport,
+          /** Shows a progress or error message over the 3D view; null hides it. */
+          overlay(text, isError) {
+            overlay.hidden = text === null;
+            overlay.classList.toggle("cv-error", Boolean(isError));
+            overlayBox.textContent = text === null ? "" : text;
+          },
+          status(text) {
+            status.textContent = text;
+          },
+        };
+      }
+    </script>
+
+    <!-- Engine start and model display. ASCII only. -->
+    <script type="text/plain" id="cv-3d-src">
+      import * as THREE from "three";
+      import * as FRAGS from "@thatopen/fragments";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+      const VIEW_DIRECTION = new THREE.Vector3(1, 0.75, 1).normalize();
+      const FIT_PADDING = 1.2;
+
+      /**
+       * Starts three + Fragments in container. workerUrl: Blob URL of the classic Fragments worker (classic, because
+       * module workers from Blob URLs fail under file:// and in opaque-origin frames; spec CON-002).
+       */
+      export function createEngine(container, workerUrl) {
+        const scene = new THREE.Scene();
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f94, 2.2));
+        const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+        sun.position.set(5, 10, 7);
+        scene.add(sun);
+
+        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
+        camera.position.set(30, 20, 30);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setClearColor(0x000000, 0);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        container.prepend(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        const fragments = new FRAGS.FragmentsModels(workerUrl, { classicWorker: true });
+        // Avoid z-fighting between coplanar faces (as the reference app and the That Open examples).
+        fragments.models.materials.list.onItemSet.add(({ value: material }) => {
+          if (!("isLodMaterial" in material && material.isLodMaterial)) {
+            material.polygonOffset = true;
+            material.polygonOffsetUnits = 1;
+            material.polygonOffsetFactor = Math.random();
+          }
+        });
+        controls.addEventListener("change", () => fragments.update());
+
+        function resize() {
+          const width = container.clientWidth;
+          const height = container.clientHeight;
+          if (!width || !height) return;
+          renderer.setSize(width, height, false);
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+          fragments.update();
+        }
+        new ResizeObserver(resize).observe(container);
+        resize();
+        renderer.setAnimationLoop(() => {
+          controls.update();
+          renderer.render(scene, camera);
+        });
+
+        const models = [];
+
+        function fit() {
+          const box = new THREE.Box3();
+          for (const model of models) box.union(model.box);
+          if (box.isEmpty()) return;
+          const sphere = box.getBoundingSphere(new THREE.Sphere());
+          const fov = THREE.MathUtils.degToRad(camera.fov / 2);
+          const distance = (sphere.radius * FIT_PADDING) / Math.sin(Math.min(fov, Math.atan(Math.tan(fov) * camera.aspect)));
+          controls.target.copy(sphere.center);
+          camera.position.copy(sphere.center).addScaledVector(VIEW_DIRECTION, distance);
+          camera.near = Math.max(distance / 1000, 0.01);
+          camera.far = distance * 100;
+          camera.updateProjectionMatrix();
+          controls.update();
+        }
+
+        return {
+          /** Loads .frag bytes as model modelId, fits the camera; resolves to { modelId, elements } (items with geometry). */
+          async loadModel(bytes, modelId) {
+            const model = await fragments.load(bytes, { modelId });
+            model.useCamera(camera);
+            scene.add(model.object);
+            models.push(model);
+            await fragments.update(true);
+            fit();
+            await fragments.update(true);
+            const ids = await model.getItemsIdsWithGeometry();
+            return { modelId, elements: ids.length };
+          },
+          modelCount() {
+            return fragments.models.list.size;
+          },
+        };
+      }
+    </script>
+
+    <!-- Entry: start({mode}) wires ui + 3d. ASCII only. -->
+    <script type="text/plain" id="cv-app-src">
+      import { renderLayout } from "calc-ui";
+      import { createEngine } from "calc-3d";
+
+      /**
+       * Test hook (read-only for tests): phase "starting" | "ready" | "loading" | "error", models loaded with their
+       * element counts, last error message.
+       */
+      const hook = { phase: "starting", models: [], modelCount: 0, elementCount: 0, error: null };
+      window.__calc = hook;
+
+      /**
+       * options: { mode: "builder" | "viewer", root, workerUrl, convert(file, onStatus) -> Promise<Uint8Array> (builder) }.
+       */
+      export async function start(options) {
+        const ui = renderLayout(options.root, { mode: options.mode, title: options.title });
+        ui.overlay("3D-Ansicht wird gestartet ...");
+        const engine = createEngine(ui.viewport, options.workerUrl);
+        let nextId = 1;
+        let busy = false;
+
+        function report() {
+          hook.modelCount = engine.modelCount();
+          hook.elementCount = hook.models.reduce((sum, m) => sum + m.elements, 0);
+          ui.status(hook.elementCount.toLocaleString("de-DE") + " Elemente in " + hook.modelCount + " Modell(en)");
+        }
+
+        async function loadFiles(files) {
+          if (busy || !files.length) return;
+          busy = true;
+          ui.loadButton.disabled = true;
+          hook.phase = "loading";
+          try {
+            for (const file of files) {
+              try {
+                const bytes = await options.convert(file, (text) => ui.overlay(text));
+                ui.overlay("Modell wird angezeigt: " + file.name + " ...");
+                const result = await engine.loadModel(bytes, "model-" + nextId++);
+                hook.models.push({ id: result.modelId, name: file.name, elements: result.elements });
+                report();
+              } catch (error) {
+                hook.error = error && error.message ? error.message : String(error);
+                ui.overlay(file.name + ": " + hook.error, true);
+                continue;
+              }
+              ui.overlay(null);
+            }
+          } finally {
+            busy = false;
+            ui.loadButton.disabled = false;
+            hook.phase = "ready";
+          }
+        }
+
+        if (options.mode === "builder") {
+          ui.fileInput.addEventListener("change", () => {
+            const files = Array.from(ui.fileInput.files || []);
+            ui.fileInput.value = "";
+            loadFiles(files);
+          });
+          ui.loadButton.disabled = false;
+        }
+        ui.overlay(options.mode === "builder" ? "IFC-Datei laden, um zu beginnen." : null);
+        report();
+        hook.phase = "ready";
+        return { loadFiles };
+      }
+
+      /** Shows a fatal start error (library loading, drift guard) in root. */
+      export function fail(root, message) {
+        hook.phase = "error";
+        hook.error = message;
+        root.textContent = message;
+      }
+    </script>
+
+    <!-- Classic bootstrap of the viewer file (reads payloads, links, starts): TASK-009. ASCII only. -->
+    <script type="text/plain" id="cv-viewer-bootstrap"></script>
+
+    <script type="module" id="cv-builder">
+      // Builder-only logic (spec §4.2). Library versions are pinned; jsDelivr "+esm" resolves the dependency graph.
+      const FRAGMENTS_VERSION = "3.4.7";
+      const CDN = "https://cdn.jsdelivr.net";
+      const FRAGMENTS_KEY = `/npm/@thatopen/fragments@${FRAGMENTS_VERSION}/+esm`;
+      const WORKER_URL = `${CDN}/npm/@thatopen/fragments@${FRAGMENTS_VERSION}/dist/Worker/worker.min.mjs`;
+      const NPM_IMPORT_RE = /(?:\bfrom\s*|\bimport\s*\(?\s*)["'](\/npm\/[^"']+)["']/g;
+      const SOURCE_MAP_RE = /^\s*\/\/# sourceMappingURL=.*$/gm;
+      const IFCSPACE = 3856911033; // web-ifc type code of IfcSpace
+
+      /**
+       * Links ES module sources (key -> source text) into Blob URLs without a server or bundler (ref L163-192).
+       * Import specifiers are rewritten to the Blob URL of the dependency; a specifier resolves if it is a key of
+       * `sources` or of `aliases` (alias -> key). Unknown "/npm/..." specifiers fail fast. Self-contained: its source
+       * text is also prepended to the conversion worker (and later to the viewer file).
+       */
+      function tovLinkModules(sources, aliases) {
+        const SPECIFIER_RE = /(\bfrom\s*|\bimport\s*\(?\s*)(["'])([^"'\n]+)\2/g;
+        const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+        const urls = {};
+        function toKey(specifier) {
+          if (has(sources, specifier)) return specifier;
+          if (has(aliases, specifier)) return aliases[specifier];
+          return null;
+        }
+        function link(key, chain) {
+          if (has(urls, key)) return urls[key];
+          if (chain.indexOf(key) !== -1) throw new Error("Circular module import: " + chain.concat(key).join(" -> "));
+          if (typeof sources[key] !== "string") throw new Error("Module source missing: " + key);
+          const code = sources[key].replace(SPECIFIER_RE, function (match, prefix, quote, specifier) {
+            const depKey = toKey(specifier);
+            if (depKey) return prefix + quote + link(depKey, chain.concat(key)) + quote;
+            if (specifier.indexOf("/npm/") === 0)
+              throw new Error("Module " + key + " imports unknown module " + specifier);
+            return match;
+          });
+          urls[key] = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+          return urls[key];
+        }
+        return function resolve(keyOrAlias) {
+          const key = toKey(keyOrAlias);
+          if (!key) throw new Error("Unknown module: " + keyOrAlias);
+          return link(key, []);
+        };
+      }
+
+      /**
+       * Body of the classic IFC conversion worker (ref L1940-1981). Runs after tovLinkModules (prepended).
+       * Input { sources, aliases, fragmentsKey, wasmPath, file, includeSpaces };
+       * output { type: "phase" | "progress" | "done" | "error", ... }.
+       */
+      function convertWorkerMain() {
+        const IFCSPACE_CODE = "__IFCSPACE__";
+        self.onmessage = async (event) => {
+          const job = event.data;
+          try {
+            self.postMessage({ type: "phase", phase: "load" });
+            const resolve = tovLinkModules(job.sources, job.aliases);
+            const FRAGS = await import(resolve(job.fragmentsKey));
+            self.postMessage({ type: "phase", phase: "read" });
+            let bytes = new Uint8Array(await job.file.arrayBuffer());
+            self.postMessage({ type: "phase", phase: "parse" });
+            const importer = new FRAGS.IfcImporter();
+            importer.wasm = { absolute: true, path: job.wasmPath };
+            const space = Number(IFCSPACE_CODE);
+            if (job.includeSpaces) importer.geometryProcessSettings.forceTransparentSpaces = true;
+            else importer.classes.elements.delete(space);
+            let lastSent = 0;
+            const result = await importer.process({
+              bytes,
+              progressCallback(progress, data) {
+                const now = Date.now();
+                if (now - lastSent < 250) return;
+                lastSent = now;
+                self.postMessage({ type: "progress", progress, process: data && data.process });
+              },
+            });
+            bytes = null;
+            let output = result instanceof Uint8Array ? result : new Uint8Array(result);
+            if (output.byteLength !== output.buffer.byteLength) output = output.slice();
+            self.postMessage({ type: "done", bytes: output }, [output.buffer]);
+          } catch (error) {
+            self.postMessage({ type: "error", message: error && error.message ? error.message : String(error) });
+          }
+        };
+      }
+
+      async function fetchText(url) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Download fehlgeschlagen (${response.status}): ${url}`);
+        return response.text();
+      }
+
+      /** Downloads the jsDelivr "+esm" module graph starting at rootKeys into `sources` (ref L2042-2053). */
+      async function crawlModules(rootKeys, sources) {
+        const queue = [...rootKeys];
+        while (queue.length) {
+          const batch = queue.splice(0).filter((key, i, all) => !(key in sources) && all.indexOf(key) === i);
+          const texts = await Promise.all(batch.map((key) => fetchText(CDN + key)));
+          batch.forEach((key, i) => {
+            sources[key] = texts[i].replace(SOURCE_MAP_RE, "");
+            for (const match of sources[key].matchAll(NPM_IMPORT_RE)) if (!(match[1] in sources)) queue.push(match[1]);
+          });
+        }
+      }
+
+      /** Turns the Fragments worker (ESM) into a classic worker script by removing its trailing export (ref L2055-2068). */
+      function toClassicWorkerSource(moduleSource) {
+        const TRAILING_EXPORT_RE = /export\s*\{[^}]*\}\s*;?\s*$/;
+        const withoutMap = moduleSource.replace(SOURCE_MAP_RE, "").trimEnd();
+        if (!TRAILING_EXPORT_RE.test(withoutMap)) throw new Error("Unerwartetes Format des Fragments-Workers.");
+        const classic = withoutMap.replace(TRAILING_EXPORT_RE, "");
+        if (/(^|[;}\s])(export|import)\s*[{*]/.test(classic))
+          throw new Error("Der Fragments-Worker enth\u00e4lt noch ESM-Anweisungen.");
+        return classic;
+      }
+
+      const blobUrl = (text) => URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
+      const block = (id) => document.getElementById(id).textContent;
+
+      /** Crawls the library graph, applies the drift guard and links library + app modules (ref L2075-2113). */
+      async function loadLibraries() {
+        const libSources = {};
+        await crawlModules([FRAGMENTS_KEY], libSources);
+        const sources = {
+          ...libSources,
+          "cv-core": block("cv-core-src"),
+          "cv-ui": block("cv-ui-src"),
+          "cv-3d": block("cv-3d-src"),
+          "cv-app": block("cv-app-src"),
+        };
+        const aliases = {
+          "calc-core": "cv-core",
+          "calc-ui": "cv-ui",
+          "calc-3d": "cv-3d",
+          "@thatopen/fragments": FRAGMENTS_KEY,
+        };
+        const resolve = tovLinkModules(sources, aliases);
+        const core = await import(resolve("calc-core"));
+
+        let versions = core.checkLibraryVersions(Object.keys(libSources));
+        const orbitKey = `/npm/three@${versions.three}/examples/jsm/controls/OrbitControls.js/+esm`;
+        await crawlModules([orbitKey], libSources);
+        Object.assign(sources, libSources);
+        versions = core.checkLibraryVersions(Object.keys(libSources)); // OrbitControls must not pull in another three
+        aliases.three = `/npm/three@${versions.three}/+esm`;
+        aliases["three/addons/controls/OrbitControls.js"] = orbitKey;
+
+        const worker = toClassicWorkerSource(await fetchText(WORKER_URL));
+        const convertSource =
+          tovLinkModules.toString() +
+          "\n(" +
+          convertWorkerMain.toString().replace('"__IFCSPACE__"', String(IFCSPACE)) +
+          ")();";
+        return {
+          resolve,
+          libSources,
+          aliases: { "@thatopen/fragments": FRAGMENTS_KEY, three: aliases.three },
+          versions: { fragments: FRAGMENTS_VERSION, ...versions },
+          fragmentsWorkerUrl: blobUrl(worker),
+          convertWorkerUrl: blobUrl(convertSource),
+          wasmPath: `${CDN}/npm/web-ifc@${versions.webIfc}/`,
+        };
+      }
+
+      const PHASES = { load: "Konverter wird geladen", read: "Datei wird gelesen", parse: "Datei wird analysiert" };
+
+      /** Converts one IFC file to .frag bytes in its own classic Blob worker, terminated afterwards (ref L2186-2205). */
+      function convertIfc(lib, file, onStatus) {
+        return new Promise((resolve, reject) => {
+          const worker = new Worker(lib.convertWorkerUrl);
+          const finish = (callback, value) => {
+            worker.terminate();
+            callback(value);
+          };
+          onStatus(`Konverter wird gestartet: ${file.name} ...`);
+          worker.onmessage = (event) => {
+            const m = event.data;
+            if (m.type === "phase") onStatus(`${PHASES[m.phase]}: ${file.name} ...`);
+            else if (m.type === "progress")
+              onStatus(`${file.name}: ${Math.floor(Math.min(Math.max(m.progress, 0), 1) * 100)} %`);
+            else if (m.type === "done") finish(resolve, m.bytes);
+            else if (m.type === "error") finish(reject, new Error(m.message));
+          };
+          worker.onerror = (event) => {
+            event.preventDefault();
+            finish(reject, new Error(`Der Konverter ist abgest\u00fcrzt: ${event.message || "unbekannter Fehler"}`));
+          };
+          worker.postMessage({
+            sources: lib.libSources,
+            aliases: lib.aliases,
+            fragmentsKey: FRAGMENTS_KEY,
+            wasmPath: lib.wasmPath,
+            file,
+            includeSpaces: false,
+          });
+        });
+      }
+
+      const root = document.getElementById("cv-root");
+      root.textContent = "Bibliotheken werden geladen ...";
+      try {
+        const lib = await loadLibraries();
+        const app = await import(lib.resolve("cv-app"));
+        try {
+          await app.start({
+            mode: "builder",
+            root,
+            workerUrl: lib.fragmentsWorkerUrl,
+            convert: (file, onStatus) => convertIfc(lib, file, onStatus),
+          });
+          window.__calc.versions = lib.versions;
+        } catch (error) {
+          app.fail(root, error && error.message ? error.message : String(error));
+        }
+      } catch (error) {
+        // Before cv-app is linked (CDN unreachable, drift guard): plain message, hook for tests.
+        const message = error && error.message ? error.message : String(error);
+        window.__calc = { phase: "error", error: message, models: [], modelCount: 0, elementCount: 0 };
+        root.textContent = message;
+        root.style.padding = "24px";
+        root.style.color = "#D72622";
+      }
+      document.documentElement.dataset.cvReady = "builder";
+    </script>
+  </body>
+</html>
