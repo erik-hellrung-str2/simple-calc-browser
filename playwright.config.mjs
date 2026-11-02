@@ -2,7 +2,7 @@
 // Select a test type with --grep @<tag>; every spec imports { test } from test/support/network-guard.mjs.
 import { defineConfig } from "@playwright/test";
 
-const PORT = 4173;
+const PORT = Number(process.env.CV_TEST_PORT ?? 4173); // override for parallel runs
 export default defineConfig({
   testDir: "test",
   testMatch: "**/*.spec.mjs",

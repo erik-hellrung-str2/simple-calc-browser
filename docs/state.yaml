@@ -25,7 +25,7 @@ blocking_questions: []
 active_changes: []
 pending_release: []
 reserved_ids: {}
-next_action: "Implement TASK-002 (spec §5): extraction and property model, error classes, multi-model, IfcSpace option, reference-values.json prepared independently, unit fixtures fzk-feet/fzk-unit-a/b; add load timeout for hanging worker; 100 MB smoke (R-2). Wait on __calc.phase, not data-cv-ready."
+next_action: "TASK-002 implemented (commit pending independent verification, workflow verify-task-002). On PASS mark TASK-002 done in spec §5 and continue with TASK-003; on defects fix them first. Open: load time ~68 s/100 MB vs NFR-002 60 s (TASK-010)."
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
@@ -35,3 +35,4 @@ history:
   - {date: 2026-11-02, event: "spec review: 33 confirmed findings applied; AGENTS.md §4 filled; re-check started"}
   - {date: 2026-11-02, event: "spec approved (agent gate, independent review); implementation INC-1 started"}
   - {date: 2026-11-02, event: "TASK-001a/001b done and independently verified; R-1 resolved (classic worker works from file://)"}
+  - {date: 2026-11-02, event: "TASK-002 implemented (extraction, units, multi-model, error classes; 128 MB smoke no crash, ~68 s/100 MB); independent verification running"}

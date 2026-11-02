@@ -248,9 +248,720 @@
         }
         return { three: checks[0][1][0], webIfc: checks[1][1][0] };
       }
+
+      // ---------------------------------------------------------------------------------------------------------
+      // REQ-001: load errors, model names
+      // ---------------------------------------------------------------------------------------------------------
+
+      /** Accepted FILE_SCHEMA values (REQ-001). */
+      export const SUPPORTED_SCHEMAS = ["IFC2X3", "IFC4"];
+      /** Bytes read from the start and the end of a file for the header/trailer check. */
+      export const HEADER_PROBE_BYTES = 65536;
+      export const TRAILER_PROBE_BYTES = 1024;
+
+      /** A classified load error (REQ-001): loadClass is one of LOAD_ERROR_CLASSES. */
+      export class LoadError extends Error {
+        constructor(loadClass, fileName, detail) {
+          super(loadErrorMessage(loadClass, fileName, detail));
+          this.loadClass = loadClass;
+          this.fileName = fileName;
+          this.detail = detail === undefined ? null : detail;
+        }
+      }
+      export const LOAD_ERROR_CLASSES = ["empty", "not-ifc", "unsupported-schema", "unreadable", "too-large"];
+
+      /** German message per load error class; always contains the file name (REQ-001). */
+      export function loadErrorMessage(loadClass, fileName, detail) {
+        const name = fileName;
+        const cause = String(detail === undefined || detail === null || detail === "" ? "unbekannte Ursache" : detail)
+          .trim()
+          .replace(/[.\s]+$/, "");
+        switch (loadClass) {
+          case "empty":
+            return name + " ist leer.";
+          case "not-ifc":
+            return name + " ist keine IFC-Datei.";
+          case "unsupported-schema":
+            return name + " verwendet das nicht unterst\u00fctzte Schema " + cause + ".";
+          case "unreadable":
+            return name + " konnte nicht gelesen werden: " + cause + ".";
+          case "too-large":
+            return name + " ist m\u00f6glicherweise zu gro\u00df f\u00fcr den Arbeitsspeicher des Browsers.";
+          default:
+            throw new Error("Unbekannte Fehlerklasse: " + loadClass);
+        }
+      }
+
+      /**
+       * Classifies a file before conversion from its size, the text of its first bytes (head) and of its last bytes
+       * (tail). Returns null if the file looks like a complete IFC2X3/IFC4 STEP file, else { loadClass, detail }.
+       */
+      export function classifyIfcFile(size, head, tail) {
+        if (!size) return { loadClass: "empty", detail: null };
+        const start = String(head || "")
+          .replace(/^(\u00ef\u00bb\u00bf|\ufeff)/, "")
+          .replace(/^\s+/, "");
+        if (start.slice(0, 13).toUpperCase() !== "ISO-10303-21;") return { loadClass: "not-ifc", detail: null };
+        const schema = /FILE_SCHEMA\s*\(\s*\(\s*'([^']*)'/i.exec(start);
+        if (!schema) return { loadClass: "unreadable", detail: "FILE_SCHEMA fehlt im Dateikopf" };
+        const name = schema[1].trim().toUpperCase();
+        if (SUPPORTED_SCHEMAS.indexOf(name) === -1) return { loadClass: "unsupported-schema", detail: schema[1].trim() };
+        const end = String(tail || "")
+          .split(String.fromCharCode(0))
+          .join("")
+          .trimEnd();
+        if (!/END-ISO-10303-21;$/i.test(end))
+          return { loadClass: "unreadable", detail: "die Datei ist unvollst\u00e4ndig (END-ISO-10303-21 fehlt)" };
+        return null;
+      }
+
+      /** Model name of a file: the file name without its extension (REQ-001 `Modell`). */
+      export function modelNameFromFile(fileName) {
+        const base = String(fileName).split(/[\\/]/).pop();
+        const dot = base.lastIndexOf(".");
+        return dot > 0 ? base.slice(0, dot) : base;
+      }
+
+      /** name, or name + " (2)", " (3)", ... so it differs from every name in `taken` (DEC-12). */
+      export function uniqueModelName(name, taken) {
+        const used = new Set(taken);
+        if (!used.has(name)) return name;
+        for (let n = 2; ; n++) {
+          const candidate = name + " (" + n + ")";
+          if (!used.has(candidate)) return candidate;
+        }
+      }
+
+      // ---------------------------------------------------------------------------------------------------------
+      // REQ-002: extraction rules (pure; the engine calls live in cv-builder)
+      // ---------------------------------------------------------------------------------------------------------
+
+      /** Classes added to the importer's defaults (spec 4.3): IFC2X3 door/window types and conversion-based units. */
+      export const IMPORTER_EXTRA_CLASSES = ["IFCDOORSTYLE", "IFCWINDOWSTYLE", "IFCCONVERSIONBASEDUNIT", "IFCMEASUREWITHUNIT"];
+      /** Spatial structure classes: never rows (IfcSpace only with the option, DEC-13). */
+      export const SPATIAL_CLASSES = [
+        "IFCPROJECT",
+        "IFCSITE",
+        "IFCBUILDING",
+        "IFCBUILDINGSTOREY",
+        "IFCSPACE",
+        "IFCSPATIALZONE",
+        "IFCEXTERNALSPATIALELEMENT",
+        "IFCFACILITY",
+        "IFCFACILITYPART",
+        "IFCBRIDGE",
+        "IFCBRIDGEPART",
+        "IFCROAD",
+        "IFCROADPART",
+        "IFCRAILWAY",
+        "IFCRAILWAYPART",
+        "IFCMARINEFACILITY",
+        "IFCMARINEPART",
+      ];
+      export const SPACE_CLASS = "IFCSPACE";
+      /** ids per getItemsData call (as ref INDEX_CHUNK_SIZE). */
+      export const INDEX_CHUNK_SIZE = 2000;
+
+      const REL_ON = { attributes: true, relations: true };
+      const REL_OFF = { attributes: false, relations: false };
+      /**
+       * getItemsData config for element rows (spec 4.3): psets/qtos/type via IsDefinedBy, type psets via
+       * HasPropertySets, materials via HasAssociations and their set/layer/profile/constituent chains. Inverse and
+       * heavy relations are switched off explicitly; otherwise nested items inherit the parent's config.
+       */
+      export const ITEM_DATA_CONFIG = {
+        attributesDefault: true,
+        relationsDefault: REL_OFF,
+        relations: {
+          IsDefinedBy: REL_ON,
+          HasPropertySets: REL_ON,
+          HasProperties: REL_ON,
+          Quantities: REL_ON,
+          HasAssociations: REL_ON,
+          ForLayerSet: REL_ON,
+          MaterialLayers: REL_ON,
+          Material: REL_ON,
+          Materials: REL_ON,
+          MaterialConstituents: REL_ON,
+          ForProfileSet: REL_ON,
+          MaterialProfiles: REL_ON,
+          DefinesOccurrence: REL_OFF,
+          ObjectTypeOf: REL_OFF,
+          AssociatedTo: REL_OFF,
+          ContainsElements: REL_OFF,
+          ContainedInStructure: REL_OFF,
+          IsDecomposedBy: REL_OFF,
+          Decomposes: REL_OFF,
+          IsNestedBy: REL_OFF,
+          Nests: REL_OFF,
+          ReferencedInStructures: REL_OFF,
+          ReferencesElements: REL_OFF,
+          RepresentationMaps: REL_OFF,
+        },
+      };
+      /** getItemsData config for IfcUnitAssignment: units, conversion factors and their base units. */
+      export const UNIT_DATA_CONFIG = {
+        attributesDefault: true,
+        relationsDefault: REL_OFF,
+        relations: { Units: REL_ON, ConversionFactor: REL_ON, UnitComponent: REL_ON, Dimensions: REL_OFF, Elements: REL_OFF },
+      };
+      /** getItemsData config for attributes only (storeys). */
+      export const ATTRIBUTES_ONLY_CONFIG = { attributesDefault: true, relationsDefault: REL_OFF };
+
+      /** Element classes of the importer that become rows: without spatial structure and type objects. */
+      export function rowClasses(elementClasses, includeSpaces) {
+        const out = [];
+        for (const name of elementClasses) {
+          const upper = String(name).toUpperCase();
+          if (/(TYPE|STYLE)$/.test(upper)) continue;
+          if (SPATIAL_CLASSES.indexOf(upper) !== -1 && !(includeSpaces && upper === SPACE_CLASS)) continue;
+          if (out.indexOf(upper) === -1) out.push(upper);
+        }
+        return out.sort();
+      }
+
+      /** One RegExp matching exactly the given category names (for getItemsOfCategories). */
+      export function categoryPattern(classes) {
+        return new RegExp("^(" + classes.map((c) => c.replace(/[^A-Z0-9_]/gi, "")).join("|") + ")$");
+      }
+
+      /** Map upper-case class name -> schema spelling (IfcWallStandardCase), from lists of schema class names. */
+      export function classNameMap(nameLists) {
+        const map = new Map();
+        for (const list of nameLists) for (const name of list) if (/^Ifc/.test(name)) map.set(name.toUpperCase(), name);
+        return map;
+      }
+
+      const val = (attr) => (attr && !Array.isArray(attr) && attr.value !== undefined ? attr.value : undefined);
+
+      // ---- units (DEC-2) ----
+      const SI_PREFIX_EXP = {
+        EXA: 18,
+        PETA: 15,
+        TERA: 12,
+        GIGA: 9,
+        MEGA: 6,
+        KILO: 3,
+        HECTO: 2,
+        DECA: 1,
+        DECI: -1,
+        CENTI: -2,
+        MILLI: -3,
+        MICRO: -6,
+        NANO: -9,
+        PICO: -12,
+        FEMTO: -15,
+        ATTO: -18,
+      };
+      const SI_PREFIX_SYMBOL = {
+        EXA: "E",
+        PETA: "P",
+        TERA: "T",
+        GIGA: "G",
+        MEGA: "M",
+        KILO: "k",
+        HECTO: "h",
+        DECA: "da",
+        DECI: "d",
+        CENTI: "c",
+        MILLI: "m",
+        MICRO: "\u00b5",
+        NANO: "n",
+        PICO: "p",
+        FEMTO: "f",
+        ATTO: "a",
+      };
+      const SI_SYMBOL = {
+        METRE: "m",
+        SQUARE_METRE: "m\u00b2",
+        CUBIC_METRE: "m\u00b3",
+        GRAM: "g",
+        SECOND: "s",
+        AMPERE: "A",
+        KELVIN: "K",
+        DEGREE_CELSIUS: "\u00b0C",
+        MOLE: "mol",
+        CANDELA: "cd",
+        RADIAN: "rad",
+        STERADIAN: "sr",
+        HERTZ: "Hz",
+        NEWTON: "N",
+        PASCAL: "Pa",
+        JOULE: "J",
+        WATT: "W",
+        COULOMB: "C",
+        VOLT: "V",
+        FARAD: "F",
+        OHM: "\u03a9",
+        SIEMENS: "S",
+        WEBER: "Wb",
+        TESLA: "T",
+        HENRY: "H",
+        LUMEN: "lm",
+        LUX: "lx",
+        BECQUEREL: "Bq",
+        GRAY: "Gy",
+        SIEVERT: "Sv",
+      };
+      const CONVERSION_SYMBOL = {
+        FOOT: "ft",
+        INCH: "in",
+        YARD: "yd",
+        MILE: "mi",
+        "SQUARE FOOT": "ft\u00b2",
+        "SQUARE INCH": "in\u00b2",
+        "SQUARE YARD": "yd\u00b2",
+        ACRE: "ac",
+        "CUBIC FOOT": "ft\u00b3",
+        "CUBIC INCH": "in\u00b3",
+        "CUBIC YARD": "yd\u00b3",
+        GALLON: "gal",
+        LITRE: "l",
+        POUND: "lb",
+        OUNCE: "oz",
+        TON: "t",
+        DEGREE: "\u00b0",
+        MINUTE: "min",
+        HOUR: "h",
+        DAY: "d",
+      };
+      const DERIVED_SYMBOL = {
+        THERMALTRANSMITTANCEUNIT: "W/(m\u00b2\u00b7K)",
+        THERMALCONDUCTANCEUNIT: "W/(m\u00b7K)",
+        MASSDENSITYUNIT: "kg/m\u00b3",
+        SPECIFICHEATCAPACITYUNIT: "J/(kg\u00b7K)",
+        VOLUMETRICFLOWRATEUNIT: "m\u00b3/s",
+        LINEARVELOCITYUNIT: "m/s",
+        MASSFLOWRATEUNIT: "kg/s",
+        HEATFLUXDENSITYUNIT: "W/m\u00b2",
+        THERMALRESISTANCEUNIT: "m\u00b2\u00b7K/W",
+        MODULUSOFELASTICITYUNIT: "N/m\u00b2",
+        MOMENTOFINERTIAUNIT: "m\u2074",
+      };
+
+      /** Unit type of each IFC measure type (values of properties and quantities). */
+      export const MEASURE_UNIT_TYPE = {
+        IFCLENGTHMEASURE: "LENGTHUNIT",
+        IFCPOSITIVELENGTHMEASURE: "LENGTHUNIT",
+        IFCNONNEGATIVELENGTHMEASURE: "LENGTHUNIT",
+        IFCAREAMEASURE: "AREAUNIT",
+        IFCVOLUMEMEASURE: "VOLUMEUNIT",
+        IFCMASSMEASURE: "MASSUNIT",
+        IFCPOSITIVEPLANEANGLEMEASURE: "PLANEANGLEUNIT",
+        IFCPLANEANGLEMEASURE: "PLANEANGLEUNIT",
+        IFCSOLIDANGLEMEASURE: "SOLIDANGLEUNIT",
+        IFCTIMEMEASURE: "TIMEUNIT",
+        IFCTHERMODYNAMICTEMPERATUREMEASURE: "THERMODYNAMICTEMPERATUREUNIT",
+        IFCMONETARYMEASURE: "MONETARYUNIT",
+        IFCELECTRICCURRENTMEASURE: "ELECTRICCURRENTUNIT",
+        IFCELECTRICVOLTAGEMEASURE: "ELECTRICVOLTAGEUNIT",
+        IFCPOWERMEASURE: "POWERUNIT",
+        IFCENERGYMEASURE: "ENERGYUNIT",
+        IFCFORCEMEASURE: "FORCEUNIT",
+        IFCPRESSUREMEASURE: "PRESSUREUNIT",
+        IFCFREQUENCYMEASURE: "FREQUENCYUNIT",
+        IFCLUMINOUSFLUXMEASURE: "LUMINOUSFLUXUNIT",
+        IFCILLUMINANCEMEASURE: "ILLUMINANCEUNIT",
+        IFCTHERMALTRANSMITTANCEMEASURE: "THERMALTRANSMITTANCEUNIT",
+        IFCTHERMALCONDUCTIVITYMEASURE: "THERMALCONDUCTANCEUNIT",
+        IFCMASSDENSITYMEASURE: "MASSDENSITYUNIT",
+        IFCSPECIFICHEATCAPACITYMEASURE: "SPECIFICHEATCAPACITYUNIT",
+        IFCVOLUMETRICFLOWRATEMEASURE: "VOLUMETRICFLOWRATEUNIT",
+        IFCLINEARVELOCITYMEASURE: "LINEARVELOCITYUNIT",
+        IFCMASSFLOWRATEMEASURE: "MASSFLOWRATEUNIT",
+        IFCHEATFLUXDENSITYMEASURE: "HEATFLUXDENSITYUNIT",
+        IFCTHERMALRESISTANCEMEASURE: "THERMALRESISTANCEUNIT",
+        IFCMODULUSOFELASTICITYMEASURE: "MODULUSOFELASTICITYUNIT",
+        IFCMOMENTOFINERTIAMEASURE: "MOMENTOFINERTIAUNIT",
+      };
+      /** Converted unit types and their target unit (DEC-2). */
+      export const SI_TARGET = { LENGTHUNIT: "m", AREAUNIT: "m\u00b2", VOLUMEUNIT: "m\u00b3" };
+
+      function siExponent(name) {
+        if (/^SQUARE_/.test(name)) return 2;
+        if (/^CUBIC_/.test(name)) return 3;
+        return 1;
+      }
+
+      /** Describes one unit item (IfcSIUnit, IfcConversionBasedUnit, IfcDerivedUnit, IfcMonetaryUnit). */
+      export function describeUnit(item) {
+        if (!item) return null;
+        const category = val(item._category);
+        const unitType = val(item.UnitType) || (category === "IFCMONETARYUNIT" ? "MONETARYUNIT" : null);
+        if (category === "IFCSIUNIT") {
+          const name = String(val(item.Name) || "");
+          const prefix = val(item.Prefix) || null;
+          const exp = prefix && SI_PREFIX_EXP[prefix] !== undefined ? SI_PREFIX_EXP[prefix] * siExponent(name) : 0;
+          return {
+            unitType,
+            kind: "si",
+            exponent: exp,
+            factor: Math.pow(10, exp),
+            label: (prefix ? SI_PREFIX_SYMBOL[prefix] || "" : "") + (SI_SYMBOL[name] || name.toLowerCase()),
+          };
+        }
+        if (category === "IFCCONVERSIONBASEDUNIT") {
+          const name = String(val(item.Name) || "");
+          const measure = (item.ConversionFactor || [])[0];
+          const component = measure ? val(measure.ValueComponent) : undefined;
+          const base = measure ? describeUnit((measure.UnitComponent || [])[0]) : null;
+          const factor = typeof component === "number" && base && base.factor !== null ? component * base.factor : null;
+          const key = name.toUpperCase().replace(/_/g, " ").trim();
+          return { unitType, kind: "conversion", factor, label: CONVERSION_SYMBOL[key] || name.toLowerCase() };
+        }
+        if (category === "IFCMONETARYUNIT") {
+          const currency = val(item.Currency);
+          return { unitType, kind: "monetary", factor: null, label: currency ? String(currency) : null };
+        }
+        if (category === "IFCDERIVEDUNIT") {
+          const own = val(item.UserDefinedType);
+          return { unitType, kind: "derived", factor: null, label: DERIVED_SYMBOL[unitType] || own || unitType };
+        }
+        return null;
+      }
+
+      /** Project units from the IfcUnitAssignment item(s): unitType -> describeUnit result (first assignment wins). */
+      export function parseUnits(unitAssignments) {
+        const units = {};
+        for (const assignment of unitAssignments || []) {
+          for (const item of assignment.Units || []) {
+            const unit = describeUnit(item);
+            if (unit && unit.unitType && !units[unit.unitType]) units[unit.unitType] = unit;
+          }
+        }
+        return units;
+      }
+
+      /**
+       * A numeric value of the given measure type in the model's units -> { value, unit }. Length/area/volume become
+       * m/m2/m3 (SI prefix or conversion factor); other measures keep the project unit (label or null).
+       */
+      export function convertUnit(value, measureType, units) {
+        const unitType = MEASURE_UNIT_TYPE[String(measureType || "").toUpperCase()];
+        if (!unitType) return { value, unit: null };
+        const unit = units && units[unitType];
+        if (SI_TARGET[unitType]) {
+          const target = SI_TARGET[unitType];
+          // SI prefixes: divide by the power of ten for negative exponents (9700 mm / 1000 = 9.7 exactly)
+          if (unit && unit.kind === "si" && unit.exponent) {
+            const scaled = unit.exponent < 0 ? value / Math.pow(10, -unit.exponent) : value * Math.pow(10, unit.exponent);
+            return { value: scaled, unit: target };
+          }
+          const factor = unit && typeof unit.factor === "number" && isFinite(unit.factor) ? unit.factor : 1;
+          return { value: factor === 1 ? value : value * factor, unit: target };
+        }
+        return { value, unit: unit && unit.label ? unit.label : null };
+      }
+
+      // ---- spatial structure ----
+
+      /**
+       * From the fragments spatial tree: storeyOf (Map localId -> storey localId, nearest IfcBuildingStorey ancestor,
+       * also through aggregation) and the storey ids. Tree nodes are { category, localId, children }; a node with a
+       * category groups items of that category.
+       */
+      export function spatialIndex(tree) {
+        const storeyOf = new Map();
+        const storeyIds = [];
+        const stack = tree ? [[tree, null, null]] : [];
+        while (stack.length) {
+          const [node, inherited, parentStorey] = stack.pop();
+          const category = node.category || inherited;
+          let storey = parentStorey;
+          if (node.localId !== null && node.localId !== undefined) {
+            if (category === "IFCBUILDINGSTOREY") {
+              storey = node.localId;
+              if (storeyIds.indexOf(storey) === -1) storeyIds.push(storey);
+            }
+            if (storey !== null && storey !== node.localId) storeyOf.set(node.localId, storey);
+          }
+          const children = node.children || [];
+          for (let i = children.length - 1; i >= 0; i--) stack.push([children[i], node.category || null, storey]);
+        }
+        return { storeyOf, storeyIds };
+      }
+
+      /** Map localId -> storey Name from spatialIndex and the storeys' item data. */
+      export function storeyNames(index, storeyItems) {
+        const names = new Map();
+        for (const item of storeyItems || []) names.set(val(item._localId), val(item.Name));
+        const out = new Map();
+        for (const [id, storey] of index.storeyOf) {
+          const name = names.get(storey);
+          if (name !== undefined && name !== null && name !== "") out.set(id, String(name));
+        }
+        return out;
+      }
+
+      // ---- materials ----
+      const MATERIAL_CHILDREN = [
+        "ForLayerSet",
+        "MaterialLayers",
+        "Material",
+        "Materials",
+        "MaterialConstituents",
+        "ForProfileSet",
+        "MaterialProfiles",
+      ];
+
+      /** Sorted distinct IfcMaterial names reachable from HasAssociations items (layer/profile/constituent sets, lists). */
+      export function materialNames(associations) {
+        const found = new Set();
+        const seen = new Set();
+        const walk = (item) => {
+          if (!item || seen.has(item)) return;
+          seen.add(item);
+          const category = String(val(item._category) || "");
+          if (category === "IFCMATERIAL") {
+            const name = val(item.Name);
+            if (name !== undefined && name !== null && name !== "") found.add(String(name));
+            return;
+          }
+          if (category.indexOf("IFCMATERIAL") !== 0) return; // classification references etc.
+          for (const key of MATERIAL_CHILDREN) for (const child of item[key] || []) walk(child);
+        };
+        for (const item of associations || []) walk(item);
+        return [...found].sort();
+      }
+
+      // ---- property values ----
+      const ATTRIBUTE_KEYS = ["Name", "ObjectType", "Tag", "PredefinedType", "Description"];
+      /** Special properties (group Allgemein) in catalogue order, with their kind. */
+      export const SPECIAL_PROPERTIES = [
+        ["Modell", "text"],
+        ["Kategorie", "text"],
+        ["Name", "text"],
+        ["GlobalId", "text"],
+        ["ObjectType", "text"],
+        ["Tag", "text"],
+        ["PredefinedType", "text"],
+        ["Description", "text"],
+        ["Typ", "text"],
+        ["Geschoss", "text"],
+        ["Material", "multi"],
+        ["Geometrie", "bool"],
+      ];
+      export const GROUP_GENERAL = "Allgemein";
+      const QUANTITY_VALUE_KEYS = ["LengthValue", "AreaValue", "VolumeValue", "CountValue", "WeightValue", "TimeValue"];
+
+      /**
+       * Normalises one IFC value { value, type } -> { value, kind, unit } or null when empty. Numbers stay numbers
+       * (converted per DEC-2), booleans become Ja/Nein, text stays text even if it looks numeric (DEC-5).
+       */
+      export function normaliseValue(attr, units) {
+        if (!attr || Array.isArray(attr)) return null;
+        const raw = attr.value;
+        if (raw === null || raw === undefined) return null;
+        if (typeof raw === "boolean") return { value: raw ? "Ja" : "Nein", kind: "bool", unit: null };
+        if (typeof raw === "number") {
+          if (!isFinite(raw)) return null;
+          const converted = convertUnit(raw, attr.type, units);
+          return { value: converted.value, kind: "number", unit: converted.unit };
+        }
+        const text = String(raw);
+        if (text === "") return null;
+        if (attr.type === "IFCLOGICAL" || attr.type === "IFCBOOLEAN") {
+          if (/^(\.?T\.?|TRUE)$/i.test(text)) return { value: "Ja", kind: "bool", unit: null };
+          if (/^(\.?F\.?|FALSE)$/i.test(text)) return { value: "Nein", kind: "bool", unit: null };
+        }
+        return { value: text, kind: "text", unit: null };
+      }
+
+      function psetEntries(pset) {
+        const out = [];
+        const name = val(pset.Name);
+        if (name === undefined || name === null) return out;
+        for (const p of pset.HasProperties || []) {
+          const propName = val(p.Name);
+          if (propName === undefined || propName === null) continue;
+          out.push([name, String(propName), p.NominalValue]);
+        }
+        for (const q of pset.Quantities || []) {
+          const propName = val(q.Name);
+          if (propName === undefined || propName === null) continue;
+          let attr;
+          for (const k of QUANTITY_VALUE_KEYS) if (q[k] && !Array.isArray(q[k])) attr = q[k];
+          if (!attr) for (const k in q) if (/Value$/.test(k) && q[k] && !Array.isArray(q[k])) attr = q[k];
+          out.push([name, String(propName), attr]);
+        }
+        return out;
+      }
+
+      const isPset = (category) => category === "IFCPROPERTYSET" || category === "IFCELEMENTQUANTITY";
+
+      /**
+       * Creates an extractor for one model. options: { modelId, modelName, units (parseUnits), storeyOf (Map localId
+       * -> storey name), withGeometry (Set of localIds), className (upper-case class -> Kategorie) }.
+       * add(item) turns one getItemsData item into a row { key, model, localId, guid, geometry, values };
+       * result() returns { rows, properties } where properties maps each pset property key to
+       * { pset, name, occurrence, type, kinds, units } (input for buildCatalog).
+       */
+      export function createExtractor(options) {
+        const rows = [];
+        const properties = new Map();
+        const units = options.units || {};
+        const className = options.className || ((c) => c);
+
+        function note(key, pset, name, normalised, fromType) {
+          let meta = properties.get(key);
+          if (!meta) {
+            meta = { pset, name, occurrence: false, type: false, kinds: new Set(), units: new Set() };
+            properties.set(key, meta);
+          }
+          if (fromType) meta.type = true;
+          else meta.occurrence = true;
+          meta.kinds.add(normalised.kind);
+          if (normalised.kind === "number") meta.units.add(normalised.unit);
+        }
+
+        function addPset(values, pset, fromType) {
+          for (const [psetName, propName, attr] of psetEntries(pset)) {
+            const normalised = normaliseValue(attr, units);
+            if (!normalised) continue;
+            const key = psetName + "." + propName;
+            values[key] = normalised.value; // occurrence psets are applied after type psets: occurrence wins (DEC-1)
+            note(key, psetName, propName, normalised, fromType);
+          }
+        }
+
+        function add(item) {
+          const localId = val(item._localId);
+          const category = String(val(item._category) || "");
+          const values = {};
+          values.Modell = options.modelName;
+          values.Kategorie = className(category);
+          for (const key of ATTRIBUTE_KEYS) {
+            const normalised = normaliseValue(item[key], units);
+            if (normalised) values[key] = normalised.kind === "number" ? normalised.value : String(normalised.value);
+          }
+          const guid = val(item._guid);
+          if (guid) values.GlobalId = String(guid);
+
+          let type = null;
+          const occurrencePsets = [];
+          for (const rel of item.IsDefinedBy || []) {
+            const relCategory = String(val(rel._category) || "");
+            if (isPset(relCategory)) occurrencePsets.push(rel);
+            else if (/(TYPE|STYLE)$/.test(relCategory)) type = rel;
+          }
+          if (type) {
+            const typeName = val(type.Name);
+            if (typeName !== undefined && typeName !== null && typeName !== "") values.Typ = String(typeName);
+            for (const pset of type.HasPropertySets || []) if (isPset(String(val(pset._category)))) addPset(values, pset, true);
+            for (const pset of type.IsDefinedBy || []) if (isPset(String(val(pset._category)))) addPset(values, pset, true);
+          }
+          for (const pset of occurrencePsets) addPset(values, pset, false);
+
+          const storey = options.storeyOf ? options.storeyOf.get(localId) : undefined;
+          if (storey) values.Geschoss = storey;
+          let materials = materialNames(item.HasAssociations);
+          if (!materials.length && type) materials = materialNames(type.HasAssociations);
+          if (materials.length) values.Material = materials;
+          const geometry = options.withGeometry ? options.withGeometry.has(localId) : false;
+          values.Geometrie = geometry ? "Ja" : "Nein";
+
+          const row = {
+            key: options.modelId + ":" + localId,
+            model: options.modelId,
+            localId,
+            guid: guid ? String(guid) : null,
+            geometry,
+            values,
+          };
+          rows.push(row);
+          return row;
+        }
+
+        return {
+          add,
+          result() {
+            return { rows, properties };
+          },
+        };
+      }
+
+      /** Rows shown under the IfcSpace option (DEC-13). */
+      export function visibleRows(rows, includeSpaces) {
+        return includeSpaces ? rows : rows.filter((row) => row.values.Kategorie !== "IfcSpace");
+      }
+
+      /** Column header of a catalogue entry: label plus unit for numbers (REQ-002). */
+      export function headerLabel(entry) {
+        return entry.kind === "number" && entry.unit ? entry.label + " (" + entry.unit + ")" : entry.label;
+      }
+
+      const compareText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+      /**
+       * Property catalogue (spec 4.3) over the given rows: Map propertyKey -> { key, label, group, kind, unit, count,
+       * header }, ordered Allgemein first (fixed order), then by group and label. models: [{ id, properties }] with
+       * the extractor's properties per model; a numeric property whose unit differs between models is `gemischt`.
+       */
+      export function buildCatalog(rows, models) {
+        const counts = new Map();
+        const present = new Set();
+        for (const row of rows) {
+          present.add(row.model);
+          for (const key in row.values) {
+            const value = row.values[key];
+            if (value === undefined || value === null || (Array.isArray(value) && !value.length)) continue;
+            counts.set(key, (counts.get(key) || 0) + 1);
+          }
+        }
+        const merged = new Map();
+        for (const model of models || []) {
+          if (!present.has(model.id)) continue;
+          for (const [key, meta] of model.properties) {
+            let m = merged.get(key);
+            if (!m) {
+              m = { pset: meta.pset, name: meta.name, occurrence: false, kinds: new Set(), unitsByModel: [] };
+              merged.set(key, m);
+            }
+            if (meta.occurrence) m.occurrence = true;
+            for (const k of meta.kinds) m.kinds.add(k);
+            if (meta.kinds.has("number")) m.unitsByModel.push(meta.units);
+          }
+        }
+        const catalog = new Map();
+        for (const [key, kind] of SPECIAL_PROPERTIES) {
+          const entry = { key, label: key, group: GROUP_GENERAL, kind, unit: null, count: counts.get(key) || 0 };
+          entry.header = headerLabel(entry);
+          catalog.set(key, entry);
+        }
+        const rest = [];
+        for (const [key, m] of merged) {
+          if (!counts.get(key)) continue;
+          let kind = "text";
+          if (m.kinds.size === 1) kind = [...m.kinds][0];
+          let unit = null;
+          if (kind === "number") {
+            const all = new Set();
+            let mixedInModel = false;
+            for (const set of m.unitsByModel) {
+              if (set.size > 1) mixedInModel = true;
+              for (const u of set) all.add(u);
+            }
+            if (mixedInModel || all.size > 1) unit = "gemischt";
+            else unit = all.size ? [...all][0] : null;
+          }
+          const entry = {
+            key,
+            label: key,
+            group: m.occurrence ? m.pset : "Typ: " + m.pset,
+            kind,
+            unit,
+            count: counts.get(key),
+          };
+          entry.header = headerLabel(entry);
+          rest.push(entry);
+        }
+        rest.sort((a, b) => compareText(a.group, b.group) || compareText(a.label, b.label));
+        for (const entry of rest) catalog.set(entry.key, entry);
+        return catalog;
+      }
     </script>
 
-    <!-- DOM: layout and status (builder and viewer file). ASCII only. -->
+    <!-- DOM: layout, model list, messages, progress and status (builder and viewer file). ASCII only. -->
     <script type="text/plain" id="cv-ui-src">
       import { coreInfo } from "calc-core";
 
@@ -282,8 +993,14 @@
         loadButton.id = "cv-load";
         loadButton.disabled = true;
         loadButton.addEventListener("click", () => fileInput.click());
+        let spacesToggle = null;
         if (mode === "builder") {
-          actions.append(fileInput, loadButton);
+          const option = el("label", "cv-option");
+          spacesToggle = el("input");
+          spacesToggle.type = "checkbox";
+          spacesToggle.id = "cv-opt-spaces";
+          option.append(spacesToggle, document.createTextNode(" R\u00e4ume (IfcSpace) einbeziehen"));
+          actions.append(option, fileInput, loadButton);
           for (const label of ["Konfiguration speichern", "Konfiguration laden", "HTML exportieren"]) {
             const button = el("button", "cv-btn", label);
             button.disabled = true;
@@ -295,7 +1012,13 @@
         const main = el("div", "cv-main");
         const filters = el("aside", "cv-panel cv-filters");
         filters.id = "cv-filters";
-        filters.append(el("h2", "", "Filter"), el("p", "cv-hint", "Filters\u00e4tze folgen."));
+        const messages = el("div", "cv-messages");
+        messages.id = "cv-messages";
+        messages.setAttribute("role", "alert");
+        const modelsTitle = el("h2", "", "Modelle");
+        const modelList = el("ul", "cv-models");
+        modelList.id = "cv-models";
+        filters.append(messages, modelsTitle, modelList, el("h2", "", "Filter"), el("p", "cv-hint", "Filters\u00e4tze folgen."));
 
         const center = el("div", "cv-center");
         const viewport = el("div", "cv-viewport");
@@ -303,7 +1026,13 @@
         const overlay = el("div", "cv-overlay");
         overlay.id = "cv-overlay";
         const overlayBox = el("div", "cv-overlay-box");
-        overlayBox.id = "cv-overlay-text";
+        const overlayText = el("div", "cv-overlay-text");
+        overlayText.id = "cv-overlay-text";
+        const progressBar = el("progress", "cv-progress");
+        progressBar.id = "cv-progress";
+        progressBar.max = 100;
+        progressBar.hidden = true;
+        overlayBox.append(overlayText, progressBar);
         overlay.append(overlayBox);
         viewport.append(overlay);
         const table = el("section", "cv-panel cv-table");
@@ -324,18 +1053,93 @@
         app.append(header, main, statusline);
         root.replaceChildren(app);
 
+        let busy = false;
+        const removeButtons = [];
+
         return {
           fileInput,
           loadButton,
+          spacesToggle,
           viewport,
-          /** Shows a progress or error message over the 3D view; null hides it. */
+          /** Shows a message over the 3D view (isError: error style); null hides it. */
           overlay(text, isError) {
             overlay.hidden = text === null;
             overlay.classList.toggle("cv-error", Boolean(isError));
-            overlayBox.textContent = text === null ? "" : text;
+            overlayText.textContent = text === null ? "" : text;
+            progressBar.hidden = true;
+          },
+          /** Progress overlay with step and percentage: { file, step, fraction (0..1 or null) }. */
+          progress(state) {
+            const percent = typeof state.fraction === "number" ? Math.floor(Math.min(Math.max(state.fraction, 0), 1) * 100) : null;
+            overlay.hidden = false;
+            overlay.classList.remove("cv-error");
+            overlayText.textContent = state.file + " \u2013 " + state.step + (percent === null ? " ..." : ": " + percent + " %");
+            progressBar.hidden = percent === null;
+            if (percent !== null) progressBar.value = percent;
+            return percent;
           },
           status(text) {
             status.textContent = text;
+          },
+          /** Adds a persistent message (error) to the filter area; the user can close it. */
+          addMessage(text) {
+            const item = el("div", "cv-message");
+            const close = el("button", "cv-message-close", "\u00d7");
+            close.title = "Meldung schlie\u00dfen";
+            close.setAttribute("aria-label", "Meldung schlie\u00dfen");
+            close.addEventListener("click", () => item.remove());
+            item.append(el("span", "cv-message-text", text), close);
+            messages.append(item);
+          },
+          /** Lists the loaded models [{ id, name, elements }] with a remove button each (builder). */
+          renderModels(models, onRemove) {
+            removeButtons.length = 0;
+            modelList.replaceChildren();
+            if (!models.length) {
+              modelList.append(el("li", "cv-hint", "Keine Modelle geladen."));
+              return;
+            }
+            for (const model of models) {
+              const item = el("li", "cv-model");
+              item.dataset.modelId = model.id;
+              const name = el("span", "cv-model-name", model.name);
+              name.title = model.name;
+              const count = el("span", "cv-model-count", model.elements.toLocaleString("de-DE"));
+              item.append(name, count);
+              if (onRemove) {
+                const remove = el("button", "cv-model-remove", "\u00d7");
+                remove.title = "Modell entfernen";
+                remove.setAttribute("aria-label", "Modell entfernen: " + model.name);
+                remove.disabled = busy;
+                remove.addEventListener("click", () => onRemove(model.id));
+                removeButtons.push(remove);
+                item.append(remove);
+              }
+              modelList.append(item);
+            }
+          },
+          setBusy(value) {
+            busy = value;
+            loadButton.disabled = value;
+            if (spacesToggle) spacesToggle.disabled = value;
+            for (const button of removeButtons) button.disabled = value;
+          },
+          /** Calls onFiles(files) for files dropped anywhere on the page (builder). */
+          onDropFiles(onFiles) {
+            app.addEventListener("dragover", (event) => {
+              if (event.dataTransfer && Array.from(event.dataTransfer.types || []).indexOf("Files") !== -1) {
+                event.preventDefault();
+                app.classList.add("cv-dragover");
+              }
+            });
+            app.addEventListener("dragleave", () => app.classList.remove("cv-dragover"));
+            app.addEventListener("drop", (event) => {
+              app.classList.remove("cv-dragover");
+              const files = event.dataTransfer ? Array.from(event.dataTransfer.files || []) : [];
+              if (!files.length) return;
+              event.preventDefault();
+              onFiles(files);
+            });
           },
         };
       }
@@ -399,11 +1203,11 @@
           renderer.render(scene, camera);
         });
 
-        const models = [];
+        const models = new Map();
 
         function fit() {
           const box = new THREE.Box3();
-          for (const model of models) box.union(model.box);
+          for (const model of models.values()) box.union(model.box);
           if (box.isEmpty()) return;
           const sphere = box.getBoundingSphere(new THREE.Sphere());
           const fov = THREE.MathUtils.degToRad(camera.fov / 2);
@@ -417,17 +1221,38 @@
         }
 
         return {
-          /** Loads .frag bytes as model modelId, fits the camera; resolves to { modelId, elements } (items with geometry). */
+          /**
+           * Loads .frag bytes as model modelId and fits the camera; resolves to { modelId, model, withGeometry }
+           * (model: the Fragments model for extraction; withGeometry: localIds of items with 3D geometry).
+           */
           async loadModel(bytes, modelId) {
             const model = await fragments.load(bytes, { modelId });
             model.useCamera(camera);
             scene.add(model.object);
-            models.push(model);
+            models.set(modelId, model);
             await fragments.update(true);
             fit();
             await fragments.update(true);
-            const ids = await model.getItemsIdsWithGeometry();
-            return { modelId, elements: ids.length };
+            const withGeometry = await model.getItemsIdsWithGeometry();
+            return { modelId, model, withGeometry };
+          },
+          /** Removes a model from scene and memory. */
+          async removeModel(modelId) {
+            const model = models.get(modelId);
+            if (!model) return;
+            models.delete(modelId);
+            scene.remove(model.object);
+            await fragments.disposeModel(modelId);
+            // Not update(true): its fence waits for a tile FINISH at the last dispatched request number, which never
+            // arrives when no model is left (observed: removing the last model hung intermittently).
+            fragments.update();
+          },
+          /** Shows or hides items of one model (e.g. IfcSpace by option, DEC-13). */
+          async setItemsVisible(modelId, localIds, visible) {
+            const model = models.get(modelId);
+            if (!model || !localIds.length) return;
+            await model.setVisible(localIds, visible);
+            await fragments.update(true);
           },
           modelCount() {
             return fragments.models.list.size;
@@ -436,58 +1261,187 @@
       }
     </script>
 
-    <!-- Entry: start({mode}) wires ui + 3d. ASCII only. -->
+    <!-- Entry: start({mode}) wires ui + 3d; holds models, rows and the property catalogue. ASCII only. -->
     <script type="text/plain" id="cv-app-src">
       import { renderLayout } from "calc-ui";
       import { createEngine } from "calc-3d";
+      import {
+        LoadError,
+        buildCatalog,
+        loadErrorMessage,
+        modelNameFromFile,
+        uniqueModelName,
+        visibleRows,
+      } from "calc-core";
 
       /**
-       * Test hook (read-only for tests): phase "starting" | "ready" | "loading" | "error", models loaded with their
-       * element counts, last error message.
+       * Test hook (read-only for tests except `test`): phase "starting" | "ready" | "loading" | "error"; models
+       * [{ id, name (file name), modell, elements, withGeometry }]; rows (visible element rows, spec 4.3); catalog
+       * (property catalogue entries in order); loadErrors [{ fileName, loadClass, message }]; progress (last
+       * { file, step, percent } or null); loads (number of finished load or remove actions, for waiting); options
+       * { includeSpaces }. `test` holds test-only switches read by the
+       * builder's conversion (crashNextConversion, neverStartNextConversion, startTimeoutMs).
        */
-      const hook = { phase: "starting", models: [], modelCount: 0, elementCount: 0, error: null };
+      const hook = {
+        phase: "starting",
+        models: [],
+        modelCount: 0,
+        elementCount: 0,
+        rows: [],
+        catalog: [],
+        loadErrors: [],
+        loads: 0,
+        progress: null,
+        error: null,
+        options: { includeSpaces: false },
+        test: { crashNextConversion: false, neverStartNextConversion: false, startTimeoutMs: null },
+      };
       window.__calc = hook;
 
+      /** Classifies any error of the load pipeline (REQ-001): LoadError keeps its class, the rest is unreadable. */
+      function toLoadError(error, fileName) {
+        if (error instanceof LoadError || (error && error.loadClass)) return error;
+        const detail = error && error.message ? error.message : String(error);
+        return new LoadError("unreadable", fileName, detail);
+      }
+
       /**
-       * options: { mode: "builder" | "viewer", root, workerUrl, convert(file, onStatus) -> Promise<Uint8Array> (builder) }.
+       * options: { mode: "builder" | "viewer", root, workerUrl,
+       *   convert(file, onProgress(fraction|null, step?)) -> Promise<{ bytes, elementClasses }> (builder),
+       *   extract(model, { modelId, modelName, elementClasses, withGeometry }, onProgress(fraction))
+       *     -> Promise<{ rows, properties, spaceIds }> (builder) }.
        */
       export async function start(options) {
         const ui = renderLayout(options.root, { mode: options.mode, title: options.title });
         ui.overlay("3D-Ansicht wird gestartet ...");
         const engine = createEngine(ui.viewport, options.workerUrl);
+        const models = []; // { id, name, fileName, rows, properties, spaceIds, withGeometry, fragBytes }
         let nextId = 1;
         let busy = false;
 
-        function report() {
+        function publish() {
+          const includeSpaces = hook.options.includeSpaces;
+          const rows = [];
+          for (const model of models) for (const row of visibleRows(model.rows, includeSpaces)) rows.push(row);
+          hook.rows = rows;
+          hook.catalog = [...buildCatalog(rows, models).values()];
+          hook.models = models.map((m) => ({
+            id: m.id,
+            name: m.fileName,
+            modell: m.name,
+            elements: visibleRows(m.rows, includeSpaces).length,
+            withGeometry: m.withGeometry,
+          }));
           hook.modelCount = engine.modelCount();
-          hook.elementCount = hook.models.reduce((sum, m) => sum + m.elements, 0);
+          hook.elementCount = rows.length;
+          ui.renderModels(
+            hook.models.map((m) => ({ id: m.id, name: m.modell, elements: m.elements })),
+            options.mode === "builder" ? removeModel : null,
+          );
           ui.status(hook.elementCount.toLocaleString("de-DE") + " Elemente in " + hook.modelCount + " Modell(en)");
+        }
+
+        function progress(file, step, fraction) {
+          const percent = ui.progress({ file, step, fraction });
+          hook.progress = { file, step, percent };
+        }
+
+        async function loadOne(file) {
+          const id = "m" + nextId++;
+          const name = uniqueModelName(
+            modelNameFromFile(file.name),
+            models.map((m) => m.name),
+          );
+          let shown = false;
+          try {
+            progress(file.name, "Pr\u00fcfung", null);
+            const converted = await options.convert(file, (fraction, step) =>
+              progress(file.name, step || "Konvertierung", fraction),
+            );
+            progress(file.name, "Anzeige", null);
+            const loaded = await engine.loadModel(converted.bytes, id);
+            shown = true;
+            progress(file.name, "Extraktion", 0);
+            const data = await options.extract(
+              loaded.model,
+              { modelId: id, modelName: name, elementClasses: converted.elementClasses, withGeometry: loaded.withGeometry },
+              (fraction) => progress(file.name, "Extraktion", fraction),
+            );
+            if (!hook.options.includeSpaces) await engine.setItemsVisible(id, data.spaceIds, false);
+            models.push({
+              id,
+              name,
+              fileName: file.name,
+              rows: data.rows,
+              properties: data.properties,
+              spaceIds: data.spaceIds,
+              withGeometry: loaded.withGeometry.length,
+              fragBytes: converted.bytes,
+            });
+            publish();
+            return true;
+          } catch (error) {
+            if (shown) await engine.removeModel(id).catch(() => {});
+            const classified = toLoadError(error, file.name);
+            const message = classified.message || loadErrorMessage(classified.loadClass, file.name, classified.detail);
+            hook.error = message;
+            hook.loadErrors.push({ fileName: file.name, loadClass: classified.loadClass, message });
+            ui.addMessage(message);
+            ui.overlay(message, true);
+            return false;
+          }
         }
 
         async function loadFiles(files) {
           if (busy || !files.length) return;
           busy = true;
-          ui.loadButton.disabled = true;
+          ui.setBusy(true);
+          hook.phase = "loading";
+          let lastOk = false;
+          try {
+            for (const file of files) lastOk = await loadOne(file);
+          } finally {
+            if (lastOk) ui.overlay(null);
+            hook.progress = null;
+            busy = false;
+            ui.setBusy(false);
+            hook.phase = "ready";
+            hook.loads++;
+          }
+        }
+
+        async function removeModel(id) {
+          const index = models.findIndex((m) => m.id === id);
+          if (busy || index === -1) return;
+          busy = true;
+          ui.setBusy(true);
           hook.phase = "loading";
           try {
-            for (const file of files) {
-              try {
-                const bytes = await options.convert(file, (text) => ui.overlay(text));
-                ui.overlay("Modell wird angezeigt: " + file.name + " ...");
-                const result = await engine.loadModel(bytes, "model-" + nextId++);
-                hook.models.push({ id: result.modelId, name: file.name, elements: result.elements });
-                report();
-              } catch (error) {
-                hook.error = error && error.message ? error.message : String(error);
-                ui.overlay(file.name + ": " + hook.error, true);
-                continue;
-              }
-              ui.overlay(null);
-            }
+            models.splice(index, 1);
+            await engine.removeModel(id);
+            publish();
           } finally {
             busy = false;
-            ui.loadButton.disabled = false;
+            ui.setBusy(false);
             hook.phase = "ready";
+            hook.loads++;
+          }
+        }
+
+        async function setIncludeSpaces(include) {
+          if (busy) return;
+          busy = true;
+          ui.setBusy(true);
+          hook.phase = "loading";
+          try {
+            hook.options.includeSpaces = Boolean(include);
+            for (const model of models) await engine.setItemsVisible(model.id, model.spaceIds, hook.options.includeSpaces);
+            publish();
+          } finally {
+            busy = false;
+            ui.setBusy(false);
+            hook.phase = "ready";
+            hook.loads++;
           }
         }
 
@@ -497,12 +1451,14 @@
             ui.fileInput.value = "";
             loadFiles(files);
           });
+          ui.onDropFiles((files) => loadFiles(files));
+          ui.spacesToggle.addEventListener("change", () => setIncludeSpaces(ui.spacesToggle.checked));
           ui.loadButton.disabled = false;
         }
         ui.overlay(options.mode === "builder" ? "IFC-Datei laden, um zu beginnen." : null);
-        report();
+        publish();
         hook.phase = "ready";
-        return { loadFiles };
+        return { loadFiles, removeModel, setIncludeSpaces };
       }
 
       /** Shows a fatal start error (library loading, drift guard) in root. */
@@ -517,14 +1473,13 @@
     <script type="text/plain" id="cv-viewer-bootstrap"></script>
 
     <script type="module" id="cv-builder">
-      // Builder-only logic (spec §4.2). Library versions are pinned; jsDelivr "+esm" resolves the dependency graph.
+      // Builder-only logic (spec \u00a74.2). Library versions are pinned; jsDelivr "+esm" resolves the dependency graph.
       const FRAGMENTS_VERSION = "3.4.7";
       const CDN = "https://cdn.jsdelivr.net";
       const FRAGMENTS_KEY = `/npm/@thatopen/fragments@${FRAGMENTS_VERSION}/+esm`;
       const WORKER_URL = `${CDN}/npm/@thatopen/fragments@${FRAGMENTS_VERSION}/dist/Worker/worker.min.mjs`;
       const NPM_IMPORT_RE = /(?:\bfrom\s*|\bimport\s*\(?\s*)["'](\/npm\/[^"']+)["']/g;
       const SOURCE_MAP_RE = /^\s*\/\/# sourceMappingURL=.*$/gm;
-      const IFCSPACE = 3856911033; // web-ifc type code of IfcSpace
 
       /**
        * Links ES module sources (key -> source text) into Blob URLs without a server or bundler (ref L163-192).
@@ -564,25 +1519,43 @@
 
       /**
        * Body of the classic IFC conversion worker (ref L1940-1981). Runs after tovLinkModules (prepended).
-       * Input { sources, aliases, fragmentsKey, wasmPath, file, includeSpaces };
-       * output { type: "phase" | "progress" | "done" | "error", ... }.
+       * Input { sources, aliases, fragmentsKey, webIfcKey, wasmPath, file, extraClasses, simulateCrash };
+       * output { type: "phase" | "progress" | "done" | "error", ... }; "done" carries the .frag bytes and the names of
+       * the importer's element classes (the candidates for rows, spec 4.3).
        */
       function convertWorkerMain() {
-        const IFCSPACE_CODE = "__IFCSPACE__";
         self.onmessage = async (event) => {
           const job = event.data;
           try {
             self.postMessage({ type: "phase", phase: "load" });
+            if (job.simulateCrash) {
+              // Test hook (REQ-001-AC2 `too-large`): an uncaught exception raises an `error` event on the Worker.
+              setTimeout(() => {
+                throw new Error("simulierter Absturz des Konverters (Testhaken)");
+              }, 0);
+              return;
+            }
             const resolve = tovLinkModules(job.sources, job.aliases);
             const FRAGS = await import(resolve(job.fragmentsKey));
+            const WEBIFC = await import(resolve(job.webIfcKey));
             self.postMessage({ type: "phase", phase: "read" });
             let bytes = new Uint8Array(await job.file.arrayBuffer());
             self.postMessage({ type: "phase", phase: "parse" });
             const importer = new FRAGS.IfcImporter();
             importer.wasm = { absolute: true, path: job.wasmPath };
-            const space = Number(IFCSPACE_CODE);
-            if (job.includeSpaces) importer.geometryProcessSettings.forceTransparentSpaces = true;
-            else importer.classes.elements.delete(space);
+            for (const name of job.extraClasses) {
+              if (typeof WEBIFC[name] !== "number") throw new Error("Unbekannte IFC-Klasse " + name);
+              importer.classes.abstract.add(WEBIFC[name]);
+            }
+            // IfcSpace is always converted (transparent); the option only shows/hides it (DEC-13).
+            importer.geometryProcessSettings.forceTransparentSpaces = true;
+            const codeNames = new Map();
+            for (const key of Object.keys(WEBIFC)) {
+              if (/^IFC[A-Z0-9]+$/.test(key) && typeof WEBIFC[key] === "number") codeNames.set(WEBIFC[key], key);
+            }
+            const elementClasses = [];
+            for (const code of importer.classes.elements)
+              if (codeNames.has(code)) elementClasses.push(codeNames.get(code));
             let lastSent = 0;
             const result = await importer.process({
               bytes,
@@ -596,7 +1569,7 @@
             bytes = null;
             let output = result instanceof Uint8Array ? result : new Uint8Array(result);
             if (output.byteLength !== output.buffer.byteLength) output = output.slice();
-            self.postMessage({ type: "done", bytes: output }, [output.buffer]);
+            self.postMessage({ type: "done", bytes: output, elementClasses }, [output.buffer]);
           } catch (error) {
             self.postMessage({ type: "error", message: error && error.message ? error.message : String(error) });
           }
@@ -663,56 +1636,152 @@
         versions = core.checkLibraryVersions(Object.keys(libSources)); // OrbitControls must not pull in another three
         aliases.three = `/npm/three@${versions.three}/+esm`;
         aliases["three/addons/controls/OrbitControls.js"] = orbitKey;
+        const webIfcKey = `/npm/web-ifc@${versions.webIfc}/+esm`;
+
+        // Kategorie spelling (IfcWallStandardCase) from the schema class names web-ifc exports.
+        const webIfc = await import(resolve(webIfcKey));
+        const classNames = core.classNameMap(
+          ["IFC2X3", "IFC4", "IFC4X3"].map((schema) => Object.keys(webIfc[schema] || {})),
+        );
 
         const worker = toClassicWorkerSource(await fetchText(WORKER_URL));
-        const convertSource =
-          tovLinkModules.toString() +
-          "\n(" +
-          convertWorkerMain.toString().replace('"__IFCSPACE__"', String(IFCSPACE)) +
-          ")();";
+        const convertSource = tovLinkModules.toString() + "\n(" + convertWorkerMain.toString() + ")();";
         return {
           resolve,
+          core,
+          classNames,
           libSources,
+          webIfcKey,
           aliases: { "@thatopen/fragments": FRAGMENTS_KEY, three: aliases.three },
           versions: { fragments: FRAGMENTS_VERSION, ...versions },
           fragmentsWorkerUrl: blobUrl(worker),
           convertWorkerUrl: blobUrl(convertSource),
+          neverStartingWorkerUrl: blobUrl("/* test hook: a worker that never answers */"),
           wasmPath: `${CDN}/npm/web-ifc@${versions.webIfc}/`,
         };
       }
 
-      const PHASES = { load: "Konverter wird geladen", read: "Datei wird gelesen", parse: "Datei wird analysiert" };
+      const PHASES = { load: "Konverter wird geladen", read: "Datei wird gelesen", parse: "Konvertierung" };
+      /** No message from the conversion worker within this time: it never started (e.g. blocked worker) -> unreadable. */
+      const WORKER_START_TIMEOUT_MS = 30000;
 
-      /** Converts one IFC file to .frag bytes in its own classic Blob worker, terminated afterwards (ref L2186-2205). */
-      function convertIfc(lib, file, onStatus) {
+      /** Reads the first and last bytes of a file and classifies it before conversion (REQ-001). */
+      async function checkFile(lib, file) {
+        const core = lib.core;
+        const decode = async (blob) => new TextDecoder("latin1").decode(await blob.arrayBuffer());
+        const head = file.size ? await decode(file.slice(0, core.HEADER_PROBE_BYTES)) : "";
+        const tail = file.size ? await decode(file.slice(Math.max(0, file.size - core.TRAILER_PROBE_BYTES))) : "";
+        const problem = core.classifyIfcFile(file.size, head, tail);
+        if (problem) throw new core.LoadError(problem.loadClass, file.name, problem.detail);
+      }
+
+      /**
+       * Converts one IFC file to .frag bytes in its own classic Blob worker, terminated afterwards (ref L2186-2205).
+       * A worker `error` event (crash, e.g. out of memory) -> too-large; an `error` message (parsing/conversion
+       * failed) -> unreadable; no message within the start timeout -> unreadable.
+       */
+      function convertIfc(lib, file, onProgress) {
+        const core = lib.core;
+        const test = window.__calc.test || {};
+        const neverStart = Boolean(test.neverStartNextConversion);
+        const simulateCrash = Boolean(test.crashNextConversion);
+        test.neverStartNextConversion = false;
+        test.crashNextConversion = false;
+        const startTimeout = test.startTimeoutMs || WORKER_START_TIMEOUT_MS;
         return new Promise((resolve, reject) => {
-          const worker = new Worker(lib.convertWorkerUrl);
+          const worker = new Worker(neverStart ? lib.neverStartingWorkerUrl : lib.convertWorkerUrl);
+          let timer = setTimeout(() => {
+            timer = null;
+            finish(
+              reject,
+              new core.LoadError(
+                "unreadable",
+                file.name,
+                `der Konverter ist nicht gestartet (keine Antwort nach ${Math.round(startTimeout / 1000)} s)`,
+              ),
+            );
+          }, startTimeout);
           const finish = (callback, value) => {
+            if (timer) clearTimeout(timer);
+            timer = null;
             worker.terminate();
             callback(value);
           };
-          onStatus(`Konverter wird gestartet: ${file.name} ...`);
+          onProgress(null, "Konverter wird gestartet");
           worker.onmessage = (event) => {
+            if (timer) clearTimeout(timer);
+            timer = null;
             const m = event.data;
-            if (m.type === "phase") onStatus(`${PHASES[m.phase]}: ${file.name} ...`);
-            else if (m.type === "progress")
-              onStatus(`${file.name}: ${Math.floor(Math.min(Math.max(m.progress, 0), 1) * 100)} %`);
-            else if (m.type === "done") finish(resolve, m.bytes);
-            else if (m.type === "error") finish(reject, new Error(m.message));
+            if (m.type === "phase") onProgress(m.phase === "parse" ? 0 : null, PHASES[m.phase]);
+            else if (m.type === "progress") onProgress(m.progress, "Konvertierung");
+            else if (m.type === "done") finish(resolve, { bytes: m.bytes, elementClasses: m.elementClasses });
+            else if (m.type === "error") finish(reject, new core.LoadError("unreadable", file.name, m.message));
           };
           worker.onerror = (event) => {
             event.preventDefault();
-            finish(reject, new Error(`Der Konverter ist abgest\u00fcrzt: ${event.message || "unbekannter Fehler"}`));
+            const error = new core.LoadError("too-large", file.name, event.message || null);
+            finish(reject, error);
           };
           worker.postMessage({
             sources: lib.libSources,
             aliases: lib.aliases,
             fragmentsKey: FRAGMENTS_KEY,
+            webIfcKey: lib.webIfcKey,
             wasmPath: lib.wasmPath,
             file,
-            includeSpaces: false,
+            extraClasses: core.IMPORTER_EXTRA_CLASSES,
+            simulateCrash,
           });
         });
+      }
+
+      const nextTask = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+      /**
+       * Extraction (spec 4.3, REQ-002): element ids via getItemsOfCategories over the importer's element classes minus
+       * spatial and type classes (IfcSpace kept; the option filters it), storeys via getSpatialStructure, units via
+       * IfcUnitAssignment, then getItemsData in chunks of INDEX_CHUNK_SIZE ids with progress and yielding.
+       */
+      async function extractModel(lib, model, info, onProgress) {
+        const core = lib.core;
+        const classes = core.rowClasses(info.elementClasses, true);
+        const [byCategory, tree, unitCategories] = await Promise.all([
+          model.getItemsOfCategories([core.categoryPattern(classes)]),
+          model.getSpatialStructure(),
+          model.getItemsOfCategories([/^IFCUNITASSIGNMENT$/]),
+        ]);
+        const ids = [];
+        const spaceIds = [];
+        for (const [category, list] of Object.entries(byCategory)) {
+          for (const id of list) ids.push(id);
+          if (category === core.SPACE_CLASS) for (const id of list) spaceIds.push(id);
+        }
+        ids.sort((a, b) => a - b);
+        const spatial = core.spatialIndex(tree);
+        const storeyItems = spatial.storeyIds.length
+          ? await model.getItemsData(spatial.storeyIds, core.ATTRIBUTES_ONLY_CONFIG)
+          : [];
+        const unitIds = Object.values(unitCategories).flat();
+        const unitItems = unitIds.length ? await model.getItemsData(unitIds, core.UNIT_DATA_CONFIG) : [];
+        const extractor = core.createExtractor({
+          modelId: info.modelId,
+          modelName: info.modelName,
+          units: core.parseUnits(unitItems),
+          storeyOf: core.storeyNames(spatial, storeyItems),
+          withGeometry: new Set(info.withGeometry),
+          className: (upper) => lib.classNames.get(upper) || upper,
+        });
+        for (let start = 0; start < ids.length; start += core.INDEX_CHUNK_SIZE) {
+          const items = await model.getItemsData(
+            ids.slice(start, start + core.INDEX_CHUNK_SIZE),
+            core.ITEM_DATA_CONFIG,
+          );
+          for (const item of items) if (item && item._localId) extractor.add(item);
+          onProgress(Math.min(1, (start + core.INDEX_CHUNK_SIZE) / ids.length));
+          await nextTask();
+        }
+        const result = extractor.result();
+        return { rows: result.rows, properties: result.properties, spaceIds };
       }
 
       const root = document.getElementById("cv-root");
@@ -725,7 +1794,11 @@
             mode: "builder",
             root,
             workerUrl: lib.fragmentsWorkerUrl,
-            convert: (file, onStatus) => convertIfc(lib, file, onStatus),
+            convert: async (file, onProgress) => {
+              await checkFile(lib, file);
+              return convertIfc(lib, file, onProgress);
+            },
+            extract: (model, info, onProgress) => extractModel(lib, model, info, onProgress),
           });
           window.__calc.versions = lib.versions;
         } catch (error) {
