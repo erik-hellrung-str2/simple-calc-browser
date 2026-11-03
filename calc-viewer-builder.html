@@ -6866,10 +6866,12 @@
         // A new message below 1280 px opens the filter drawer, where #cv-messages lives, so load errors and
         // configuration messages are seen and announced (testing INC-1 BUG-T1)
         const narrowQuery = window.matchMedia ? window.matchMedia("(max-width: 1279px)") : null;
-        new MutationObserver(() => {
+        new MutationObserver((records) => {
+          // only a message that arrives opens it, not one that goes (testing INC-1 cycle 2 BUG-T3)
+          if (!records.some((r) => r.addedNodes.length > 0)) return;
           if (!narrowQuery || !narrowQuery.matches || !messages.textContent.trim()) return;
           if (panelToggles.filters.getAttribute("aria-expanded") !== "true") setDrawer("filters");
-        }).observe(messages, { childList: true, subtree: true, characterData: true });
+        }).observe(messages, { childList: true, subtree: true });
 
         let busy = false;
         let configLoadable = false;

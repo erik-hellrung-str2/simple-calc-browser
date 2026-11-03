@@ -655,3 +655,32 @@ test("@e2e @robustness @UI below 1280 px a load error or configuration message o
   await expect(page.locator("#cv-messages")).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("@e2e @robustness @UI below 1280 px a message that goes away does not reopen the filter drawer", async ({
+  page,
+}) => {
+  // testing INC-1 cycle 2 BUG-T3: removing the no-model message (first model loaded) reopened the closed drawer
+  const errors = await openBuilder(page);
+  await page.setViewportSize({ width: 1100, height: 760 });
+  const filtersToggle = page.getByRole("button", { name: "Filter", exact: true });
+  await page
+    .locator("#cv-file-input")
+    .setInputFiles({ name: "kaputt.ifc", mimeType: "application/octet-stream", buffer: Buffer.from("%PDF-1.4 x") });
+  await expect(page.locator("#cv-messages")).toContainText("kaputt.ifc");
+  await expect(filtersToggle).toHaveAttribute("aria-expanded", "true");
+  await filtersToggle.click();
+  await page.locator("#cv-config-input").setInputFiles({
+    name: "gut.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify({ schema: "calc-viewer-config/1" }), "utf8"),
+  });
+  await expect(page.locator("#cv-messages")).toContainText("zuerst ein IFC-Modell laden");
+  await expect(filtersToggle).toHaveAttribute("aria-expanded", "true");
+  await filtersToggle.click();
+  await expect(filtersToggle).toHaveAttribute("aria-expanded", "false");
+  await loadFiles(page, FZK);
+  await expect(page.locator("#cv-messages")).not.toContainText("zuerst ein IFC-Modell laden");
+  await expect(page.locator("#cv-messages")).toContainText("kaputt.ifc");
+  await expect(filtersToggle).toHaveAttribute("aria-expanded", "false");
+  expect(errors).toEqual([]);
+});
