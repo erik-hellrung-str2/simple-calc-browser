@@ -1,9 +1,11 @@
 ---
-status: draft
+status: approved
 date: 2026-11-03
 relates_to: [INC-1, CR-A, Q-001, Q-002, Q-003, NFR-001, BUG-T2, BUG-T4, R-3, T12, ASM-001, ASM-002, ASM-003, ASM-006, ASM-007, ASM-008, DEC-1, DEC-2, DEC-3, DEC-4, DEC-5, DEC-6, DEC-7, DEC-8, DEC-9, DEC-10, DEC-11, DEC-12, DEC-13, DEC-14, DEC-15, DEC-16, DEC-17, TASK-002, TASK-007, TASK-008, TASK-009, TASK-010]
 ---
 # Decisions to confirm at the release gate — 1.0.0
+
+**Outcome (2026-11-03, human release gate):** all five blocks approved as proposed. 1.1 NFR-001 wider deviation on PCs without GPU accepted (manual GPU check T12 decides); 1.2 CR-A approved and applied as CR-001; 1.3 Q-001: keep the fixture; 1.4–1.6 release with the manual checks and known issues open (follow-ups via `/change`); blocks 2–4 approved; block 5 assumptions confirmed.
 
 The decisions the task records flag for confirmation, the spec's DEC-1..17, every open assumption and every deviation, consolidated for the human release gate. Sources: `docs/spec.md` §4.7 (DEC-1..17), `docs/tasks/*.md` ("Decision(s) to confirm"), `docs/reviews/verification-INC-1.md`, `docs/open-questions.md`, `docs/testing/report-INC-1.md`.
 
