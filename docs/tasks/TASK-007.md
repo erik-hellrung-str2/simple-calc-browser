@@ -45,7 +45,7 @@ touches: [calc-viewer-builder.html (cv-css, cv-core-src, cv-ui-src, cv-app-src),
   - **Unknown fields** go to `skipped.unknown` (`extra`, `header.x`, `table.y`, `display.z`).
   - **Normalising.** Duplicate filter sets, filter values and column filters are dropped (the first wins). The title is cut to 200 characters, widths are clamped (`normaliseColumns`), `groupBy` keeps at most 2 keys, and a `values` column filter left without values is dropped.
   - **Partial files.** A part the file does not contain (`header`, `filterSets`, `table`, `display` or a field inside one) is not in `apply`. It keeps the current state (see Decisions to confirm).
-  - Skipped values are deduplicated through a `Set` per key, so the apply stays linear in the number of values (the 60,000-value robustness test asserts parse + apply < 5 s).
+  - Skipped values are deduplicated through a `Set` per key, so the apply stays linear in the number of values (the 60,000-value robustness test asserts parse + apply < 5 s). Corrected in verification INC-1 (CODE F2): until then missing property keys and per-key invalid names were deduplicated with a list lookup (quadratic: 160,000 missing keys took 17 s); now every skip list and the duplicate checks of filter sets and column filters use a `Set`, so the whole apply is linear (test: 300,000 missing keys in filter sets, columns and column filters < 5 s).
 - **`configNotice(skipped, label)`** gives the German notice. Each list is capped at 20 entries plus `und <n> weitere`:
   ```
   Konfiguration geladen. Nicht angewendet:
@@ -106,7 +106,7 @@ touches: [calc-viewer-builder.html (cv-css, cv-core-src, cv-ui-src, cv-app-src),
   5. The notice is added when something was skipped.
   - On an error, the class message is shown and the view is unchanged.
   - The selection is not part of the configuration. It stays while its elements remain in the filter (TASK-005 / TASK-006c rule).
-- **Drop.** Dropped `.json` files are configurations: the last one is applied after the IFC files of the same drop. Every other file is loaded as IFC, as before.
+- **Drop.** Dropped `.json` files are configurations: the last one is applied after the IFC files of the same drop. Every other file is loaded as IFC, as before. Since verification INC-1 (CODE F3) every configuration load (file input, drop, `CalcConfig.loadText`) first waits until no action runs and no dropped file is queued (`whenFree()`), so a configuration dropped during a load is applied to all models of that load and of its own drop.
 - **Seams.**
   - `window.CalcConfig` = `{ state(), loadText(text, name), header() }`.
   - `window.__calc.header` = `{ title, date, logo, titleSet, dateSet }`.
@@ -160,10 +160,15 @@ touches: [calc-viewer-builder.html (cv-css, cv-core-src, cv-ui-src, cv-app-src),
   - The viewer file starts from the exported configuration: `start().applyConfiguration(config)` after the models are shown, or pass it in `options`. Today's `loadConfigurationText` refuses with no models.
   - The viewer header shows title, date and logo through `setHeader`. In viewer mode `renderLayout` creates no edit button and no save / load buttons.
   - REQ-011-AC1 viewer part.
-- **Edge.** A drop with IFC and `.json` together, made while another load runs, queues the IFC files. The configuration is then applied to the models loaded at that moment, not after the queued ones.
+- ~~**Edge.** A drop with IFC and `.json` together, made while another load runs, queues the IFC files. The configuration is then applied to the models loaded at that moment, not after the queued ones.~~ **Closed in verification INC-1 (CODE F3):** the effect was worse than recorded (with no model loaded yet the configuration was refused with `no-model`). Fixed with `whenFree()`; test `@e2e @robustness @REQ-009 a configuration dropped during a load waits for every model of the load and of its own drop` (`test/e2e/config.spec.mjs`).
 
 ## Orchestrator verification
 - Independent verification in fresh context: VERDICT PASS (REQ-009-AC1..AC3 with 11 malformed files, round trip byte-identical, REQ-011-AC1 header part, prototype-pollution and limit probes, visual review, NFR-001 after load).
 - Decisions to confirm (user, release gate): logo limit 1 MB; `Konfiguration laden` needs a loaded model; partial hand-written files keep the current state; extra error class `too-large` (> 20 MB); not saved: IfcSpace option, splitter position, collapsed details.
 - Follow-ups (TASK-008 pass): C1 a range column filter on a text column is accepted silently -> report and skip; C2 `groupBy` with more than 2 keys drops the rest silently -> name them in the notice; C3 `Konfiguration speichern` enabled without a model -> disable like `laden`.
 - TASK-007 done.
+
+## Verification INC-1 (2026-11-03)
+- CODE F2 fixed (linear apply, see `applyConfig`), CODE F3 fixed (drop during a load, see Drop / Open points).
+- UX minor 1 fixed: each configuration load replaces the messages of the one before; a load without a notice shows `Konfiguration <Datei> geladen.` (class `cv-ok`); the message "Zum Laden einer Konfiguration zuerst ein IFC-Modell laden." goes once a model is loaded. `#cv-messages` already had `role="alert"` (an implicit `aria-live`), so load errors are announced; the review's remark on that point did not hold. Test: `@e2e @REQ-009 configuration messages: ...` in `test/e2e/config.spec.mjs`; the REQ-009-AC3 test now expects one message per load.
+- The Decisions to confirm above stand unchanged. With CODE F3, "`laden` needs a model" means: a configuration loaded while no model is loaded and none is loading is refused; one dropped during a load waits for it.

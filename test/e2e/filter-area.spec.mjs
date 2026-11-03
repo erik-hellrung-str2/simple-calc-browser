@@ -6,6 +6,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
+import { viewState } from "../support/view-3d.mjs";
 import {
   addFilterSet,
   filterSet,
@@ -303,6 +304,30 @@ test("@e2e @acceptance @REQ-001-AC1 two models: a filter set `Modell` lists both
   await openBuilder(page);
   await loadFiles(page, [FZK, DUPLEX]);
   expect(await page.evaluate(() => window.__calc.modelCount)).toBe(2);
+  // verification INC-1 SYNC F6: both models are shown in 3D (CalcView.state(), spec 4.4): every row with geometry
+  // of each model is drawn opaque, none ghosted or hidden; each model's row count is the reference count
+  const view = await viewState(page);
+  const byModell = await page.evaluate((opaque) => {
+    const keys = new Set(opaque);
+    const out = {};
+    for (const row of window.__calc.rows) {
+      const m = (out[row.values.Modell] ??= { rows: 0, geometry: 0, opaque: 0, opaqueWithoutGeometry: 0 });
+      m.rows++;
+      if (row.geometry) m.geometry++;
+      if (keys.has(row.key)) row.geometry ? m.opaque++ : m.opaqueWithoutGeometry++;
+    }
+    return out;
+  }, view.opaque);
+  expect(byModell["AC20-FZK-Haus"].rows).toBe(FZK_TOTAL);
+  expect(byModell.Ifc2x3_Duplex_Architecture.rows).toBe(DUPLEX_TOTAL);
+  for (const [modell, m] of Object.entries(byModell)) {
+    expect(m.geometry, `${modell}: elements with geometry`).toBeGreaterThan(0);
+    expect(m.opaque, `${modell}: every element with geometry opaque`).toBe(m.geometry);
+    expect(m.opaqueWithoutGeometry, modell).toBe(0);
+  }
+  expect(view.opaque.length).toBe(byModell["AC20-FZK-Haus"].geometry + byModell.Ifc2x3_Duplex_Architecture.geometry);
+  expect(view.ghost).toEqual([]);
+  expect(view.hidden).toEqual([]);
   await addFilterSet(page, "Modell", "Modell");
   // both counts are reference values (STEP text, scripts/ref): rows = STEP elements minus IfcOpeningElement
   expect(await shownCounts(page, "Modell")).toEqual({
@@ -333,7 +358,9 @@ test("@e2e @UI screen layout: header, filter area ~280 px, details ~320 px colla
   for (const name of ["IFC laden", "Konfiguration speichern", "Konfiguration laden", "HTML exportieren"])
     await expect(header.getByRole("button", { name, exact: true })).toBeVisible();
   await expect(page.locator("#cv-add-filterset")).toHaveText("Filtersatz");
-  await expect(page.getByRole("button", { name: "+ Filtersatz" })).toBeVisible();
+  // `+ Filtersatz` on screen; screen readers say "Filtersatz hinzufügen", not "plus Filtersatz" (UX minor 5)
+  await expect(page.getByRole("button", { name: "Filtersatz hinzufügen", exact: true })).toBeVisible();
+  await expect(page.locator("#cv-add-filterset .cv-icon")).toHaveCount(1);
   await expect(page.locator("#cv-status")).toHaveText("0 von 0 Elementen");
   // empty filter sets before a model is loaded
   expect(await setTitles(page)).toEqual(["Kategorie", "Geschoss", "Material"]);
@@ -437,6 +464,11 @@ test("@e2e @UI data text keeps its characters (no calt/liga); search clear butto
     ".cv-search input",
     "#cv-table",
     "#cv-details .cv-details-body",
+    // verification INC-1 SYNC F4: the header title (default = Modell value, e.g. Ifc2x3_...), the legend and the
+    // grouping pickers that show property names (the colour picker text has its own rule)
+    "#cv-title",
+    "#cv-legend",
+    ".cv-group-pick-text",
   ]) {
     const style = await page
       .locator(sel)
@@ -477,6 +509,100 @@ test("@e2e @UI data text keeps its characters (no calt/liga); search clear butto
   await search.getByRole("searchbox").fill("");
 });
 
+test("@e2e @REQ-004 numeric filter values show at most 3 decimals (spec 3.2), the tooltip the exact value", async ({
+  page,
+}) => {
+  // verification INC-1 SYNC F3: labels were formatted with up to 6 decimals
+  const errors = await openBuilder(page);
+  await loadFiles(page, FZK);
+  const ref = fzkRef.columnValues["BaseQuantities.NetVolume"].byGlobalId;
+  const distinct = [...new Set(Object.values(ref))].sort((a, b) => a - b);
+  await addFilterSet(page, "NetVolume", "BaseQuantities.NetVolume");
+  const rows = await page.evaluate(() =>
+    [...document.querySelectorAll('.cv-fs[data-key="BaseQuantities.NetVolume"] .cv-fs-value')]
+      .filter((row) => !row.hidden)
+      .sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top))
+      .map((row) => {
+        const label = row.querySelector(".cv-fs-label");
+        return { text: label.textContent, title: label.title };
+      }),
+  );
+  // elements without the property (FZK_TOTAL > carriers) form the empty value, listed last
+  expect(FZK_TOTAL).toBeGreaterThan(fzkRef.columnValues["BaseQuantities.NetVolume"].carriers);
+  expect(rows.map((r) => r.text)).toEqual([
+    ...distinct.map((v) => v.toLocaleString("de-DE", { maximumFractionDigits: 3 })),
+    "(leer)",
+  ]);
+  for (const [i, row] of rows.slice(0, distinct.length).entries()) {
+    const exact = Number(row.title.replace(/\./g, "").replace(",", "."));
+    expect(Math.abs(exact - distinct[i]) / distinct[i], row.title).toBeLessThan(1e-9);
+  }
+  expect(errors).toEqual([]);
+});
+
+test("@e2e @UI below 1280 px the side panels collapse to drawers: hidden from Tab, opened with `Filter` / `Details`", async ({
+  page,
+}) => {
+  // verification INC-1 SYNC F2 / UX M1: below 1280 px both panels were 0 px wide for good, yet reachable by Tab
+  const errors = await openBuilder(page);
+  await loadFiles(page, FZK);
+  const filtersToggle = page.getByRole("button", { name: "Filter", exact: true });
+  const detailsToggle = page.getByRole("button", { name: "Details", exact: true });
+  // wide: the panels are columns, the drawer toggles are not shown
+  await expect(filtersToggle).toBeHidden();
+  await expect(detailsToggle).toBeHidden();
+  await expect(page.locator("#cv-opt-spaces")).toBeVisible();
+
+  for (const width of [1100, 1000]) {
+    await page.setViewportSize({ width, height: 760 });
+    await expect(filtersToggle).toBeVisible();
+    await expect(detailsToggle).toBeVisible();
+    // collapsed: nothing in the panels can be seen or focused
+    for (const sel of ["#cv-opt-spaces", "#cv-add-filterset", "#cv-details-toggle"]) {
+      await expect(page.locator(sel), sel).toBeHidden();
+      expect(
+        await page.locator(sel).evaluate((n) => (n.focus(), document.activeElement === n)),
+        sel + " focusable",
+      ).toBe(false);
+    }
+    const header = await page.locator(".cv-header").evaluate((n) => ({ sw: n.scrollWidth, cw: n.clientWidth }));
+    expect(header.sw, "header buttons fit").toBeLessThanOrEqual(header.cw);
+
+    // the filter drawer: 280 px over the model area, every control usable
+    await filtersToggle.click();
+    await expect(filtersToggle).toHaveAttribute("aria-expanded", "true");
+    const fb = await page.locator("#cv-filters").boundingBox();
+    expect(Math.round(fb.width)).toBe(280);
+    expect(fb.x).toBe(0);
+    await expect(page.locator("#cv-opt-spaces")).toBeVisible();
+    // the model area and the table keep the full width under the drawer
+    const cb = await page.locator("#cv-center").boundingBox();
+    expect(Math.round(cb.x)).toBe(0);
+    expect(Math.round(cb.width)).toBe(width);
+    await toggleValue(page, "Kategorie", "IfcWindow");
+    await expect(status(page)).toHaveText(`${de(FZK_ROWS_BY_KATEGORIE.IfcWindow)} von ${de(FZK_TOTAL)} Elementen`);
+    await toggleValue(page, "Kategorie", "IfcWindow");
+
+    // the details drawer replaces it (one drawer at a time), at the right edge
+    await detailsToggle.click();
+    await expect(filtersToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator("#cv-opt-spaces")).toBeHidden();
+    const db = await page.locator("#cv-details").boundingBox();
+    expect(Math.round(db.width)).toBe(320);
+    expect(Math.round(db.x + db.width)).toBe(width);
+    expect(Math.round((await page.locator("#cv-center").boundingBox()).width)).toBe(width);
+    await expect(page.locator("#cv-details-body")).toBeVisible();
+    await detailsToggle.click();
+    await expect(page.locator("#cv-details-body")).toBeHidden();
+  }
+  // back to wide: columns again
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(filtersToggle).toBeHidden();
+  expect(Math.round((await page.locator("#cv-filters").boundingBox()).width)).toBe(280);
+  await expect(page.locator("#cv-details-body")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test("@e2e @UI the builder with FZK loaded and filters active (screenshots for review)", async ({ page }) => {
   await openBuilder(page);
   await loadFiles(page, FZK);
@@ -492,4 +618,40 @@ test("@e2e @UI the builder with FZK loaded and filters active (screenshots for r
   await shot(page, "06-fzk-filters-active");
   await page.getByRole("button", { name: "Details einklappen" }).click();
   await shot(page, "07-details-collapsed");
+});
+
+test("@e2e @robustness @UI below 1280 px a load error or configuration message opens the filter drawer and is visible", async ({
+  page,
+}) => {
+  // testing INC-1 BUG-T1: #cv-messages sits in the filter panel, which is hidden below 1280 px
+  const errors = await openBuilder(page);
+  await loadFiles(page, FZK);
+  await page.setViewportSize({ width: 1100, height: 760 });
+  const filtersToggle = page.getByRole("button", { name: "Filter", exact: true });
+  await expect(filtersToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#cv-messages")).toBeHidden();
+
+  await page
+    .locator("#cv-file-input")
+    .setInputFiles({ name: "kaputt.ifc", mimeType: "application/octet-stream", buffer: Buffer.from("%PDF-1.4 x") });
+  await expect(page.locator("#cv-messages")).toContainText("kaputt.ifc");
+  await expect(page.locator("#cv-messages")).toBeVisible();
+  await expect(filtersToggle).toHaveAttribute("aria-expanded", "true");
+
+  // closed again, a configuration message opens it once more
+  await filtersToggle.click();
+  await expect(page.locator("#cv-messages")).toBeHidden();
+  await page.locator("#cv-config-input").setInputFiles({
+    name: "kaputt.json",
+    mimeType: "application/json",
+    buffer: Buffer.from("{ nicht json", "utf8"),
+  });
+  await expect(page.locator("#cv-messages")).toContainText("kein gültiges JSON");
+  await expect(page.locator("#cv-messages")).toBeVisible();
+  await expect(filtersToggle).toHaveAttribute("aria-expanded", "true");
+
+  // wide: no drawer, the message stays in the column
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator("#cv-messages")).toBeVisible();
+  expect(errors).toEqual([]);
 });

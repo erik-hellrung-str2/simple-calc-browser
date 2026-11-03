@@ -68,7 +68,8 @@ async function editHeader(page, { title, date, logo }) {
 }
 
 const notices = (page) => page.locator("#cv-messages .cv-message.cv-notice .cv-message-text");
-const errorMessages = (page) => page.locator("#cv-messages .cv-message:not(.cv-notice) .cv-message-text");
+const errorMessages = (page) => page.locator("#cv-messages .cv-message:not(.cv-notice):not(.cv-ok) .cv-message-text");
+const okMessages = (page) => page.locator("#cv-messages .cv-message.cv-ok .cv-message-text");
 
 test("@e2e @acceptance @REQ-011-AC1 header: default title and date, title / date / PNG and SVG logo set in the dialog, wrong and too large logos refused", async ({
   page,
@@ -228,6 +229,7 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   await idle(page);
   await expect(notices(page)).toHaveCount(0);
   await expect(errorMessages(page)).toHaveCount(0);
+  await expect(okMessages(page)).toHaveText([`Konfiguration ${first.fileName} geladen.`]);
   const after = await configuredState(page);
   expect(after).toEqual(before);
   // the UI follows: header, set order and collapsed state, grouping controls, display controls
@@ -324,13 +326,13 @@ test("@e2e @acceptance @REQ-009-AC3 @robustness one file per error class: its me
     message: MESSAGES["not-a-config"],
   });
 
-  for (const [i, c] of cases.entries()) {
+  for (const c of cases) {
     const result = await loadConfig(page, c.file);
     expect(result.ok, String(c.file.name || c.file)).toBe(false);
     expect(result.errorClass).toBe(c.errorClass);
-    await expect(errorMessages(page)).toHaveCount(i + 1);
-    if (typeof c.message === "string") await expect(errorMessages(page).nth(i)).toHaveText(c.message);
-    else await expect(errorMessages(page).nth(i)).toHaveText(c.message);
+    // each load replaces the messages of the one before (verification INC-1 UX minor 1): one message, this one
+    await expect(errorMessages(page)).toHaveCount(1);
+    await expect(errorMessages(page)).toHaveText(c.message);
     expect(await configuredState(page)).toEqual(stateBefore);
   }
   await expect(notices(page)).toHaveCount(0);
@@ -340,6 +342,37 @@ test("@e2e @acceptance @REQ-009-AC3 @robustness one file per error class: its me
   const loads = await page.evaluate(() => window.__calc.config.loads);
   await page.locator("#cv-config-input").setInputFiles([]);
   expect(await page.evaluate(() => window.__calc.config.loads)).toBe(loads);
+  expect(errors).toEqual([]);
+});
+
+test("@e2e @robustness tolerant load: 100,000 missing property keys in filter sets, columns and column filters apply in linear time", async ({
+  page,
+}) => {
+  // verification INC-1 CODE F2: each missing key was looked up in a list (quadratic): 160,000 keys took 17 s
+  const errors = await openWith(page, FZK);
+  const N = 100_000;
+  const keys = (prefix) => Array.from({ length: N }, (_, i) => `${prefix}-${i}`);
+  const config = {
+    schema: "calc-viewer-config/1",
+    filterSets: [...keys("satz-fehlt").map((key) => ({ key, collapsed: false, selected: [] })), { key: "Kategorie" }],
+    table: {
+      columns: [...keys("spalte-fehlt"), "Name"],
+      columnFilters: keys("filter-fehlt").map((key) => ({ key, type: "values", values: ["x"] })),
+    },
+  };
+  const text = JSON.stringify(config); // compact: about 9 MB, under CONFIG_MAX_BYTES
+  expect(text.length).toBeLessThan(20 * 1024 * 1024);
+  const result = await loadConfig(page, configFile(text));
+  const ms = await page.evaluate(() => window.__calc.config.last.ms);
+  expect(result.ok).toBe(true);
+  expect(ms, "parse and apply of 300,000 missing property keys (ms)").toBeLessThan(5_000);
+  expect(result.skipped.properties.length).toBe(3 * N);
+  expect(result.skipped.properties.slice(0, 2)).toEqual(["satz-fehlt-0", "satz-fehlt-1"]);
+  expect(result.skipped.properties.at(-1)).toBe(`filter-fehlt-${N - 1}`);
+  const state = await configuredState(page);
+  expect(state.sets.map((s) => s.key)).toEqual(["Kategorie"]);
+  expect(state.table.columns.map((c) => c.key)).toEqual(["Name"]);
+  await expect(notices(page)).toContainText("und " + (3 * N - 20).toLocaleString("de-DE") + " weitere");
   expect(errors).toEqual([]);
 });
 
@@ -479,5 +512,86 @@ test("@e2e @REQ-009 `Konfiguration speichern` is disabled without a model, like 
   await removeModel(page, "AC20-FZK-Haus");
   await expect(save).toBeDisabled();
   await expect(load).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
+/** Drops files ({ name, b64 } or { name, text }) on the builder as one drop. */
+function dropFiles(page, files) {
+  return page.evaluate((list) => {
+    const dt = new DataTransfer();
+    for (const f of list) {
+      const body = f.b64 ? Uint8Array.from(atob(f.b64), (c) => c.charCodeAt(0)) : f.text;
+      dt.items.add(new File([body], f.name));
+    }
+    const target = document.querySelector(".cv-app");
+    for (const type of ["dragover", "drop"])
+      target.dispatchEvent(new DragEvent(type, { dataTransfer: dt, bubbles: true, cancelable: true }));
+  }, files);
+}
+
+test("@e2e @robustness @REQ-009 a configuration dropped during a load waits for every model of the load and of its own drop", async ({
+  page,
+}) => {
+  // verification INC-1 CODE F3: while a load ran, the dropped IFC files were only queued and the configuration was
+  // applied at once (refused with no model loaded, or checked against an incomplete model set)
+  const errors = await openBuilder(page);
+  const cfg = (title) =>
+    JSON.stringify({
+      schema: "calc-viewer-config/1",
+      header: { title },
+      filterSets: [{ key: "Modell", collapsed: false, selected: [modell(DUPLEX)] }],
+    });
+  // 1) IFC + configuration in one drop while another load runs
+  await page.locator("#cv-file-input").setInputFiles(FZK);
+  await page.waitForFunction(() => window.__calc.phase === "loading");
+  await dropFiles(page, [
+    { name: basename(DUPLEX), b64: readFileSync(DUPLEX).toString("base64") },
+    { name: "abgelegt.json", text: cfg("Abgelegt") },
+  ]);
+  await page.waitForFunction(() => window.__calc.config.loads > 0, null, { timeout: 120_000 });
+  const first = await page.evaluate(() => ({
+    models: window.__calc.models.map((m) => m.name ?? m),
+    modelCount: window.__calc.modelCount,
+    last: window.__calc.config.last,
+  }));
+  expect(first.modelCount, "both models loaded when the configuration is applied").toBe(2);
+  expect(first.last).toMatchObject({ ok: true, fileName: "abgelegt.json", notice: null });
+  await expect(page.locator("#cv-title")).toHaveText("Abgelegt");
+  expect((await configuredState(page)).sets.find((s) => s.key === "Modell").selected).toEqual([modell(DUPLEX)]);
+
+  // 2) a configuration alone dropped while a load runs: applied after it (not refused for lack of a model)
+  await page.locator("#cv-file-input").setInputFiles(fixture("fzk-feet.ifc"));
+  await page.waitForFunction(() => window.__calc.phase === "loading");
+  await dropFiles(page, [{ name: "zweite.json", text: cfg("Zweite") }]);
+  await page.waitForFunction(() => window.__calc.config.loads > 1, null, { timeout: 120_000 });
+  const second = await page.evaluate(() => ({ modelCount: window.__calc.modelCount, last: window.__calc.config.last }));
+  expect(second.modelCount).toBe(3);
+  expect(second.last).toMatchObject({ ok: true, fileName: "zweite.json" });
+  await expect(page.locator("#cv-title")).toHaveText("Zweite");
+  expect(errors).toEqual([]);
+});
+
+test("@e2e @REQ-009 configuration messages: a success notice; outdated messages go with the next load or the first model", async ({
+  page,
+}) => {
+  // verification INC-1 UX minor 1: messages stayed after their cause was gone; a successful load gave no feedback
+  const errors = await openBuilder(page);
+  const cfg = (title) => JSON.stringify({ schema: "calc-viewer-config/1", header: { title } });
+  await dropFiles(page, [{ name: "frueh.json", text: cfg("Früh") }]);
+  await page.waitForFunction(() => window.__calc.config.loads > 0);
+  await expect(errorMessages(page)).toHaveText(["Zum Laden einer Konfiguration zuerst ein IFC-Modell laden."]);
+  await loadFiles(page, FZK);
+  await expect(errorMessages(page)).toHaveCount(0);
+  await loadConfig(page, configFile(cfg("Erste"), "erste.json"));
+  await expect(okMessages(page)).toHaveText(["Konfiguration erste.json geladen."]);
+  await loadConfig(page, configFile("{", "kaputt.json"));
+  await expect(okMessages(page)).toHaveCount(0);
+  await expect(errorMessages(page)).toHaveText([MESSAGES["invalid-json"]]);
+  const withMissing = JSON.stringify({ schema: "calc-viewer-config/1", filterSets: [{ key: "Fehlt.Nicht" }] });
+  await loadConfig(page, configFile(withMissing, "dritte.json"));
+  await expect(errorMessages(page)).toHaveCount(0);
+  await expect(notices(page)).toHaveCount(1);
+  await expect(okMessages(page)).toHaveCount(0);
+  await expect(page.locator("#cv-messages")).toHaveAttribute("role", "alert");
   expect(errors).toEqual([]);
 });

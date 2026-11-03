@@ -439,3 +439,53 @@ test("@robustness @e2e @REQ-010 @REQ-011 very long title with HTML characters an
   expect(await page.evaluate(() => window.__svgRan)).toBeUndefined();
   expect(errors).toEqual([]);
 });
+
+test("@e2e @REQ-010 @REQ-011 while the viewer starts it shows the exported title, no empty filter sets or model list, no .ifc file name", async ({
+  page,
+  browser,
+}, info) => {
+  // verification INC-1 UX minor 3: the start showed `Calc Viewer Builder`, "Keine Modelle geladen.", empty default
+  // filter sets and the progress `AC20-FZK-Haus.ifc - Anzeige`
+  const errors = await openBuilder(page);
+  await loadFiles(page, FZK);
+  await idle(page);
+  const file = await exportViewer(page, info.outputPath("viewer.html"));
+  const viewer = await openViewerFile(browser, file.path, {
+    initScript: () => {
+      window.__startLog = [];
+      new MutationObserver(() => {
+        const calc = window.__calc;
+        // the start: before the payload's models are published (modelCount still 0)
+        if (!calc || calc.phase === "ready" || calc.modelCount > 0) return;
+        const title = document.getElementById("cv-title");
+        const area = document.getElementById("cv-filter-area");
+        const models = document.getElementById("cv-models");
+        window.__startLog.push({
+          title: title ? title.textContent : null,
+          filtersShown: area ? getComputedStyle(area).visibility === "visible" : false,
+          modelsShown: models ? getComputedStyle(models).visibility === "visible" : false,
+          progress: calc.progress ? calc.progress.file : null,
+        });
+      }).observe(document, { subtree: true, childList: true, characterData: true, attributes: true });
+    },
+  });
+  try {
+    const v = viewer.page;
+    const log = await v.evaluate(() => window.__startLog);
+    expect(log.length, "states recorded during the start").toBeGreaterThan(0);
+    for (const entry of log) {
+      if (entry.title !== null) expect(entry.title).toBe(modell(FZK));
+      expect(entry.filtersShown).toBe(false);
+      expect(entry.modelsShown).toBe(false);
+      if (entry.progress !== null) expect(entry.progress).toBe(modell(FZK));
+    }
+    // ready: everything shown
+    await expect(v.locator("#cv-title")).toHaveText(modell(FZK));
+    await expect(v.locator("#cv-filter-area")).toBeVisible();
+    await expect(v.locator("#cv-models")).toBeVisible();
+    expect(viewer.errors).toEqual([]);
+  } finally {
+    await viewer.context.close();
+  }
+  expect(errors).toEqual([]);
+});

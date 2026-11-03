@@ -397,7 +397,11 @@ test("@e2e @REQ-006 switching views keeps columns, filters and grouping; columns
   expect(rows.map((r) => r.cells[GROUP_COLUMN])).toEqual(["IfcDoor"]);
   expect(rows[0].cells[COUNT_COLUMN]).toBe(deCount(FZK_KATEGORIEN.IfcDoor.count));
 
-  // drag `Geschoss` before `Modell`: the fixed columns stay first, the column order is the configuration
+  // drag `Geschoss` before `Modell`: the fixed columns stay first, the column order is the configuration.
+  // With the details panel collapsed every column fits: scrolled sideways, `Modell` would lie under the pinned
+  // `Gruppe` / `Anzahl` columns (verification INC-1 UX M3) where no drop can reach it.
+  await page.getByRole("button", { name: "Details einklappen" }).click();
+  expect(await page.locator("#cv-tbl-scroll").evaluate((n) => n.scrollWidth <= n.clientWidth)).toBe(true);
   const target = await header(page, "Modell").boundingBox();
   await header(page, "Geschoss")
     .locator(".cv-th-text")
@@ -427,5 +431,60 @@ test("@e2e @REQ-006 switching views keeps columns, filters and grouping; columns
   await page.getByRole("button", { name: "Gruppe 2 entfernen" }).click();
   expect(await groupingState(page)).toEqual({ view: "grouped", groupBy: ["Geschoss"] });
   await expect(page.locator("#cv-group-2-clear")).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("@e2e @UI grouping view at 1280 x 800: `Gruppe` and `Anzahl` stay pinned at the left while the table scrolls sideways", async ({
+  page,
+}) => {
+  // verification INC-1 UX M3: scrolled right, the sums were shown without their group name
+  const errors = await openWith(page, FZK);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await setView(page, "Gruppiert");
+  await addColumn(page, "NetVolume", VOLUME);
+  await addColumn(page, "NetSideArea", "BaseQuantities.NetSideArea");
+  await addColumn(page, "GrossVolume", "BaseQuantities.GrossVolume");
+  const grid = page.locator("#cv-tbl-scroll");
+  const overflow = await grid.evaluate((n) => n.scrollWidth - n.clientWidth);
+  expect(overflow, "the columns are wider than the table").toBeGreaterThan(100);
+  const pinnedBoxes = () =>
+    page.evaluate(
+      ({ group, count }) => {
+        const box = document.getElementById("cv-tbl-scroll").getBoundingClientRect();
+        const at = (sel) => {
+          const n = document.querySelector(sel);
+          if (!n) return null;
+          const r = n.getBoundingClientRect();
+          // the element drawn at the middle of the cell is the cell itself (not covered by a scrolled cell)
+          const hit = document.elementFromPoint(r.left + Math.min(r.width / 2, 40), r.top + r.height / 2);
+          return { x: Math.round(r.left - box.left), text: n.textContent, onTop: Boolean(hit && n.contains(hit)) };
+        };
+        return {
+          headGroup: at(`.cv-th[data-key="${group}"]`),
+          headCount: at(`.cv-th[data-key="${count}"]`),
+          rowGroup: at(`.cv-tbl-body .cv-tr.cv-grp:not([hidden]) .cv-td[data-col="${group}"]`),
+          totalGroup: at(`#cv-tbl-total .cv-td[data-col="${group}"]`),
+        };
+      },
+      { group: GROUP_COLUMN, count: COUNT_COLUMN },
+    );
+  const before = await pinnedBoxes();
+  await grid.evaluate((n) => {
+    n.scrollLeft = n.scrollWidth;
+    n.dispatchEvent(new Event("scroll"));
+  });
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  expect(await grid.evaluate((n) => n.scrollLeft)).toBeGreaterThan(100);
+  const after = await pinnedBoxes();
+  for (const part of ["headGroup", "headCount", "rowGroup", "totalGroup"]) {
+    expect(after[part], part).not.toBeNull();
+    expect(after[part].x, part + " stays at its place").toBe(before[part].x);
+    expect(after[part].text, part).toBe(before[part].text);
+    expect(after[part].onTop, part + " is drawn over the scrolled cells").toBe(true);
+  }
+  expect(after.totalGroup.text).toBe("Summe");
+  // the single-element view has no pinned columns
+  await setView(page, "Einzelelemente");
+  expect(await page.locator(".cv-pinned").count()).toBe(0);
   expect(errors).toEqual([]);
 });

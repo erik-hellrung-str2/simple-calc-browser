@@ -204,3 +204,6 @@ The TASK-004 robustness test (`click-to-frame`, Name filter on the same set) now
   - L4 toolbar wraps to two rows at 1280 px with colouring or section active (TASK-006a).
   - P2 thin margin (497 ms at 10k); NFR-001 at 30k in TASK-010, consider antialias off or cheaper frames there.
 - TASK-005 done.
+
+## Verification INC-1 (2026-11-03)
+- **CODE F1, fixed:** removed Fragments models were kept alive by two Maps keyed by the model (`signatures`, `refreshCount`), one model per load/remove cycle. Both are `WeakMap`s now and `removeModel` deletes the entries. New test seam `CalcView.liveModels()` (WeakRef per loaded model). Test: `@robustness @REQ-001 repeated load and remove of a model frees every removed model` (`test/e2e/memory-robustness.spec.mjs`, fails before the fix with 1 retained model).

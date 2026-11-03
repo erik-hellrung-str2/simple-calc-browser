@@ -132,7 +132,7 @@ All medians are within 500 ms. The complete frame for a 1,459-element group high
 - **NFR-001 for the selection.** NFR-001 names filter, sort, view switch and regrouping, not selection. The 500 ms budget was applied to the selection highlight as the closest target.
 
 ## Decisions to confirm
-- **Group selection under a changing filter** (see above): the conservative reading. The selection only shrinks, and it is cleared when empty. The alternative would be to follow the group, so its current members are selected again after a filter change. That is not decided by the spec. It is a selection rule, not a business rule of the quantities.
+- **Group selection under a changing filter — confirmed by the user on 2026-11-02 (Q-003: "only shrink", the current behaviour); no longer open (verification INC-1, SYNC F9).** Original record: the conservative reading. The selection only shrinks, and it is cleared when empty. The alternative would be to follow the group, so its current members are selected again after a filter change. That is not decided by the spec. It is a selection rule, not a business rule of the quantities.
 
 ## Open points
 - **TASK-007.** The selection is not part of the configuration; REQ-009 does not list it.
@@ -142,6 +142,9 @@ All medians are within 500 ms. The complete frame for a 1,459-element group high
 
 ## Orchestrator verification
 - Independent verification in fresh context: VERDICT PASS (REQ-007-AC1..AC5 incl. group selection and multi-group expand, break attempts, visual review at both sizes, check and both projects green; one perf run over budget only under CPU load from the parallel spike, three isolated reruns passed).
-- Decision to confirm (user): a group selection only shrinks when the filter changes and is cleared once empty.
+- Decision (confirmed by the user 2026-11-02, Q-003): a group selection only shrinks when the filter changes and is cleared once empty.
 - Follow-ups: R1 group highlight 365-592 ms for 1,459 elements (R-4 work); R2 `Esc` inside a filter search field also clears the element selection -> only clear the field (TASK-008 pass).
 - TASK-006c done.
+
+## Verification INC-1 (2026-11-03)
+- UX M2 fixed: table rows and group rows are selectable with the keyboard. Focus the table (`Tabelle Einzelelemente` / `Tabelle gruppiert`); arrows, Page Up/Down, Home and End move a row cursor (`aria-activedescendant`, red outline); Enter or Space select the row like a click; in the grouping view Right / Left expand / collapse a group row. Test: `@e2e @robustness @REQ-007 keyboard: ...` in `test/e2e/selection.spec.mjs`.

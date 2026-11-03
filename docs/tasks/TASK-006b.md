@@ -175,3 +175,8 @@ touches: [calc-viewer-builder.html (cv-css, cv-core-src, cv-ui-src, cv-app-src),
 - Accepted own decisions: `Gruppiert` starts with Kategorie; `Gruppe`/`Anzahl` fixed; text cells in `Summe` empty; arrow toggles, row click left for TASK-006c; grouping state is a separate seam.
 - Follow-ups (non-blocking): only ~6 body rows at 1280x800 in grouped view; scroll position carried over when switching views -> reset to top (TASK-006c).
 - TASK-006b done.
+
+## Verification INC-1 (2026-11-03)
+- **UX M3, fixed in part:** in the grouping view `Gruppe` and `Anzahl` are pinned at the left edge while the table scrolls sideways (head, group/element rows and the total row; opaque in their row colour; `scroll-padding-left` keeps scrolled-to cells clear of them). Test: `@e2e @UI grouping view at 1280 x 800: Gruppe and Anzahl stay pinned ...` (`test/e2e/grouping.spec.mjs`). The `@REQ-006 switching views ...` drag test now collapses the details first so its drop target is not under the pinned columns.
+- **Refinement, not changed:** quantity headers keep the spec's form `<Pset>.<Property> (<unit>)` (REQ-002-AC2, REQ-006-AC2), cut with an ellipsis at the default numeric width 150 px; the full header is the tooltip and the width can be changed (drag, keyboard). Shortening the header text would change baseline text; widening the default width would change saved default widths.
+- Numeric group labels now use at most 3 decimals (spec §3.2; see TASK-004 Verification INC-1).

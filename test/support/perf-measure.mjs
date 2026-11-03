@@ -100,3 +100,80 @@ export function summariseViewClicks(results) {
     ]),
   );
 }
+
+/**
+ * NFR-001 end to end (TASK-010): runs action (a Playwright click) and measures in the page from its click event
+ * (timeStamp, performance clock) until filter sets, table and 3D all show the new result:
+ *   filter    filter sets updated (window.__calc.filter.at; null when the input changed no filter)
+ *   table     table rendered (window.__calc.table.at; null when the table was not updated)
+ *   frame     the last changed 3D frame drawn (CalcView.changeFrames; null when the 3D view did not change) - the
+ *             complete frame; Q-002: "interaction done" for the 3D part is this frame
+ *   selected  the selection's engine calls done (CalcView.lastSelectedAt; null when the input selected nothing)
+ *   done      max(filter, table, frame, selected): the NFR-001 time
+ *   changed   number of changed 3D frames
+ *   shown     the first animation frame after done: pixels on screen (software WebGL: recorded only, Q-002)
+ * Waits until the input reacted (filter evaluation, table update or selection), then for CalcView.whenIdle().
+ */
+export async function measureInteraction(page, action) {
+  await idle(page);
+  const before = await page.evaluate(() => {
+    window.__t0 = null;
+    document.addEventListener("click", (e) => (window.__t0 = e.timeStamp), { capture: true, once: true });
+    return {
+      filter: window.__calc.filter.updates,
+      table: window.__calc.table.updates,
+      selected: window.CalcView.lastSelectedAt(),
+    };
+  });
+  await action();
+  return page.evaluate(async (b) => {
+    await new Promise((resolve) => {
+      const reacted = () =>
+        window.__calc.filter.updates > b.filter ||
+        window.__calc.table.updates > b.table ||
+        window.CalcView.lastSelectedAt() > b.selected;
+      const tick = () => (reacted() ? resolve() : requestAnimationFrame(tick));
+      tick();
+    });
+    await window.CalcView.whenIdle();
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const t0 = window.__t0;
+    const rel = (t) => (t === null ? null : Math.round((t - t0) * 10) / 10);
+    const filterAt = window.__calc.filter.updates > b.filter ? window.__calc.filter.at : null;
+    const tableAt = window.__calc.table.updates > b.table ? window.__calc.table.at : null;
+    const changes = window.CalcView.changeFrames().filter((t) => t > t0);
+    const frameAt = changes.length ? changes[changes.length - 1] : null;
+    const selectedAt = window.CalcView.lastSelectedAt() > b.selected ? window.CalcView.lastSelectedAt() : null;
+    const doneAt = Math.max(...[filterAt, tableAt, frameAt, selectedAt].filter((t) => t !== null));
+    const shown = window.CalcView.shownFrames().find((t) => t > doneAt);
+    return {
+      filter: rel(filterAt),
+      table: rel(tableAt),
+      frame: rel(frameAt),
+      selected: rel(selectedAt),
+      done: rel(doneAt),
+      changed: changes.length,
+      shown: shown === undefined ? null : rel(shown),
+      count: window.__calc.filter.count,
+    };
+  }, before);
+}
+
+/** Medians (and max) of measureInteraction runs: { done, doneMax, filter, table, frame, shown, changed, runs }. */
+export function summariseInteractions(runs) {
+  const med = (xs) => {
+    const v = xs.filter((x) => x !== null).sort((a, b) => a - b);
+    return v.length ? v[Math.floor(v.length / 2)] : null;
+  };
+  return {
+    done: med(runs.map((r) => r.done)),
+    doneMax: Math.max(...runs.map((r) => r.done)),
+    filter: med(runs.map((r) => r.filter)),
+    table: med(runs.map((r) => r.table)),
+    frame: med(runs.map((r) => r.frame)),
+    shown: med(runs.map((r) => r.shown)),
+    changed: runs.map((r) => r.changed),
+    selected: med(runs.map((r) => r.selected ?? null)),
+    runs: runs.map((r) => Math.round(r.done)),
+  };
+}

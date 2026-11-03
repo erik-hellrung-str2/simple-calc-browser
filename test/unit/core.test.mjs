@@ -31,7 +31,7 @@ test("[unit] extractScript reports a missing block", () => {
 });
 
 test("[unit] embedded source blocks are ASCII only (spec §4.2)", () => {
-  for (const id of ["cv-core-src", "cv-ui-src", "cv-3d-src", "cv-app-src", "cv-viewer-bootstrap"]) {
+  for (const id of ["cv-core-src", "cv-ui-src", "cv-3d-src", "cv-app-src", "cv-viewer-guard", "cv-viewer-bootstrap"]) {
     const src = extractScript(html, id);
     const bad = [...src].findIndex((c) => c.charCodeAt(0) > 0x7f);
     assert.equal(bad, -1, `${id} contains a non-ASCII character; use a \\u escape`);

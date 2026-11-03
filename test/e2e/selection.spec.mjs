@@ -458,3 +458,62 @@ test("@e2e @REQ-007-AC5 Esc inside a filter search field clears only the field, 
   await expect.poll(async () => (await selection(page)).selected).toBeNull();
   expect(errors).toEqual([]);
 });
+
+test("@e2e @robustness @REQ-007 keyboard: arrows move the row cursor, Enter / Space select a row or group like a click, Right / Left expand / collapse", async ({
+  page,
+}) => {
+  // verification INC-1 UX M2: rows were selectable with the mouse only
+  const errors = await openWith(page, FZK);
+  const grid = page.locator("#cv-tbl-scroll");
+  await grid.focus();
+  const cursorRow = () =>
+    page.evaluate(() => {
+      const box = document.getElementById("cv-tbl-scroll");
+      const node = box.querySelector(".cv-tr.cv-cursor");
+      return {
+        index: node ? Number(node.getAttribute("aria-rowindex")) - 2 : -1,
+        active: box.getAttribute("aria-activedescendant"),
+        id: node ? node.id : null,
+      };
+    });
+  const keys = await page.evaluate(() => window.__calc.table.keys.slice());
+  expect(keys.length).toBe(await page.evaluate(() => window.__calc.rows.length));
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  expect(await cursorRow()).toEqual({ index: 1, active: "cv-tr-cursor", id: "cv-tr-cursor" });
+  expect((await selection(page)).selected).toBeNull();
+  await page.keyboard.press("Enter");
+  await idle(page);
+  expect((await selection(page)).selected).toBe(keys[1]);
+  expect((await details(page)).key).toBe(keys[1]);
+  expect((await markedRows(page)).keys).toEqual([keys[1]]);
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press(" ");
+  await idle(page);
+  expect((await selection(page)).selected).toBe(keys[2]);
+  // End moves to the last row and scrolls it into view
+  await page.keyboard.press("End");
+  expect((await cursorRow()).index).toBe(keys.length - 1);
+  expect((await rowVisibility(page, keys.at(-1))).visible).toBe(true);
+  await page.keyboard.press("Enter");
+  await idle(page);
+  expect((await selection(page)).selected).toBe(keys.at(-1));
+  expect(await grid.evaluate((n) => document.activeElement === n)).toBe(true);
+
+  // grouped view: Enter on a group row selects its elements, Right / Left expand and collapse it
+  await setView(page, "Gruppiert");
+  await grid.focus();
+  await page.keyboard.press("Home");
+  const first = await page.evaluate(() => window.__calc.table.display[0]);
+  expect(first.type).toBe("group");
+  await page.keyboard.press("Enter");
+  await idle(page);
+  expect((await selection(page)).selectedGroup).toBe(first.id);
+  expect((await details(page)).group).toBe(first.id);
+  expect(first.expanded).toBe(false);
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(() => page.evaluate(() => window.__calc.table.display[0].expanded)).toBe(true);
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(() => page.evaluate(() => window.__calc.table.display[0].expanded)).toBe(false);
+  expect(errors).toEqual([]);
+});

@@ -8,7 +8,9 @@ import { fetched, loadFiles, openBuilder } from "../support/builder.mjs";
 
 const SET = ["Ifc2x3_SampleCastle.ifc", "Ifc2x3_SampleCastle.ifc", "Ifc4_Revit_MEP.ifc"].map(fetched);
 
-test("@perf @REQ-001 @NFR-002 multi-model set >= 100 MB loads without crash (R-2 smoke)", async ({ page }, info) => {
+test("@perf @robustness @REQ-001 @NFR-002 multi-model set >= 100 MB loads without crash (R-2 smoke)", async ({
+  page,
+}, info) => {
   test.skip(info.project.name !== "file", "one run is enough; the file project is the user's path");
   test.setTimeout(900_000);
   const totalBytes = SET.reduce((sum, f) => sum + statSync(f).size, 0);

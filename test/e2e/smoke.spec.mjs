@@ -30,7 +30,7 @@ async function nonBackgroundShare(page, png) {
   );
 }
 
-test("@smoke builder loads AC20-FZK-Haus.ifc and shows it in 3D @REQ-001", async ({ page, net }) => {
+test("@smoke @system builder loads AC20-FZK-Haus.ifc and shows it in 3D @REQ-001", async ({ page, net }) => {
   test.setTimeout(120_000);
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));

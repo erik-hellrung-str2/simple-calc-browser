@@ -122,3 +122,6 @@ touches: [calc-viewer-builder.html (cv-core-src, cv-ui-src, cv-app-src, cv-viewe
 - Decisions to confirm (release gate): header date is the export date; IfcSpace setting travels with the file without a switch; expanded groups, selection and panel layout not exported; dropped files ignored in the viewer; `HTML exportieren` needs a model.
 - Follow-ups (TASK-010): V1 a truncated viewer file stays at `Viewer wird geladen ...` forever -> timeout with a German error; V2 a corrupted payload shows English browser text (`Failed to fetch`) -> German message; V3 unused external URLs inside the bundled libraries (never requested) -> strip or document for NFR-005; small models give 55-59 % file ratio (fixed ~1 MB runtime; NFR-003 applies to >= 100 MB).
 - TASK-009 done.
+
+## Verification INC-1 (2026-11-03)
+- **UX minor 3, fixed:** while the viewer file starts it shows the exported header (title from the configuration, else the first model's name; the exported date) instead of `Calc Viewer Builder`; the model list and the filter sets stay hidden until the payload is applied (`cv-starting`); the progress names the model (`AC20-FZK-Haus`), not an `.ifc` file the viewer does not contain. Test: `@e2e @REQ-010 @REQ-011 while the viewer starts ...` (`test/e2e/viewer.spec.mjs`).

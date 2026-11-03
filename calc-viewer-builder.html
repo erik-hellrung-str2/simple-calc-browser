@@ -280,6 +280,9 @@
         font-size: 13px;
       }
       .cv-center {
+        /* placed explicitly: stays in the middle column when a side panel is a drawer (out of flow, below 1280 px) */
+        grid-column: 2;
+        grid-row: 1;
         display: grid;
         grid-template-rows: minmax(0, 55fr) 6px minmax(0, 45fr);
         min-height: 0;
@@ -360,6 +363,31 @@
       }
       .cv-overlay.cv-error .cv-overlay-box {
         color: var(--cv-err);
+      }
+      /* progress bar in the accent red (UI-02, TASK-010), not the browser's default blue */
+      .cv-progress {
+        display: block;
+        width: 100%;
+        height: 6px;
+        margin-top: 8px;
+        appearance: none;
+        border: 0;
+        border-radius: 3px;
+        overflow: hidden;
+        background: var(--cv-line);
+        color: var(--cv-accent);
+        accent-color: var(--cv-accent);
+      }
+      .cv-progress::-webkit-progress-bar {
+        background: var(--cv-line);
+        border-radius: 3px;
+      }
+      .cv-progress::-webkit-progress-value {
+        background: var(--cv-accent);
+        border-radius: 3px;
+      }
+      .cv-progress::-moz-progress-bar {
+        background: var(--cv-accent);
       }
       .cv-statusline {
         display: flex;
@@ -447,6 +475,15 @@
       .cv-message.cv-notice {
         border-left-color: var(--cv-ink-2);
         background: var(--cv-bg);
+        color: var(--cv-ink);
+      }
+      .cv-starting .cv-filter-area,
+      .cv-starting .cv-models {
+        visibility: hidden;
+      }
+      .cv-message.cv-ok {
+        border-left-color: #2e7d4f;
+        background: #eef7f1;
         color: var(--cv-ink);
       }
 
@@ -595,6 +632,9 @@
        * Data text (values, model names, property keys, search input, table, details) keeps the exact characters of the model: no
        * contextual alternates or ligatures (Inter, a common system-ui font, renders "2x3" with a multiplication sign).
        */
+      .cv-title,
+      .cv-legend,
+      .cv-group-pick-text,
       .cv-fs-label,
       .cv-fs-title,
       .cv-model-name,
@@ -1100,6 +1140,11 @@
       .cv-tbl-scroll:focus-visible {
         box-shadow: inset 0 0 0 2px var(--cv-accent);
       }
+      /* keyboard row cursor (arrow keys; Enter / Space select like a click, verification INC-1 UX M2) */
+      .cv-tbl-scroll:focus .cv-tr.cv-cursor {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: -2px;
+      }
       .cv-tbl-inner {
         position: relative;
         min-width: 100%;
@@ -1226,12 +1271,32 @@
         border-bottom: 1px solid #f0f1f2;
         font-size: 13px;
         background: #fff;
+        --cv-row: #fff; /* the row colour, repeated by the pinned cells */
       }
       .cv-tr.cv-odd {
         background: #fafbfb;
+        --cv-row: #fafbfb;
       }
       .cv-tr:hover {
         background: var(--cv-accent-soft);
+        --cv-row: var(--cv-accent-soft);
+      }
+      /*
+       * Grouping view: `Gruppe` and `Anzahl` stay pinned at the left while the table scrolls sideways (verification
+       * INC-1 UX M3); opaque in the colour of their row, head and total row.
+       */
+      .cv-td.cv-pinned,
+      .cv-th.cv-pinned {
+        z-index: 1;
+        background-color: #fff;
+        background-image: linear-gradient(var(--cv-row, #fff), var(--cv-row, #fff));
+      }
+      .cv-th.cv-pinned,
+      .cv-tbl-foot .cv-td.cv-pinned {
+        background: var(--cv-bg);
+      }
+      .cv-pin-edge {
+        box-shadow: 4px 0 4px -2px rgba(53, 56, 58, 0.18);
       }
       .cv-td {
         position: absolute;
@@ -1285,18 +1350,22 @@
       }
       .cv-tr.cv-grp {
         background: #f7f8f9;
+        --cv-row: #f7f8f9;
         font-weight: 600;
       }
       .cv-tr.cv-grp-l1 {
         background: #eef0f2;
+        --cv-row: #eef0f2;
       }
       .cv-tr.cv-grp:hover {
         background: var(--cv-accent-soft);
+        --cv-row: var(--cv-accent-soft);
       }
       /* Selection (TASK-006c, REQ-007): the selected element rows and the selected group row */
       .cv-tr.cv-sel,
       .cv-tr.cv-sel:hover {
         background: rgba(215, 38, 34, 0.14);
+        --cv-row: rgba(215, 38, 34, 0.14);
         box-shadow: inset 3px 0 0 var(--cv-accent);
       }
       .cv-grp-toggle {
@@ -1607,9 +1676,17 @@
         text-align: right;
       }
 
+      /*
+       * Below 1280 px the side panels collapse to drawers (spec 2 Devices; verification INC-1 SYNC F2 / UX M1): hidden
+       * (not reachable by Tab) until opened with `Filter` / `Details` in the header, then over the model area.
+       */
+      .cv-panel-toggle {
+        display: none;
+      }
       @media (max-width: 1279px) {
         .cv-main,
         .cv-main.cv-details-collapsed {
+          position: relative;
           grid-template-columns: 0 minmax(0, 1fr) 0;
         }
         .cv-filters,
@@ -1617,6 +1694,36 @@
           padding: 0;
           overflow: hidden;
           border: 0;
+          visibility: hidden;
+        }
+        .cv-main.cv-show-filters .cv-filters,
+        .cv-main.cv-show-details .cv-details {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          z-index: 30;
+          visibility: visible;
+          padding: 12px 14px;
+          overflow: auto;
+          box-shadow: 0 6px 24px rgba(53, 56, 58, 0.22);
+        }
+        .cv-main.cv-show-filters .cv-filters {
+          left: 0;
+          width: 280px;
+          overflow-x: hidden;
+          border-right: 1px solid var(--cv-line);
+        }
+        .cv-main.cv-show-details .cv-details {
+          right: 0;
+          width: 320px;
+          border-left: 1px solid var(--cv-line);
+        }
+        .cv-panel-toggle {
+          display: inline-flex;
+        }
+        .cv-panel-toggle[aria-expanded="true"] {
+          border-color: var(--cv-accent);
+          color: var(--cv-accent);
         }
       }
     </style>
@@ -3564,11 +3671,19 @@
        */
       export function applyConfig(config, ctx) {
         const skipped = { properties: [], values: [], invalid: [], unknown: [] };
+        // Sets next to the lists keep the apply linear in the file size (CONFIG_MAX_BYTES protects the tab; a list
+        // lookup per entry was quadratic: 160,000 missing keys took 17 s, verification INC-1 CODE F2)
+        const missingSeen = new Set();
+        const invalidSeen = new Set();
         const missing = (key) => {
-          if (!skipped.properties.includes(key)) skipped.properties.push(key);
+          if (missingSeen.has(key)) return;
+          missingSeen.add(key);
+          skipped.properties.push(key);
         };
         const invalid = (what) => {
-          if (!skipped.invalid.includes(what)) skipped.invalid.push(what);
+          if (invalidSeen.has(what)) return;
+          invalidSeen.add(what);
+          skipped.invalid.push(what);
         };
         const unknownFields = (obj, path) => {
           if (!isPlainObject(obj)) return;
@@ -3628,17 +3743,19 @@
           if (!Array.isArray(config.filterSets)) invalid("Filters\u00e4tze");
           else {
             apply.filterSets = [];
+            const appliedSets = new Set();
             for (const s of config.filterSets) {
               if (!isPlainObject(s) || typeof s.key !== "string" || s.key === "") {
                 invalid("Filters\u00e4tze");
                 continue;
               }
-              if (apply.filterSets.some((x) => x.key === s.key)) continue;
+              if (appliedSets.has(s.key)) continue;
               if (!has(s.key)) {
                 missing(s.key);
                 continue;
               }
               if (s.collapsed !== undefined && typeof s.collapsed !== "boolean") invalid("Filtersatz " + s.key);
+              appliedSets.add(s.key);
               apply.filterSets.push({
                 key: s.key,
                 collapsed: s.collapsed === true,
@@ -3686,13 +3803,14 @@
             } else if (t.sort !== undefined) invalid("Sortierung");
             if (Array.isArray(t.columnFilters)) {
               table.columnFilters = [];
+              const appliedFilters = new Set();
               for (const f of t.columnFilters) {
                 if (!isPlainObject(f) || typeof f.key !== "string" || f.key === "") {
                   invalid("Spaltenfilter");
                   continue;
                 }
                 const what = "Spaltenfilter " + f.key;
-                if (table.columnFilters.some((x) => x.key === f.key)) continue;
+                if (appliedFilters.has(f.key)) continue;
                 if (!has(f.key)) {
                   missing(f.key);
                   continue;
@@ -3708,10 +3826,16 @@
                   const min = bound(f.min);
                   const max = bound(f.max);
                   if (min === undefined || max === undefined || (min === null && max === null)) invalid(what);
-                  else table.columnFilters.push({ key: f.key, type: "range", min, max });
+                  else {
+                    appliedFilters.add(f.key);
+                    table.columnFilters.push({ key: f.key, type: "range", min, max });
+                  }
                 } else if (f.type === "values") {
                   const values = selection(f.key, f.values, what);
-                  if (values.length) table.columnFilters.push({ key: f.key, type: "values", values });
+                  if (values.length) {
+                    appliedFilters.add(f.key);
+                    table.columnFilters.push({ key: f.key, type: "values", values });
+                  }
                 } else invalid(what);
               }
             } else if (t.columnFilters !== undefined) invalid("Spaltenfilter");
@@ -3771,7 +3895,7 @@
           return more > 0 ? shown + " und " + more.toLocaleString("de-DE") + " weitere" : shown;
         };
         const valueText = (v) =>
-          v === null ? EMPTY_LABEL : typeof v === "number" ? v.toLocaleString("de-DE", { maximumFractionDigits: 6 }) : v;
+          v === null ? EMPTY_LABEL : typeof v === "number" ? v.toLocaleString("de-DE", { maximumFractionDigits: 3 }) : v;
         const lines = ["Konfiguration geladen. Nicht angewendet:"];
         if (skipped.properties.length)
           lines.push("Eigenschaften, die in den geladenen Modellen fehlen: " + list(skipped.properties) + ".");
@@ -4381,8 +4505,8 @@
       /**
        * The viewer file as a list of text parts (spec 4.2: a fixed skeleton, never the live DOM). input: { title,
        * generator (text of the generator meta), exported (ISO time of the export, the only part that differs between
-       * two exports of the same state), css, helpers (classic script: tovLinkModules), bootstrap (classic script),
-       * payloads [{ id, base64 }] }. Title and meta values are HTML-escaped; css and scripts must not contain a closing
+       * two exports of the same state), css, guard (classic script run before the payloads: start guard, TASK-010),
+       * helpers (classic script: tovLinkModules), bootstrap (classic script), payloads [{ id, base64 }] }. Title and meta values are HTML-escaped; css and scripts must not contain a closing
        * script / style tag or a comment opener in a script (checked: an Error names the part), payloads are Base64 (gzip) text.
        */
       export function viewerHtmlParts(input) {
@@ -4390,9 +4514,12 @@
         const OPEN = "<" + "script"; // never literal in a script block: it would change how the builder is parsed
         const checks = [
           ["css", input.css, /<\/style/i],
+          ["guard", input.guard, /<\/script|<!-{2}/i],
           ["helpers", input.helpers, /<\/script|<!-{2}/i],
           ["bootstrap", input.bootstrap, /<\/script|<!-{2}/i],
         ];
+        for (const [name, text] of checks)
+          if (typeof text !== "string") throw new Error("Viewer-Datei: " + name + " fehlt.");
         for (const [name, text, re] of checks) if (re.test(text)) throw new Error("Viewer-Datei: " + name + " enth\u00e4lt ein schlie\u00dfendes Tag.");
         for (const p of input.payloads)
           if (!/^[A-Za-z0-9+/=]*$/.test(p.base64)) throw new Error("Viewer-Datei: Nutzdaten " + p.id + " sind kein Base64.");
@@ -4405,6 +4532,7 @@
           "<title>" + escapeHtml(input.title) + "</title>\n",
           '<style id="cv-css">' + input.css + "</style>\n",
           '</head>\n<body>\n<div id="cv-root">Viewer wird geladen ...</div>\n',
+          OPEN + ' id="cv-viewer-guard">' + input.guard + CLOSE + "\n",
         ];
         for (const p of input.payloads) {
           parts.push(OPEN + ' type="application/octet-stream" id="' + escapeHtml(p.id) + '">');
@@ -4481,8 +4609,14 @@
       /** Text of a filter value: numbers in German format, the empty value as "(leer)" (REQ-004). */
       export function valueLabel(value) {
         if (value === null || value === undefined) return EMPTY_LABEL;
-        if (typeof value === "number") return value.toLocaleString("de-DE", { maximumFractionDigits: 6 });
+        if (typeof value === "number") return value.toLocaleString("de-DE", { maximumFractionDigits: 3 });
         return String(value);
+      }
+
+      /** Tooltip of a filter value: like valueLabel, but a number with every decimal (labels round to 3, spec 3.2). */
+      export function valueTitle(value) {
+        if (typeof value === "number") return value.toLocaleString("de-DE", { maximumFractionDigits: 20 });
+        return valueLabel(value);
       }
 
       /**
@@ -4608,7 +4742,7 @@
             dot.style.background = item.colour || "";
             dot.classList.toggle("cv-dot-on", Boolean(item.colour));
             label.textContent = text;
-            label.title = text;
+            label.title = valueTitle(item.value);
             label.classList.toggle("cv-empty-value", item.value === null);
             count.textContent = formatCount(item.count);
           },
@@ -4719,7 +4853,8 @@
         add.type = "button";
         add.id = "cv-add-filterset";
         add.append(icon("plus"), document.createTextNode("Filtersatz"));
-        add.setAttribute("aria-label", "+ Filtersatz");
+        // visible text "+ Filtersatz" (REQ-003); the accessible name is spoken without the plus (verification INC-1 UX minor 5)
+        add.setAttribute("aria-label", "Filtersatz hinzuf\u00fcgen");
         add.title = "Filtersatz hinzuf\u00fcgen";
         head.append(heading, add);
         const resetAll = el("button", "cv-link cv-fa-reset", "Alle Filter zur\u00fccksetzen");
@@ -5241,6 +5376,7 @@
         let dragKey = null;
         let resizing = false;
         let selKeys = null; // Set of selected element keys (REQ-007) or null
+        let cursor = -1; // display index of the keyboard row cursor, -1 = none
         let selGroup = null; // id of the selected group row or null
 
         function layoutColumns() {
@@ -5562,10 +5698,36 @@
           const last = Math.min(rowCount, Math.ceil((top + viewHeight) / TABLE_ROW_HEIGHT) + TABLE_OVERSCAN_ROWS);
           const left = scroll.scrollLeft - TABLE_OVERSCAN_PX;
           const right = scroll.scrollLeft + (scroll.clientWidth || 800) + TABLE_OVERSCAN_PX;
-          let c0 = 0;
+          // grouping view: the leading fixed columns (Gruppe, Anzahl) are pinned at the left edge (UX M3)
+          let pinned = 0;
+          if (grouped) while (pinned < columns.length && columns[pinned].fixed) pinned++;
+          const shift = Math.max(0, scroll.scrollLeft);
+          // scrolling an element into view (focus, find) keeps it clear of the pinned columns
+          const padLeft = pinned ? offsets[pinned] + "px" : "";
+          if (scroll.style.scrollPaddingLeft !== padLeft) scroll.style.scrollPaddingLeft = padLeft;
+          let c0 = pinned;
           while (c0 < columns.length && offsets[c0 + 1] < left) c0++;
           let c1 = c0;
           while (c1 < columns.length && offsets[c1] <= right) c1++;
+          const shown = [];
+          for (let c = 0; c < pinned; c++) shown.push(c);
+          for (let c = c0; c < c1; c++) shown.push(c);
+          // head cells are written only when their place changes (a write during a column drag ends the drag)
+          for (let c = 0; c < headCells.length; c++) {
+            const cell = headCells[c];
+            const pin = c < pinned;
+            const leftPx = offsets[c] + (pin ? shift : 0) + "px";
+            if (cell.style.left !== leftPx) cell.style.left = leftPx;
+            if (cell.cvPin !== pin) {
+              cell.cvPin = pin;
+              cell.classList.toggle("cv-pinned", pin);
+            }
+            const edge = pin && c === pinned - 1;
+            if (cell.cvPinEdge !== edge) {
+              cell.cvPinEdge = edge;
+              cell.classList.toggle("cv-pin-edge", edge);
+            }
+          }
           while (pool.length < last - first) pool.push(createRow());
           for (let p = 0; p < pool.length; p++) {
             const node = pool[p];
@@ -5609,6 +5771,13 @@
               node.dataset.group = item.group.id;
               node.dataset.level = String(item.group.level);
             }
+            const atCursor = index === cursor;
+            if (node.cvCursor !== atCursor) {
+              node.cvCursor = atCursor;
+              node.classList.toggle("cv-cursor", atCursor);
+              if (atCursor) node.id = "cv-tr-cursor";
+              else node.removeAttribute("id");
+            }
             const on = row ? selKeys !== null && selKeys.has(row.key) : selGroup !== null && item.group.id === selGroup;
             if (node.cvSel !== on) {
               node.cvSel = on;
@@ -5630,11 +5799,18 @@
               delete node.dataset.depth;
             }
             let q = 0;
-            for (let c = c0; c < c1; c++, q++) {
+            for (const c of shown) {
               const col = columns[c];
-              const cell = cellAt(node, q);
+              const cell = cellAt(node, q++);
               cell.hidden = false;
-              cell.style.left = offsets[c] + "px";
+              const pin = c < pinned;
+              cell.style.left = offsets[c] + (pin ? shift : 0) + "px";
+              if (cell.cvPin !== pin || cell.cvPinEdge !== (pin && c === pinned - 1)) {
+                cell.cvPin = pin;
+                cell.cvPinEdge = pin && c === pinned - 1;
+                cell.classList.toggle("cv-pinned", pin);
+                cell.classList.toggle("cv-pin-edge", cell.cvPinEdge);
+              }
               cell.style.width = col.width + "px";
               cell.dataset.col = col.key;
               cell.setAttribute("aria-colindex", String(c + 1));
@@ -5657,7 +5833,17 @@
             // cells of columns outside the visible width (or of removed columns, D-a) keep no stale column or text
             for (; q < node.cvCells.length; q++) if (!node.cvCells[q].hidden) parkCell(node.cvCells[q]);
           }
-          if (grouped) renderTotal();
+          if (cursor >= first && cursor < last) scroll.setAttribute("aria-activedescendant", "cv-tr-cursor");
+          else scroll.removeAttribute("aria-activedescendant");
+          if (grouped) {
+            renderTotal();
+            foot.cvCells.forEach((cell, c) => {
+              const pin = c < pinned;
+              cell.style.left = offsets[c] + (pin ? shift : 0) + "px";
+              cell.classList.toggle("cv-pinned", pin);
+              cell.classList.toggle("cv-pin-edge", pin && c === pinned - 1);
+            });
+          }
           const ms = performance.now() - t0;
           stats.renders++;
           stats.lastMs = ms;
@@ -5674,8 +5860,43 @@
             return;
           }
           const node = event.target.closest(".cv-tr");
+          if (node && node.cvIndex >= 0) cursor = node.cvIndex;
           if (node && node.dataset.key) handlers.rowClick(node.dataset.key);
           else if (node && node.dataset.group !== undefined && handlers.groupClick) handlers.groupClick(node.dataset.group);
+        });
+
+        /** The display row at index: { key } (element row) or { group, expanded } (group row). */
+        function displayRow(index) {
+          if (!grouped) return { key: rows[order[index]].key };
+          const item = items[index];
+          return item.type === "group" ? { group: item.group.id, expanded: item.expanded } : { key: rows[item.index].key };
+        }
+        // Keyboard (REQ-007 without a mouse): arrows / Page / Home / End move the row cursor, Enter or Space select
+        // the row like a click, in the grouped view Right / Left expand / collapse a group row.
+        scroll.addEventListener("keydown", (event) => {
+          if (event.target !== scroll || !rowCount || event.altKey || event.ctrlKey || event.metaKey) return;
+          const page = Math.max(1, Math.floor((scroll.clientHeight - TABLE_HEAD_HEIGHT) / TABLE_ROW_HEIGHT) - 1);
+          const moves = { ArrowDown: 1, ArrowUp: -1, PageDown: page, PageUp: -page };
+          let next = null;
+          if (event.key in moves) next = cursor < 0 ? 0 : cursor + moves[event.key];
+          else if (event.key === "Home") next = 0;
+          else if (event.key === "End") next = rowCount - 1;
+          if (next !== null) {
+            cursor = Math.max(0, Math.min(rowCount - 1, next));
+            event.preventDefault();
+            api.reveal(cursor);
+            return;
+          }
+          if (cursor < 0 || cursor >= rowCount) return;
+          const target = displayRow(cursor);
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            if (target.key !== undefined) handlers.rowClick(target.key);
+            else if (handlers.groupClick) handlers.groupClick(target.group);
+          } else if ((event.key === "ArrowRight" || event.key === "ArrowLeft") && target.group !== undefined) {
+            if (target.expanded !== (event.key === "ArrowRight")) handlers.toggleGroup(target.group);
+            event.preventDefault();
+          }
         });
 
         function setHeights(emptyText) {
@@ -5695,7 +5916,7 @@
           render();
         }
 
-        return {
+        const api = {
           element: scroll,
           /**
            * Columns [{ key, title, kind 'number' | 'text', width, sort 'asc' | 'desc' | null, filtered }] in display
@@ -5723,6 +5944,7 @@
             items = [];
             total = null;
             rowCount = order.length;
+            if (cursor >= rowCount) cursor = rowCount - 1;
             setHeights(emptyText);
           },
           /**
@@ -5736,6 +5958,7 @@
             total = totalRow;
             grouped = true;
             rowCount = items.length;
+            if (cursor >= rowCount) cursor = rowCount - 1;
             setHeights(emptyText);
           },
           /**
@@ -5775,6 +5998,7 @@
           headHeight: TABLE_HEAD_HEIGHT,
           render,
         };
+        return api;
       }
 
       /** Bound shown in a range input: German decimal comma, full precision, no grouping (REQ-006, D2). */
@@ -5930,7 +6154,7 @@
               row.classList.toggle("cv-checked", item.checked);
               row.classList.toggle("cv-zero", item.count === 0);
               label.textContent = text;
-              label.title = text;
+              label.title = valueTitle(item.value);
               label.classList.toggle("cv-empty-value", item.value === null);
               count.textContent = formatCount(item.count);
             },
@@ -6414,6 +6638,21 @@
         htmlButton.id = "cv-html-export";
         htmlButton.type = "button";
         htmlButton.disabled = true;
+        // drawer toggles of the side panels, shown below 1280 px only (CSS)
+        const panelToggles = {};
+        for (const [name, label, target] of [
+          ["filters", "Filter", "cv-filters"],
+          ["details", "Details", "cv-details"],
+        ]) {
+          const button = el("button", "cv-btn cv-panel-toggle", label);
+          button.type = "button";
+          button.id = "cv-toggle-" + name;
+          button.setAttribute("aria-controls", target);
+          button.setAttribute("aria-expanded", "false");
+          button.title = label + " ein- oder ausblenden";
+          panelToggles[name] = button;
+          actions.append(button);
+        }
         if (mode === "builder") actions.append(fileInput, loadButton, configInput, saveButton, openButton, htmlButton);
         header.append(logo, brand);
         if (headerEdit) header.append(headerEdit);
@@ -6613,6 +6852,25 @@
         setDetailsCollapsed(false);
         detailsToggle.addEventListener("click", () => setDetailsCollapsed(!layout.detailsCollapsed));
 
+        // Drawers below 1280 px: one side panel at a time over the model area
+        function setDrawer(name) {
+          for (const [key, button] of Object.entries(panelToggles)) {
+            const open = key === name;
+            main.classList.toggle(key === "filters" ? "cv-show-filters" : "cv-show-details", open);
+            button.setAttribute("aria-expanded", String(open));
+          }
+          if (name === "details" && layout.detailsCollapsed) setDetailsCollapsed(false);
+        }
+        for (const [name, button] of Object.entries(panelToggles))
+          button.addEventListener("click", () => setDrawer(button.getAttribute("aria-expanded") === "true" ? null : name));
+        // A new message below 1280 px opens the filter drawer, where #cv-messages lives, so load errors and
+        // configuration messages are seen and announced (testing INC-1 BUG-T1)
+        const narrowQuery = window.matchMedia ? window.matchMedia("(max-width: 1279px)") : null;
+        new MutationObserver(() => {
+          if (!narrowQuery || !narrowQuery.matches || !messages.textContent.trim()) return;
+          if (panelToggles.filters.getAttribute("aria-expanded") !== "true") setDrawer("filters");
+        }).observe(messages, { childList: true, subtree: true, characterData: true });
+
         let busy = false;
         let configLoadable = false;
         const removeButtons = [];
@@ -6722,7 +6980,7 @@
            * notice); the user can close it. Returns the message element.
            */
           addMessage(text, kind) {
-            const item = el("div", "cv-message" + (kind === "notice" ? " cv-notice" : ""));
+            const item = el("div", "cv-message" + (kind === "notice" ? " cv-notice" : kind === "ok" ? " cv-ok" : ""));
             const close = el("button", "cv-message-close", "\u00d7");
             close.title = "Meldung schlie\u00dfen";
             close.setAttribute("aria-label", "Meldung schlie\u00dfen");
@@ -6837,6 +7095,13 @@
        * frame later.
        */
       const SETTLE_MS = 300;
+      /*
+       * Longer cap while a settling model's worker still has tile requests pending or processes (Fragments
+       * model.isBusy): at 30,000 elements the worker can need more than SETTLE_MS for the last model; drawing at
+       * SETTLE_MS then gave a partial frame and the complete one a whole software-WebGL frame later (TASK-010, R-4
+       * residual: ghost uncheck 1.0-1.1 s in 2 of 5 runs).
+       */
+      const SETTLE_BUSY_MS = 1000;
       const KICK_MS = 16; // a model still waiting for its change refreshes again after this, not after ~100 ms
       const GHOST = "ghost"; // paint of a ghost in the display mirror; colours are "#rrggbb"
       /**
@@ -6913,7 +7178,14 @@
           frameWaiters = [];
           for (const resolve of waiters) resolve(lastFrameAt);
         }
+        // Frames held (viewer start, TASK-010 NFR-003): render requests are remembered and drawn once on release.
+        let framesHeld = false;
+        let renderHeld = false;
         function requestRender() {
+          if (framesHeld) {
+            renderHeld = true;
+            return;
+          }
           if (frameRequested) return;
           frameRequested = true;
           requestAnimationFrame(renderFrame);
@@ -6925,7 +7197,8 @@
          * versions) is compared with the last drawn one, and a frame is drawn only if it changed. New or removed tiles
          * are always drawn. changeFrames: times of frames drawn because the view changed (perf measurements).
          */
-        const signatures = new Map(); // model -> signature of its tiles at the last refresh
+        // Weak: a late refresh of a removed model must not keep it alive (verification INC-1 CODE F1)
+        const signatures = new WeakMap(); // model -> signature of its tiles at the last refresh
         let changePending = false;
         let changeFrames = [];
         let shownFrames = []; // performance.now() at the animation frame after each change frame
@@ -6965,7 +7238,7 @@
           coalesceTimer = 0;
           const now = performance.now();
           const busy = [...models.values()].some((m) => m.isBusy);
-          const waiting = settling.size > 0 && now - settlingSince < SETTLE_MS;
+          const waiting = settling.size > 0 && !settleExpired(now);
           if (waiting || (busy && now - coalesceSince < COALESCE_MS)) {
             coalesceTimer = setTimeout(drawWhenSettled, 8);
             return;
@@ -7003,9 +7276,23 @@
             if (settling.size) updateView(false);
           }, KICK_MS);
         }
-        /** Waits until no model is settling any more or SETTLE_MS have passed since the last calls. */
+        /**
+         * True when the wait for the settling models is over: SETTLE_MS since the last calls and none of them busy,
+         * or SETTLE_BUSY_MS in any case.
+         */
+        function settleExpired(now) {
+          const since = now - settlingSince;
+          if (since >= SETTLE_BUSY_MS) return true;
+          if (since < SETTLE_MS) return false;
+          for (const id of settling.keys()) {
+            const model = models.get(id);
+            if (model && model.isBusy) return false;
+          }
+          return true;
+        }
+        /** Waits until no model is settling any more or the wait expired (settleExpired). */
         async function whenSettled() {
-          while (settling.size && performance.now() - settlingSince < SETTLE_MS)
+          while (settling.size && !settleExpired(performance.now()))
             await new Promise((resolve) => setTimeout(resolve, 8));
         }
         function viewChanged() {
@@ -7013,20 +7300,22 @@
           if (!coalesceSince) coalesceSince = performance.now();
           if (!coalesceTimer) drawWhenSettled();
         }
-        const refreshCount = new Map(); // model -> finished view refreshes (onViewUpdated)
+        let viewChanges = 0; // refreshes that changed a model's tiles (whenQuiet)
+        const refreshCount = new WeakMap(); // model -> finished view refreshes (onViewUpdated)
         let refreshWaiters = [];
         function onViewRefreshed(model) {
           refreshCount.set(model, (refreshCount.get(model) || 0) + 1);
           const sig = tileSignature(model);
           if (sig !== signatures.get(model)) {
             signatures.set(model, sig);
+            viewChanges++;
             if (settling.has(model.modelId)) {
               settling.set(model.modelId, true); // changed: wait for one refresh without a change
               kick();
             }
             viewChanged();
           } else if (settling.has(model.modelId)) {
-            const expired = performance.now() - settlingSince >= SETTLE_MS;
+            const expired = settleExpired(performance.now());
             if (settling.get(model.modelId) || expired) settling.delete(model.modelId);
             else kick();
             if (!settling.size && coalesceTimer) {
@@ -7117,6 +7406,7 @@
         resize();
 
         const models = new Map();
+        const modelRefs = []; // WeakRef per loaded model: test seam liveModels() (memory of removed models freed)
 
         function sceneBox() {
           const box = new THREE.Box3();
@@ -7455,6 +7745,7 @@
             model.tiles.onItemDeleted.add(viewChanged);
             scene.add(model.object);
             models.set(modelId, model);
+            modelRefs.push(new WeakRef(model));
             mirror.set(modelId, new Map());
             await fragments.update(true);
             fit();
@@ -7469,6 +7760,8 @@
               if (!model) return;
               models.delete(modelId);
               settling.delete(modelId);
+              signatures.delete(model);
+              refreshCount.delete(model);
               const items = mirror.get(modelId);
               mirror.delete(modelId);
               if (items) for (const entry of items.values()) selected.delete(entry.key);
@@ -7529,6 +7822,10 @@
            * with them, every model that got calls shows them (or SETTLE_MS passed) and a frame showing the result has
            * been drawn.
            */
+          /** Loaded Fragments models still in memory (removed ones count until garbage collection frees them). */
+          liveModels() {
+            return modelRefs.filter((ref) => ref.deref() !== undefined).length;
+          },
           async whenIdle() {
             for (;;) {
               const current = chain;
@@ -7540,6 +7837,24 @@
               if (current === chain && pending === 0) break;
             }
             return nextFrame();
+          },
+          /**
+           * Like whenIdle, but without drawing, and it also waits until the tiles stop changing: resolves once every
+           * queued engine call is done and two view refreshes of every model changed no tile, or after maxMs. The
+           * viewer start (frames held) uses it so the first frame shows the streamed tiles complete (TASK-010).
+           */
+          async whenQuiet(maxMs) {
+            const start = performance.now();
+            for (;;) {
+              const current = chain;
+              await current;
+              if (current !== chain || pending !== 0) continue;
+              const before = viewChanges;
+              await refreshedTwice(3000);
+              await whenSettled();
+              if (current !== chain || pending !== 0) continue;
+              if (viewChanges === before || performance.now() - start > maxMs) return;
+            }
           },
           /** performance.now() when the last display plan's engine calls were done (perf measurements). */
           lastAppliedAt: () => lastAppliedAt,
@@ -7555,6 +7870,19 @@
           lastFrameAt: () => lastFrameAt,
           modelCount() {
             return fragments.models.list.size;
+          },
+          /**
+           * Holds (true) or releases (false) drawing. While held, no frame is drawn (a frame of a large model costs
+           * 0.3-0.7 s in software WebGL); on release one frame is drawn if any was requested meanwhile. Used by the
+           * viewer start (TASK-010, NFR-003): its models and configuration are shown with one frame, not one per
+           * model and tile batch.
+           */
+          holdFrames(hold) {
+            framesHeld = Boolean(hold);
+            if (!framesHeld && renderHeld) {
+              renderHeld = false;
+              requestRender();
+            }
           },
         };
       }
@@ -7617,12 +7945,15 @@
        * percent } or null); queued (files dropped during a running action, loaded after it); loads (number of
        * finished load, remove or option actions, for waiting; a batch with queued files counts once); options
        * { includeSpaces }. `test` holds test-only switches read by the
-       * builder's conversion (crashNextConversion, neverStartNextConversion, startTimeoutMs).
+       * builder's conversion (crashNextConversion, neverStartNextConversion, startTimeoutMs, hangNextConversion,
+       * stallTimeoutMs). conversion (TASK-010, builder): the last conversion { fileName, ms, maxSilenceMs (longest
+       * time between two worker messages) } or null.
        * filter (TASK-004): { sets [{ id, key, title, collapsed, selected }] in display order (the configuration part of
        * REQ-003-AC2), active (normalised core filters), count (rows passing all filters), total, keys (row keys passing
        * all filters, ascending row order; the set 3D and table follow), facets ({ id -> { total, checkedCount, values
        * [{ value, count, checked }] } }), updates (number of filter evaluations), lastMs (duration of the last
-       * evaluation incl. filter-area update) }. layout: { split (model share in %), detailsCollapsed }. view (TASK-005):
+       * evaluation incl. filter-area update), storeColumns (TASK-010: property keys the column store holds, read only), at (TASK-010: performance.now() when the
+       * last evaluation incl. filter-area update finished) }. layout: { split (model share in %), detailsCollapsed }. view (TASK-005):
        * { mode 'ghost' | 'hide', colourKey, selected (row key or null), section }; the 3D state itself is
        * window.CalcView.state() (spec 4.4). table (TASK-006a): { columns [{ key, width }] in display order, sort
        * ({ key, dir } | null), filters ([{ key, type 'values', values } | { key, type 'range', min, max }] column
@@ -7662,7 +7993,7 @@
         progress: null,
         error: null,
         options: { includeSpaces: false },
-        filter: { sets: [], active: [], count: 0, total: 0, keys: [], facets: {}, updates: 0, lastMs: 0 },
+        filter: { sets: [], active: [], count: 0, total: 0, keys: [], facets: {}, updates: 0, lastMs: 0, at: 0 },
         table: {
           columns: [],
           sort: null,
@@ -7686,7 +8017,14 @@
         mode: null,
         viewerExport: { count: 0, last: null },
         viewer: null,
-        test: { crashNextConversion: false, neverStartNextConversion: false, startTimeoutMs: null },
+        conversion: null,
+        test: {
+          crashNextConversion: false,
+          neverStartNextConversion: false,
+          startTimeoutMs: null,
+          hangNextConversion: false,
+          stallTimeoutMs: null,
+        },
       };
       window.__calc = hook;
 
@@ -7712,6 +8050,12 @@
         const filterSets = DEFAULT_FILTER_SETS.map((key) => ({ id: key, key, collapsed: false, selected: [] }));
         let catalog = new Map();
         let store = createColumnStore([]);
+        // T7 (TASK-010): the property keys the column store holds right now (only properties in use, spec 4.3)
+        Object.defineProperty(hook.filter, "storeColumns", {
+          configurable: true,
+          enumerable: false,
+          get: () => store.keys(),
+        });
         let view = { evaluation: null, indices: new Uint32Array(0), facets: new Map() };
         const filterListeners = [];
         // 3D coupling (TASK-005, REQ-005 / REQ-007): display mode, colouring, section, selection.
@@ -7824,7 +8168,8 @@
             },
           });
           hook.filter.updates++;
-          hook.filter.lastMs = performance.now() - t0;
+          hook.filter.at = performance.now(); // filter sets updated (NFR-001 measurement, TASK-010)
+          hook.filter.lastMs = hook.filter.at - t0;
           for (const listener of filterListeners) listener(view);
         }
 
@@ -8655,6 +9000,7 @@
           hook.export.count++;
           hook.export.last = result;
           if (queued.length) loadFiles([]);
+          notifyFree();
           return result;
         }
 
@@ -8725,6 +9071,7 @@
           hook.viewerExport.count++;
           hook.viewerExport.last = result;
           if (queued.length) loadFiles([]);
+          notifyFree();
           return result;
         }
 
@@ -8734,14 +9081,19 @@
          * configuration. Nothing is persisted; reopening the file shows this state again.
          */
         async function openViewer(data) {
+          const VIEWER_QUIET_MAX_MS = 8000; // cap of the wait for the streamed tiles before the first frame
           busy = true;
           ui.setBusy(true);
           hook.phase = "loading";
+          engine.holdFrames(true); // one frame for all models and the configuration (NFR-003, TASK-010)
+          // until the payload is applied: the exported header, no empty default filter sets or model list
+          // (cv-starting is set before the layout is built)
+          if (viewerHeader) ui.setHeader(viewerHeader);
           try {
             hook.options.includeSpaces = Boolean(data.includeSpaces);
             for (let i = 0; i < data.models.length; i++) {
               const m = data.models[i];
-              progress(m.fileName, "Anzeige", data.models.length > 1 ? i / data.models.length : null);
+              progress(m.name, "Anzeige", data.models.length > 1 ? i / data.models.length : null);
               await engine.loadModel(data.frags[i], m.id);
               if (!hook.options.includeSpaces && m.spaceIds.length) await engine.setItemsVisible(m.id, m.spaceIds, false);
               models.push({ ...m, fragBytes: null });
@@ -8751,11 +9103,17 @@
               const applied = applyConfiguration(data.config);
               if (applied.notice) ui.addMessage(applied.notice, "notice");
             }
+            if (data.models.length)
+              progress(data.models[data.models.length - 1].name, "Anzeige", data.models.length > 1 ? 1 : null);
+            await engine.whenQuiet(VIEWER_QUIET_MAX_MS); // tiles streamed in: the first frame shows them complete
           } finally {
+            options.root.classList.remove("cv-starting");
+            engine.holdFrames(false);
             settleOverlay();
             hook.progress = null;
             busy = false;
             ui.setBusy(false);
+            notifyFree();
           }
         }
 
@@ -8766,12 +9124,16 @@
         function loadConfigurationText(text, fileName) {
           const t0 = performance.now();
           let result;
+          // the messages of an earlier configuration load are outdated now (verification INC-1 UX minor 1)
+          for (const item of configMessages.splice(0)) item.remove();
+          const say = (line, kind) => configMessages.push(ui.addMessage(line, kind));
           try {
             const config = parseConfig(text);
             if (!models.length) throw new ConfigError("no-model");
             const applied = applyConfiguration(config);
             result = { ok: true, fileName, notice: applied.notice, skipped: applied.skipped };
-            if (applied.notice) ui.addMessage(applied.notice, "notice");
+            if (applied.notice) say(applied.notice, "notice");
+            else say("Konfiguration " + fileName + " geladen.", "ok");
           } catch (error) {
             const configClass = error && error.configClass ? error.configClass : "unreadable";
             const message =
@@ -8781,7 +9143,7 @@
                   ? error.message
                   : configErrorMessage("unreadable") + (error && error.message ? " (" + error.message + ")" : "");
             result = { ok: false, fileName, errorClass: configClass, message };
-            ui.addMessage(message);
+            say(message);
           }
           result.ms = performance.now() - t0;
           hook.config.last = result;
@@ -8793,7 +9155,8 @@
         async function loadConfigurationFile(file) {
           if (file.size > CONFIG_MAX_BYTES) {
             const error = new ConfigError("too-large");
-            ui.addMessage(error.message);
+            for (const item of configMessages.splice(0)) item.remove();
+            configMessages.push(ui.addMessage(error.message));
             hook.config.last = { ok: false, fileName: file.name, errorClass: error.configClass, message: error.message };
             hook.config.loads++;
             return hook.config.last;
@@ -8804,11 +9167,13 @@
           } catch (error) {
             text = null;
             const message = configErrorMessage("unreadable") + (error && error.message ? " (" + error.message + ")" : "");
-            ui.addMessage(message);
+            for (const item of configMessages.splice(0)) item.remove();
+            configMessages.push(ui.addMessage(message));
             hook.config.last = { ok: false, fileName: file.name, errorClass: "unreadable", message };
             hook.config.loads++;
             return hook.config.last;
           }
+          await whenFree(); // never against a half-loaded model set (CODE F3)
           return loadConfigurationText(text, file.name);
         }
 
@@ -8939,9 +9304,20 @@
           },
         };
 
+        // the viewer shows its exported header from the first paint, not the app name (verification INC-1 UX minor 3)
+        const viewerHeader =
+          options.mode === "viewer" && options.viewer
+            ? (() => {
+                const h = options.viewer.config && options.viewer.config.header;
+                const first = options.viewer.models[0];
+                const title = h && typeof h.title === "string" && h.title ? h.title : first ? first.name : "";
+                return { title, date: h && isIsoDate(h.date) ? h.date : isoDate(new Date()), logo: null };
+              })()
+            : null;
+        if (viewerHeader) options.root.classList.add("cv-starting");
         const ui = renderLayout(options.root, {
           mode: options.mode,
-          title: options.title,
+          title: options.title || (viewerHeader && viewerHeader.title) || undefined,
           filterHandlers,
           viewHandlers,
           tableHandlers,
@@ -8973,6 +9349,7 @@
           camera: () => engine.camera(),
           lastSelectedAt: () => engine.lastSelectedAt(),
           whenIdle: () => engine.whenIdle(),
+          liveModels: () => engine.liveModels(),
           frames: () => engine.frames(),
           lastFrameAt: () => engine.lastFrameAt(),
           lastAppliedAt: () => engine.lastAppliedAt(),
@@ -8992,7 +9369,10 @@
           // the viewer file offers no configuration loading (REQ-010), not even through the test seam
           loadText:
             options.mode === "builder"
-              ? (text, fileName) => loadConfigurationText(text, fileName || "konfiguration.json")
+              ? async (text, fileName) => {
+                  await whenFree();
+                  return loadConfigurationText(text, fileName || "konfiguration.json");
+                }
               : undefined,
           header: () => effectiveHeader(),
         };
@@ -9006,8 +9386,25 @@
         };
         const models = []; // { id, name, fileName, rows, properties, spaceProperties, spaceIds, contextIds, fragBytes }
         const queued = []; // files dropped while an action runs; loaded right after it
+        const configMessages = []; // message nodes of the last configuration load (replaced by the next one)
         let nextId = 1;
         let busy = false;
+        const freeWaiters = []; // resolvers of whenFree()
+
+        /**
+         * Resolves once no action runs and no dropped file waits in the queue (verification INC-1 CODE F3): a
+         * configuration dropped together with IFC files, or while a load runs, is applied to the models loaded then.
+         */
+        function whenFree() {
+          return new Promise((resolve) => {
+            freeWaiters.push(resolve);
+            notifyFree();
+          });
+        }
+        function notifyFree() {
+          if (busy || queued.length) return;
+          for (const resolve of freeWaiters.splice(0)) resolve();
+        }
 
         /**
          * Overlay when no action runs: the start hint while the builder has no model, else hidden. A load error
@@ -9120,6 +9517,9 @@
               contextIds,
               fragBytes: converted.bytes,
             });
+            // "load a model first" is outdated once a model is loaded
+            if (hook.config.last && hook.config.last.errorClass === "no-model")
+              for (const item of configMessages.splice(0)) item.remove();
             publish();
             return true;
           } catch (error) {
@@ -9142,6 +9542,7 @@
           hook.phase = "ready";
           hook.loads++;
           if (queued.length) loadFiles([]);
+          notifyFree();
         }
 
         /**
@@ -9206,7 +9607,9 @@
             ui.fileInput.value = "";
             loadFiles(files);
           });
-          // a dropped .json is a configuration (applied after the IFC files of the same drop), the rest IFC
+          // a dropped .json is a configuration, the rest IFC. The configuration is applied once the IFC files of the
+          // same drop (and every action running or queued at the drop) are done: loadConfigurationFile waits for
+          // whenFree(), also when loadFiles only queued the files because a load was running (CODE F3).
           ui.onDropFiles(async (files) => {
             const isJson = (f) => /\.json$/i.test(f.name);
             const configFile = files.filter(isJson).pop();
@@ -9282,6 +9685,56 @@
       }
     </script>
 
+    <!-- Start guard of the viewer file (TASK-010): runs before the payloads. ASCII only. -->
+    <script type="text/plain" id="cv-viewer-guard">
+      // Viewer file start guard (TASK-010, follow-ups V1/V2 of TASK-009). Placed right after #cv-root, before the
+      // payloads, so it runs even when the file is cut off. Shows a German error instead of loading forever:
+      //   - the document is parsed completely but the bootstrap never ran (truncated or damaged file);
+      //   - the viewer is not ready within START_TIMEOUT_MS (a start that hangs).
+      // window.__cvViewerGuard = { fail(message), failed }: the bootstrap reports its own errors through it and stops
+      // when the guard has already failed. Test hook (set before the page loads): window.__cvViewerTest =
+      // { startTimeoutMs, holdStart } (holdStart makes the bootstrap wait forever before the app starts).
+      (function () {
+        "use strict";
+        var START_TIMEOUT_MS = 120000;
+        var test = window.__cvViewerTest || {};
+        var guard = { failed: false };
+        function settled() {
+          var hook = window.__calc;
+          return Boolean(hook && (hook.phase === "ready" || hook.phase === "error"));
+        }
+        guard.fail = function (message) {
+          if (guard.failed || settled()) return;
+          guard.failed = true;
+          var text = "Die Viewer-Datei konnte nicht gestartet werden: " + message;
+          window.__calc = window.__calc || { models: [], modelCount: 0, elementCount: 0 };
+          window.__calc.phase = "error";
+          window.__calc.error = text;
+          var root = document.getElementById("cv-root");
+          root.textContent = text;
+          root.setAttribute("role", "alert");
+          root.style.padding = "24px";
+          root.style.color = "#D72622";
+          document.documentElement.dataset.cvReady = "viewer";
+        };
+        window.__cvViewerGuard = guard;
+        document.addEventListener("DOMContentLoaded", function () {
+          if (!window.__cvViewerBootstrap)
+            guard.fail(
+              "Die Datei ist unvollst\u00e4ndig oder besch\u00e4digt. Bitte die Viewer-Datei erneut exportieren oder vollst\u00e4ndig kopieren.",
+            );
+        });
+        var timeout = test.startTimeoutMs || START_TIMEOUT_MS;
+        setTimeout(function () {
+          guard.fail(
+            "keine Antwort nach " +
+              Math.round(timeout / 1000) +
+              " s. Die Datei ist m\u00f6glicherweise besch\u00e4digt oder zu gro\u00df f\u00fcr den Arbeitsspeicher des Browsers.",
+          );
+        }, timeout);
+      })();
+    </script>
+
     <!-- Classic bootstrap of the viewer file (reads payloads, links, starts): TASK-009. ASCII only. -->
     <script type="text/plain" id="cv-viewer-bootstrap">
       // Viewer file start (TASK-009, spec 4.2). Runs after the helpers script (tovLinkModules). Reads the embedded
@@ -9290,10 +9743,15 @@
       /* global tovLinkModules -- defined by the helpers script before this one in the viewer file */
       (function () {
         "use strict";
+        window.__cvViewerBootstrap = true; // the start guard (cv-viewer-guard) knows the file is complete
         var root = document.getElementById("cv-root");
+        var guard = window.__cvViewerGuard || { failed: false, fail: null };
+        var test = window.__cvViewerTest || {};
+        var DAMAGED = "Die Datei ist besch\u00e4digt (eingebettete Daten \u201e";
 
         function fail(error) {
           var message = error && error.message ? error.message : String(error);
+          if (guard.fail) return guard.fail(message);
           window.__calc = window.__calc || { models: [], modelCount: 0, elementCount: 0 };
           window.__calc.phase = "error";
           window.__calc.error = message;
@@ -9303,10 +9761,25 @@
           document.documentElement.dataset.cvReady = "viewer";
         }
 
+        /** A German error for a damaged payload; the browser's (English) text is not shown (TASK-010 V2). */
+        function damaged(id) {
+          return new Error(DAMAGED + id + "\u201c nicht lesbar). Bitte die Viewer-Datei erneut exportieren.");
+        }
+
+        /** Stops the start once the guard has shown an error (timeout): nothing is drawn over the message. */
+        function checkGuard() {
+          if (guard.failed) throw new Error("abgebrochen");
+        }
+
         function base64Bytes(id) {
           var node = document.getElementById(id);
-          if (!node) throw new Error("Eingebettete Daten fehlen: " + id);
-          var binary = atob(node.textContent.trim());
+          if (!node) throw damaged(id);
+          var binary;
+          try {
+            binary = atob(node.textContent.trim());
+          } catch {
+            throw damaged(id);
+          }
           var bytes = new Uint8Array(binary.length);
           for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
           node.textContent = ""; // the decoded copy is enough; frees the text
@@ -9314,12 +9787,22 @@
         }
 
         async function payload(id) {
-          var stream = new Blob([base64Bytes(id)]).stream().pipeThrough(new DecompressionStream("gzip"));
-          return new Uint8Array(await new Response(stream).arrayBuffer());
+          var bytes = base64Bytes(id);
+          try {
+            var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+            return new Uint8Array(await new Response(stream).arrayBuffer());
+          } catch {
+            throw damaged(id);
+          }
         }
 
         async function json(id) {
-          return JSON.parse(new TextDecoder().decode(await payload(id)));
+          var bytes = await payload(id);
+          try {
+            return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+          } catch {
+            throw damaged(id);
+          }
         }
 
         async function run() {
@@ -9327,21 +9810,31 @@
             throw new Error("Dieser Browser wird nicht unterst\u00fctzt. Bitte einen aktuellen Browser verwenden.");
           root.textContent = "Viewer wird vorbereitet ...";
           var runtime = await json("cv-payload-runtime");
+          checkGuard();
           var resolve = tovLinkModules(runtime.sources, runtime.aliases);
           var workerUrl = URL.createObjectURL(new Blob([runtime.worker], { type: "text/javascript" }));
           var table = await json("cv-payload-table");
           var config = await json("cv-payload-config");
           var frags = [];
           for (var i = 0; i < table.models.length; i++) frags.push(await payload("cv-payload-model-" + i));
+          checkGuard();
+          if (test.holdStart) await new Promise(function () {}); // test hook: a start that hangs
           var app = await import(resolve("cv-app"));
           var core = await import(resolve("calc-core"));
+          var models;
+          try {
+            models = core.decodeTable(table);
+          } catch {
+            throw damaged("cv-payload-table");
+          }
+          checkGuard();
           try {
             await app.start({
               mode: "viewer",
               root: root,
               workerUrl: workerUrl,
               viewer: {
-                models: core.decodeTable(table),
+                models: models,
                 frags: frags,
                 config: config.config,
                 includeSpaces: Boolean(config.includeSpaces),
@@ -9349,12 +9842,17 @@
             });
             window.__calc.versions = runtime.versions;
           } catch (error) {
-            app.fail(root, error && error.message ? error.message : String(error));
+            app.fail(
+              root,
+              "Die Viewer-Datei konnte nicht gestartet werden: " + (error && error.message ? error.message : String(error)),
+            );
           }
           document.documentElement.dataset.cvReady = "viewer";
         }
 
-        run().catch(fail);
+        run().catch(function (error) {
+          if (!guard.failed) fail(error);
+        });
       })();
     </script>
 
@@ -9405,7 +9903,7 @@
 
       /**
        * Body of the classic IFC conversion worker (ref L1940-1981). Runs after tovLinkModules (prepended).
-       * Input { sources, aliases, fragmentsKey, webIfcKey, wasmPath, file, extraClasses, simulateCrash };
+       * Input { sources, aliases, fragmentsKey, webIfcKey, wasmPath, file, extraClasses, simulateCrash, simulateHang };
        * output { type: "phase" | "progress" | "done" | "error", ... }; "done" carries the .frag bytes and the names of
        * the importer's element classes (the candidates for rows, spec 4.3).
        */
@@ -9421,6 +9919,8 @@
               }, 0);
               return;
             }
+            // Test hook (TASK-010, T7): a worker that started and then hangs (no further message).
+            if (job.simulateHang) return;
             const resolve = tovLinkModules(job.sources, job.aliases);
             const FRAGS = await import(resolve(job.fragmentsKey));
             const WEBIFC = await import(resolve(job.webIfcKey));
@@ -9513,6 +10013,25 @@
         return lines.join("\n");
       }
 
+      /**
+       * Library source for the viewer file without unused external URLs (NFR-005, TASK-010 follow-up V3):
+       *   - the jsDelivr banner line "Do NOT use SRI ... https://www.jsdelivr.com/..." (a comment) is removed;
+       *   - Fragments' fallback worker URL on unpkg.com (FragmentsModels.getWorker, used only when no worker URL is
+       *     given; the viewer always passes its embedded classic worker) becomes "about:blank", which can never reach
+       *     the network.
+       * Kept on purpose (they cannot cause a request): the XHTML namespace "http://www.w3.org/1999/xhtml" (an
+       * identifier for document.createElementNS), the Office Open XML namespaces the .xlsx writer of cv-core writes
+       * into its files, a paper link in a GLSL comment of three, the pako licence comment.
+       * test/e2e/viewer-robustness.spec.mjs lists every URL left in the runtime and fails on a new one.
+       */
+      function offlineSource(text) {
+        return text
+          .replace(/^ \* Do NOT use SRI with dynamically generated files!.*\n/gm, "")
+          .replace(/(["'`])https?:\/\/unpkg\.com\/[^"'`\s]*\1/g, '"about:blank"');
+      }
+      const offlineSources = (sources) =>
+        Object.fromEntries(Object.entries(sources).map(([key, text]) => [key, offlineSource(text)]));
+
       const blobUrl = (text) => URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
       const block = (id) => document.getElementById(id).textContent;
 
@@ -9556,9 +10075,9 @@
         // runtime of the viewer file (TASK-009): every library module except web-ifc (stub), the app modules, all
         // aliases and the classic Fragments worker; built on the first `HTML exportieren`
         const viewerRuntime = () => ({
-          sources: { ...sources, [webIfcKey]: makeWebIfcStub(webIfc) },
+          sources: { ...offlineSources(sources), [webIfcKey]: makeWebIfcStub(webIfc) },
           aliases: { ...aliases },
-          worker,
+          worker: offlineSource(worker),
           versions: { fragments: FRAGMENTS_VERSION, ...versions },
         });
         return {
@@ -9580,6 +10099,12 @@
       const PHASES = { load: "Konverter wird geladen", read: "Datei wird gelesen", parse: "Konvertierung" };
       /** No message from the conversion worker within this time: it never started (e.g. blocked worker) -> unreadable. */
       const WORKER_START_TIMEOUT_MS = 30000;
+      /**
+       * No further message from a started conversion worker within this time: it hangs -> unreadable (TASK-010). The
+       * longest silence measured in a normal conversion (151.8 MB synthetic IFC, the largest test file) is recorded in
+       * window.__calc.conversion.maxSilenceMs and in docs/tasks/TASK-010.md; this limit is far above it.
+       */
+      const WORKER_STALL_TIMEOUT_MS = 180000;
 
       /** Reads the first and last bytes of a file and classifies it before conversion (REQ-001). */
       async function checkFile(lib, file) {
@@ -9598,44 +10123,62 @@
       /**
        * Converts one IFC file to .frag bytes in its own classic Blob worker, terminated afterwards (ref L2186-2205).
        * A worker `error` event (crash, e.g. out of memory) -> too-large; an `error` message (parsing/conversion
-       * failed) -> unreadable; no message within the start timeout -> unreadable.
+       * failed) -> unreadable; no message within the start timeout, or no further message within the stall timeout
+       * (a worker that hangs mid-conversion, TASK-010) -> unreadable. Records window.__calc.conversion.
        */
       function convertIfc(lib, file, onProgress) {
         const core = lib.core;
         const test = window.__calc.test || {};
         const neverStart = Boolean(test.neverStartNextConversion);
         const simulateCrash = Boolean(test.crashNextConversion);
+        const simulateHang = Boolean(test.hangNextConversion);
         test.neverStartNextConversion = false;
         test.crashNextConversion = false;
+        test.hangNextConversion = false;
         const startTimeout = test.startTimeoutMs || WORKER_START_TIMEOUT_MS;
+        const stallTimeout = test.stallTimeoutMs || WORKER_STALL_TIMEOUT_MS;
+        const seconds = (ms) => Math.round(ms / 1000);
         return new Promise((resolve, reject) => {
           const worker = new Worker(neverStart ? lib.neverStartingWorkerUrl : lib.convertWorkerUrl);
-          let timer = setTimeout(() => {
-            timer = null;
-            finish(
-              reject,
-              new core.LoadError(
-                "unreadable",
-                file.name,
-                `der Konverter ist nicht gestartet (keine Antwort nach ${Math.round(startTimeout / 1000)} s)`,
-              ),
-            );
-          }, startTimeout);
+          const startedAt = performance.now();
+          let lastMessageAt = startedAt;
+          let maxSilence = 0;
+          let timer = null;
+          // watchdog: before the first message the start timeout, afterwards the stall timeout (reset per message)
+          const watch = (started) => {
+            if (timer) clearTimeout(timer);
+            const ms = started ? stallTimeout : startTimeout;
+            const detail = started
+              ? `der Konverter antwortet nicht mehr (keine R\u00fcckmeldung seit ${seconds(ms)} s)`
+              : `der Konverter ist nicht gestartet (keine Antwort nach ${seconds(ms)} s)`;
+            timer = setTimeout(() => {
+              timer = null;
+              finish(reject, new core.LoadError("unreadable", file.name, detail));
+            }, ms);
+          };
           const finish = (callback, value) => {
             if (timer) clearTimeout(timer);
             timer = null;
             worker.terminate();
+            window.__calc.conversion = {
+              fileName: file.name,
+              ms: Math.round(performance.now() - startedAt),
+              maxSilenceMs: Math.round(maxSilence),
+            };
             callback(value);
           };
+          watch(false);
           onProgress(null, "Konverter wird gestartet");
           worker.onmessage = (event) => {
-            if (timer) clearTimeout(timer);
-            timer = null;
+            const now = performance.now();
+            maxSilence = Math.max(maxSilence, now - lastMessageAt);
+            lastMessageAt = now;
             const m = event.data;
             if (m.type === "phase") onProgress(m.phase === "parse" ? 0 : null, PHASES[m.phase]);
             else if (m.type === "progress") onProgress(m.progress, "Konvertierung");
-            else if (m.type === "done") finish(resolve, { bytes: m.bytes, elementClasses: m.elementClasses });
-            else if (m.type === "error") finish(reject, new core.LoadError("unreadable", file.name, m.message));
+            else if (m.type === "done") return finish(resolve, { bytes: m.bytes, elementClasses: m.elementClasses });
+            else if (m.type === "error") return finish(reject, new core.LoadError("unreadable", file.name, m.message));
+            watch(true);
           };
           worker.onerror = (event) => {
             event.preventDefault();
@@ -9651,6 +10194,7 @@
             file,
             extraClasses: core.IMPORTER_EXTRA_CLASSES,
             simulateCrash,
+            simulateHang,
           });
         });
       }
@@ -9738,6 +10282,7 @@
           exported: new Date().toISOString(),
           css: document.getElementById("cv-css").textContent,
           helpers: '"use strict";\n' + tovLinkModules.toString() + "\n",
+          guard: block("cv-viewer-guard"),
           bootstrap: block("cv-viewer-bootstrap"),
           payloads,
         });

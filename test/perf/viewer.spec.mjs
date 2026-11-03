@@ -10,7 +10,7 @@
 // The NFR names a viewer file built from >= 100 MB of IFC: the volume set (4 x Revit MEP + SampleCastle, 158.3 MiB,
 // >= 30,000 elements; Testing -> Test data). AC20-FZK-Haus and the Duplex model (2.5 / 2.3 MiB) are recorded too: the
 // embedded runtime (libraries and app, about 1 MB) dominates their files, so the 40 % ratio does not apply to them
-// (recorded, not asserted). Runs in the `file` project only, never at the same time as another perf spec (perf-lock).
+// (recorded, not asserted). TASK-010 adds the synthetic single IFC of NFR-002 (151.8 MB, one model of 10,905 rows). Runs in the `file` project only, never at the same time as another perf spec (perf-lock).
 import { statSync } from "node:fs";
 import { test, expect } from "../support/perf-lock.mjs";
 import { fetched, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
@@ -27,6 +27,8 @@ const SETS = {
   "AC20-FZK-Haus": [fixture("AC20-FZK-Haus.ifc")],
   Duplex: [fixture("Ifc2x3_Duplex_Architecture.ifc")],
   "volume set": [...Array(4).fill(fetched("Ifc4_Revit_MEP.ifc")), fetched("Ifc2x3_SampleCastle.ifc")],
+  // TASK-010: the synthetic single IFC of NFR-002 (151.8 MB, scripts/fetch-fixtures.mjs)
+  "synthetic single IFC": [fetched("synthetic-castle-x3.ifc")],
 };
 
 for (const [name, files] of Object.entries(SETS)) {
@@ -59,7 +61,8 @@ for (const [name, files] of Object.entries(SETS)) {
         const timing = await v.evaluate(async () => {
           const ready = window.__calc.viewer.startMs;
           await window.CalcView.whenIdle();
-          return { ready, usable: performance.now() };
+          // TASK-010: frames drawn because the view changed until usable (the start holds frames: recorded only)
+          return { ready, usable: performance.now(), frames: window.CalcView.changeFrames().length };
         });
         const heap = await v.evaluate(() => (performance.memory ? performance.memory.usedJSHeapSize : null));
         expect(await v.evaluate(() => window.__calc.rows.length)).toBe(rows);
@@ -87,13 +90,18 @@ for (const [name, files] of Object.entries(SETS)) {
       usableMsMedian: Math.round(median(opens.map((o) => o.usable))),
       usableMsMax: Math.round(Math.max(...opens.map((o) => o.usable))),
       heapMBMax: opens.every((o) => o.heap) ? MB(Math.max(...opens.map((o) => o.heap))) : null,
-      runs: opens.map((o) => ({ ready: Math.round(o.ready), usable: Math.round(o.usable), node: o.node })),
+      runs: opens.map((o) => ({
+        ready: Math.round(o.ready),
+        usable: Math.round(o.usable),
+        node: o.node,
+        frames: o.frames,
+      })),
     };
     console.log(`[perf NFR-003 viewer] ${JSON.stringify(report)}`);
     info.annotations.push({ type: "nfr-003-viewer", description: JSON.stringify(report) });
 
     if (ifcBytes >= LARGE_IFC) {
-      expect(rows).toBeGreaterThanOrEqual(30_000);
+      if (name === "volume set") expect(rows).toBeGreaterThanOrEqual(30_000);
       expect(report.ratio, "NFR-003 size <= 40 % of the IFC size").toBeLessThanOrEqual(SIZE_BUDGET);
       expect(report.usableMsMedian, "NFR-003 usable within 15 s").toBeLessThanOrEqual(START_BUDGET_MS);
     } else {

@@ -147,6 +147,7 @@ const skeleton = (over = {}) => ({
   generator: "Calc Viewer Builder (x)",
   exported: "2026-11-02T10:00:00.000Z",
   css: ".a{color:red}",
+  guard: "(function () {})();",
   helpers: "function tovLinkModules() {}",
   bootstrap: "(function () {})();",
   payloads: [
@@ -164,7 +165,15 @@ test("[unit] viewerHtmlParts: fixed skeleton, payload elements in order, title a
   assert.match(text, /<meta name="cv-exported" content="2026-11-02T10:00:00.000Z">\n/);
   assert.match(text, /<style id="cv-css">\.a\{color:red\}<\/style>/);
   const ids = [...text.matchAll(/<script\b[^>]*\bid="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(ids, ["cv-payload-runtime", "cv-payload-model-0", "cv-viewer-helpers", "cv-viewer-bootstrap"]);
+  // the start guard (TASK-010) comes right after #cv-root, before the payloads: it runs even in a truncated file
+  assert.deepEqual(ids, [
+    "cv-viewer-guard",
+    "cv-payload-runtime",
+    "cv-payload-model-0",
+    "cv-viewer-helpers",
+    "cv-viewer-bootstrap",
+  ]);
+  assert.match(text, /<div id="cv-root">Viewer wird geladen \.\.\.<\/div>\n<script id="cv-viewer-guard">/);
   assert.match(text, /<script type="application\/octet-stream" id="cv-payload-runtime">QUJD<\/script>/);
   // every script element is closed exactly once, nothing after </html>
   assert.equal((text.match(/<script\b/g) || []).length, (text.match(/<\/script>/g) || []).length);
@@ -179,6 +188,8 @@ test("[unit] viewerHtmlParts: fixed skeleton, payload elements in order, title a
 test("[unit] viewerHtmlParts refuses parts that would break the skeleton", () => {
   assert.throws(() => core.viewerHtmlParts(skeleton({ css: "a{}</style><script>" })), /css/);
   assert.throws(() => core.viewerHtmlParts(skeleton({ helpers: "x = '</script>'" })), /helpers/);
+  assert.throws(() => core.viewerHtmlParts(skeleton({ guard: "x = '</script>'" })), /guard/);
+  assert.throws(() => core.viewerHtmlParts(skeleton({ guard: undefined })), /Viewer-Datei: guard fehlt/);
   assert.throws(() => core.viewerHtmlParts(skeleton({ bootstrap: "x = '<!--'" })), /bootstrap/);
   assert.throws(
     () => core.viewerHtmlParts(skeleton({ payloads: [{ id: "p", base64: "AB<" }] })),
@@ -186,15 +197,19 @@ test("[unit] viewerHtmlParts refuses parts that would break the skeleton", () =>
   );
 });
 
-test("[unit] the real skeleton parts are valid: cv-css, cv-viewer-bootstrap ASCII and free of closing tags; no storage APIs (CON-003)", () => {
+test("[unit] the real skeleton parts are valid: cv-css, cv-viewer-guard, cv-viewer-bootstrap ASCII and free of closing tags; no storage APIs (CON-003)", () => {
   const css = /<style id="cv-css">([\s\S]*?)<\/style>/.exec(html)[1];
   const bootstrap = extractScript(html, "cv-viewer-bootstrap");
-  const parts = core.viewerHtmlParts(skeleton({ css, bootstrap }));
+  const guard = extractScript(html, "cv-viewer-guard");
+  const parts = core.viewerHtmlParts(skeleton({ css, guard, bootstrap }));
+  assert.ok(guard.includes("DOMContentLoaded") && guard.includes("__cvViewerBootstrap"));
+  assert.ok(bootstrap.includes("window.__cvViewerBootstrap = true"));
   assert.ok(parts.length > 0);
   assert.ok(bootstrap.includes("cv-payload-runtime") && bootstrap.includes("cv-payload-table"));
   assert.ok(bootstrap.includes('mode: "viewer"'));
   for (const [name, text] of [
     ["cv-css", css],
+    ["cv-viewer-guard", guard],
     ["cv-viewer-bootstrap", bootstrap],
   ]) {
     assert.equal(
@@ -205,7 +220,7 @@ test("[unit] the real skeleton parts are valid: cv-css, cv-viewer-bootstrap ASCI
     assert.doesNotMatch(text, /<\/script|<\/style|<!--/i, `${name} has no closing tag`);
   }
   // the viewer file uses no storage API and no network API (CON-003, NFR-005)
-  for (const id of ["cv-core-src", "cv-ui-src", "cv-3d-src", "cv-app-src", "cv-viewer-bootstrap"]) {
+  for (const id of ["cv-core-src", "cv-ui-src", "cv-3d-src", "cv-app-src", "cv-viewer-guard", "cv-viewer-bootstrap"]) {
     const src = extractScript(html, id);
     assert.doesNotMatch(
       src,
@@ -214,6 +229,6 @@ test("[unit] the real skeleton parts are valid: cv-css, cv-viewer-bootstrap ASCI
     );
   }
   // the text/plain blocks contain no literal script opener or comment opener (would change how the builder parses)
-  for (const id of ["cv-core-src", "cv-ui-src", "cv-3d-src", "cv-app-src", "cv-viewer-bootstrap"])
+  for (const id of ["cv-core-src", "cv-ui-src", "cv-3d-src", "cv-app-src", "cv-viewer-guard", "cv-viewer-bootstrap"])
     assert.doesNotMatch(extractScript(html, id), /<script|<!--/i, id);
 });

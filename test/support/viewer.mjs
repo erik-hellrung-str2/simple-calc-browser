@@ -31,10 +31,15 @@ export async function exportViewer(page, path) {
  * Opens the viewer file at path via file:// in a new context of browser with all network blocked: the context is
  * offline and every request Playwright can route is aborted. requests lists every request the page made (URL), except
  * the navigation to the file itself; blocked lists the aborted ones. Waits until the viewer is ready (or failed).
+ * viewerTest (optional) becomes window.__cvViewerTest before the file's scripts run ({ startTimeoutMs, holdStart });
+ * initScript (optional) is a function run in the page before the file's scripts.
  * Returns { context, page, requests, blocked, errors, loadMs (navigation start -> phase ready, Node clock) }.
  */
-export async function openViewerFile(browser, path, { timeout = 120_000 } = {}) {
+export async function openViewerFile(browser, path, { timeout = 120_000, viewerTest = null, initScript = null } = {}) {
   const context = await browser.newContext({ offline: true, acceptDownloads: true });
+  if (initScript) await context.addInitScript(initScript);
+  // test hook of the viewer's start guard (cv-viewer-guard, TASK-010): set before any script of the file runs
+  if (viewerTest) await context.addInitScript((hook) => (window.__cvViewerTest = hook), viewerTest);
   const requests = [];
   const blocked = [];
   const fileUrl = pathToFileURL(path).href;
