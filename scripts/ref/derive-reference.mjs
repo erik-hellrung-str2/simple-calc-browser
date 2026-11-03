@@ -10,7 +10,8 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { loadIfc } from "./ifc-model.mjs";
-import { MASS_PROPERTY, MASS_TARGET, RANGE_PROPERTY } from "../make-unit-fixtures.mjs";
+import { readStep } from "./step.mjs";
+import { EXPORT_PROPERTY, MASS_PROPERTY, MASS_TARGET, RANGE_PROPERTY } from "../make-unit-fixtures.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const FIX = ROOT + "test/fixtures/";
@@ -597,12 +598,106 @@ function configSection() {
   };
 }
 
+/**
+ * REQ-008 (TASK-008): the CSV / Excel export. Single-element view of fzk-export.ifc plus the Duplex fixture with
+ * Kategorie = IfcWallStandardCase: every wall with Modell (file name without .ifc, REQ-001), Name, Geschoss, Material
+ * (sorted distinct names, REQ-002) and the CalcTest_Export values. Zahl carries the IfcReal literal of the STEP text
+ * and its expected CSV text (the literal with a decimal comma, a trailing "." dropped: unrounded, no exponent).
+ * Grouping view of AC20-FZK-Haus by Kategorie with IfcWallStandardCase expanded: the walls with Name, Geschoss and
+ * BaseQuantities.NetVolume (group rows and the total come from REQ-006-grouping-fzk).
+ */
+function exportSection() {
+  const KAT = "IfcWallStandardCase";
+  const modell = (file) => file.replace(/\.ifc$/i, "");
+  const literals = (text) => {
+    // element STEP id -> { Zahl literal, Text } of the CalcTest_Export property set, straight from the records
+    const { entities } = readStep(text);
+    const out = new Map();
+    for (const rel of entities.values()) {
+      if (rel.type !== "IFCRELDEFINESBYPROPERTIES") continue;
+      const pset = entities.get(rel.args[5].ref);
+      if (pset.type !== "IFCPROPERTYSET" || pset.args[2] !== EXPORT_PROPERTY.pset) continue;
+      const values = {};
+      for (const ref of pset.args[4]) {
+        const prop = entities.get(ref.ref);
+        const lit = /IFCREAL\(([^)]*)\)/.exec(prop.raw);
+        if (prop.args[0] === EXPORT_PROPERTY.number) values.literal = lit[1];
+        if (prop.args[0] === EXPORT_PROPERTY.text) values.text = prop.args[2].value;
+      }
+      for (const el of rel.args[4]) out.set(el.ref, values);
+    }
+    return out;
+  };
+  const walls = (file) => {
+    const text = readFileSync(FIX + file, "latin1");
+    const m = loadIfc(text);
+    const lit = literals(text);
+    return m.elements
+      .filter((id) => m.element(id).Kategorie === KAT)
+      .sort((a, b) => a - b)
+      .map((id) => {
+        const e = m.element(id);
+        const v = lit.get(id) ?? {};
+        const zahl = e.props[EXPORT_PROPERTY.pset + "." + EXPORT_PROPERTY.number];
+        const textValue = e.props[EXPORT_PROPERTY.pset + "." + EXPORT_PROPERTY.text];
+        return {
+          stepId: id,
+          GlobalId: e.GlobalId,
+          Modell: modell(file),
+          Kategorie: e.Kategorie,
+          Name: e.Name,
+          Geschoss: e.Geschoss,
+          Material: e.Material,
+          Zahl: zahl
+            ? { value: zahl.value, literal: v.literal, csv: v.literal.replace(/\.$/, "").replace(".", ",") }
+            : null,
+          Text: textValue ? textValue.value : null,
+        };
+      });
+  };
+  const fzkText = readFileSync(FIX + "AC20-FZK-Haus.ifc", "latin1");
+  const fzk = loadIfc(fzkText);
+  const VOLUME = "BaseQuantities.NetVolume";
+  const fzkWalls = fzk.elements
+    .filter((id) => fzk.element(id).Kategorie === KAT)
+    .sort((a, b) => a - b)
+    .map((id) => {
+      const e = fzk.element(id);
+      const vol = e.props[VOLUME];
+      return {
+        GlobalId: e.GlobalId,
+        Name: e.Name,
+        Geschoss: e.Geschoss,
+        [VOLUME]: typeof vol?.value === "number" ? round(vol.value) : null,
+      };
+    });
+  return {
+    single: {
+      files: ["fzk-export.ifc", "Ifc2x3_Duplex_Architecture.ifc"],
+      filter: { Kategorie: [KAT] },
+      properties: {
+        number: EXPORT_PROPERTY.pset + "." + EXPORT_PROPERTY.number,
+        text: EXPORT_PROPERTY.pset + "." + EXPORT_PROPERTY.text,
+      },
+      rows: [...walls("fzk-export.ifc"), ...walls("Ifc2x3_Duplex_Architecture.ifc")],
+    },
+    grouped: {
+      file: "AC20-FZK-Haus.ifc",
+      level: "Kategorie",
+      expanded: KAT,
+      column: VOLUME,
+      walls: fzkWalls,
+    },
+    note: "Single view: every IfcWallStandardCase of both files (STEP id order per file). Zahl.csv is the IfcReal literal of the STEP text with a decimal comma (expected CSV cell); Text is the decoded IfcText (STEP \\X2\\ escapes). Material = sorted distinct names, joined with ', ' in the export. Grouped: the walls of AC20-FZK-Haus (element rows under the expanded IfcWallStandardCase group) with NetVolume rounded to 12 significant digits; group rows and the total row from REQ-006-grouping-fzk.",
+  };
+}
+
 const existing = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : {};
 const fzk = fzkSection();
 const out = {
   meta: {
     purpose:
-      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-009-AC2 and NFR-001 (spec Testing -> Test data)",
+      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2 and NFR-001 (spec Testing -> Test data)",
     generatedBy: "node scripts/ref/derive-reference.mjs",
     method:
       "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
@@ -619,6 +714,7 @@ const out = {
   "REQ-006-grouping-duplex": groupingDuplexSection(),
   "REQ-007-selection": selectionSection(),
   "REQ-009-config": configSection(),
+  "REQ-008-export": exportSection(),
   "REQ-002-AC7": castleSection() ?? existing["REQ-002-AC7"] ?? null,
   "REQ-006-AC1": mep2000Section()?.["REQ-006-AC1"] ?? existing["REQ-006-AC1"] ?? null,
   "NFR-001-name-filter": nameFilterSection() ?? existing["NFR-001-name-filter"] ?? null,

@@ -6,7 +6,7 @@
 // STEP-text derivation).
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, fixture, loadFiles, openBuilder, removeModel } from "../support/builder.mjs";
-import { toggleValue } from "../support/filter-area.mjs";
+import { shownValues, toggleValue } from "../support/filter-area.mjs";
 import { idle, keysOfGuids, rowsByKey, viewState } from "../support/view-3d.mjs";
 import { addColumn, clickSort, headerKeys } from "../support/table.mjs";
 import { deCount, pickGroup, setView, toggleGroup } from "../support/grouping.mjs";
@@ -428,5 +428,33 @@ test("@e2e switching `Einzelelemente` / `Gruppiert` starts the table at its firs
   expect(await scrollTable(page, "end")).toBeGreaterThan(0);
   await pickGroup(page, 2, SEL.levels[1], SEL.levels[1]);
   expect(await top()).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test("@e2e @REQ-007-AC5 Esc inside a filter search field clears only the field, not the element selection (TASK-006c R2)", async ({
+  page,
+}) => {
+  const errors = await openBuilder(page);
+  await loadFiles(page, FZK);
+  await idle(page);
+  const [wall] = await keysOfGuids(page, [SEL.wall.GlobalId]);
+  await page.evaluate((key) => window.CalcView.select(key), wall);
+  await expect.poll(async () => (await selection(page)).selected).toBe(wall);
+  const search = page.getByRole("searchbox", { name: "Werte suchen: Kategorie" });
+  const labels = async () => (await shownValues(page, "Kategorie")).map((v) => v.label);
+  const all = await labels();
+  expect(all.length).toBeGreaterThan(1);
+  await search.fill(SEL.wall.Kategorie);
+  await expect.poll(labels).toEqual([SEL.wall.Kategorie]);
+  await search.press("Escape");
+  await expect(search).toHaveValue("");
+  await expect.poll(labels).toEqual(all);
+  expect((await selection(page)).selected, "selection kept").toBe(wall);
+  await search.press("Escape"); // an empty field: still nothing else happens
+  expect((await selection(page)).selected).toBe(wall);
+  // Esc outside a field still clears the selection (REQ-007-AC5)
+  await page.locator("#cv-status").click();
+  await page.keyboard.press("Escape");
+  await expect.poll(async () => (await selection(page)).selected).toBeNull();
   expect(errors).toEqual([]);
 });

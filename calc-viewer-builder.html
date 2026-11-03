@@ -3554,7 +3554,8 @@
       /**
        * Tolerant apply of a parsed, valid configuration to the loaded models (REQ-009, REQ-009-AC2). ctx:
        * { has(key) -> property in the loaded models, hasValue(key, value) -> some element has that value (null = an
-       * empty one), columns (current column keys, used when the file has no columns) }.
+       * empty one), columns (current column keys, used when the file has no columns), isNumber(key) (optional: true
+       * for a numeric column; a range column filter on another column is reported as invalid and skipped) }.
        * Returns { apply, skipped }. apply holds only the parts the file defines (a missing part keeps the current
        * state): header { title?, date?, logo? }, filterSets, table { view?, groupBy?, columns?, sort?, columnFilters? },
        * display { mode?, colourBy?, section? }. skipped lists what is not applied: properties (keys missing from the
@@ -3661,7 +3662,9 @@
               for (const key of t.groupBy) {
                 if (typeof key !== "string" || key === "") invalid("Gruppierung");
                 else if (!has(key)) missing(key);
-                else if (!table.groupBy.includes(key) && table.groupBy.length < GROUP_LEVELS) table.groupBy.push(key);
+                else if (table.groupBy.includes(key)) continue;
+                else if (table.groupBy.length < GROUP_LEVELS) table.groupBy.push(key);
+                else invalid("Gruppierung " + key + " (h\u00f6chstens " + GROUP_LEVELS + " Ebenen)"); // TASK-007 C2
               }
             } else if (t.groupBy !== undefined) invalid("Gruppierung");
             if (Array.isArray(t.columns)) {
@@ -3698,7 +3701,9 @@
                   invalid(what);
                   continue;
                 }
-                if (f.type === "range") {
+                if (f.type === "range" && ctx.isNumber && !ctx.isNumber(f.key)) {
+                  invalid(what + " (Bereich auf einer Textspalte)"); // TASK-007 C1
+                } else if (f.type === "range") {
                   const bound = (b) => (b === null || b === undefined ? null : typeof b === "number" && Number.isFinite(b) ? b : undefined);
                   const min = bound(f.min);
                   const max = bound(f.max);
@@ -3779,6 +3784,637 @@
         if (skipped.invalid.length) lines.push("Ung\u00fcltige Angaben: " + list(skipped.invalid) + ".");
         if (skipped.unknown.length) lines.push("Unbekannte Angaben: " + list(skipped.unknown) + ".");
         return lines.join("\n");
+      }
+
+      // ---------------------------------------------------------------------------------------------------------
+      // Export (TASK-008; REQ-008 CSV and Excel, DEC-6, NFR-004; spec 4.1 own writers, no libraries)
+      // ---------------------------------------------------------------------------------------------------------
+
+      /** `Ebene` values of the grouping-view export (REQ-008). */
+      export const EXPORT_LEVELS = { element: "Element", total: "Summe" };
+
+      /** Sheet name of the Excel export (REQ-008). */
+      export const XLSX_SHEET_NAME = "Tabelle";
+
+      /** Longest text an Excel cell holds (Excel specification); longer texts are cut in the .xlsx only. */
+      export const XLSX_MAX_TEXT = 32767;
+
+      /** Column width bounds of the Excel export in characters (fitted to the longest cell text). */
+      export const XLSX_WIDTH = { min: 8, max: 80 };
+
+      /** Rows per step of the writers: after each step options.pause(fraction) is awaited (progress, NFR-004). */
+      export const EXPORT_STEP_ROWS = 2000;
+
+      /**
+       * A number as text without rounding and without exponent notation (REQ-008 "numbers unrounded (shortest
+       * round-trip representation), no exponent notation"), decimal point: 1e-7 -> "0.0000001", 2.5e21 ->
+       * "2500000000000000000000", -0 -> "0".
+       */
+      export function plainNumber(n) {
+        if (n === 0) return "0";
+        const s = String(n);
+        const m = /^(-?)(\d)(?:\.(\d+))?e([+-]\d+)$/.exec(s);
+        if (!m) return s;
+        const sign = m[1];
+        const digits = m[2] + (m[3] || "");
+        const exp = Number(m[4]);
+        if (exp < 0) return sign + "0." + "0".repeat(-exp - 1) + digits;
+        const point = exp + 1;
+        if (digits.length <= point) return sign + digits + "0".repeat(point - digits.length);
+        return sign + digits.slice(0, point) + "." + digits.slice(point);
+      }
+
+      /** A number in German notation for the export: plainNumber with a decimal comma, no thousands separator. */
+      export function germanPlainNumber(n) {
+        return plainNumber(n).replace(".", ",");
+      }
+
+      /**
+       * Export value of a table cell: a finite number stays a number, multi-values are joined with ", " (numbers in
+       * them in German notation, as displayed), other values as text; empty values (isEmptyValue) are null.
+       */
+      export function exportValue(value) {
+        if (isEmptyValue(value)) return null;
+        if (typeof value === "number") return value;
+        if (Array.isArray(value)) {
+          const parts = [];
+          for (const v of value) if (!isEmptyValue(v)) parts.push(typeof v === "number" ? germanPlainNumber(v) : String(v));
+          return parts.length ? parts.join(", ") : null;
+        }
+        return String(value);
+      }
+
+      /**
+       * The rows the table shows, as an export sheet (REQ-008). input: { rows (element rows, spec 4.3), columns
+       * [{ key, title }] (visible columns in their order; title = header with unit), view 'single' | 'grouped',
+       * order (single view: row indices in table order), items (grouping view: groupDisplayRows result), total
+       * (grouping view: groupRows(...).total) }.
+       * Returns { headers [title], rows [[cell]] (cell: number | string | null), bold [boolean] (group and total
+       * rows), total (true when the last row is the total row) }. The grouping view starts with `Ebene` (`1`, `2`,
+       * `Element`, `Summe`), `Gruppe` (group value, "(leer)" for the empty group; empty on element and total rows)
+       * and `Anzahl` (empty on element rows), followed by the columns (sums / common values on group rows, sums on the
+       * total row, values on element rows); the total row is last.
+       */
+      export function exportSheet(input) {
+        const rows = input.rows || [];
+        const columns = input.columns || [];
+        const keys = columns.map((c) => c.key);
+        const cellsOf = (values) => keys.map((key) => exportValue(values[key]));
+        const out = { headers: columns.map((c) => c.title), rows: [], bold: [], total: false };
+        if (input.view !== "grouped") {
+          for (const i of input.order || []) {
+            out.rows.push(cellsOf(rows[i].values));
+            out.bold.push(false);
+          }
+          return out;
+        }
+        out.headers = ["Ebene", "Gruppe", "Anzahl"].concat(out.headers);
+        for (const item of input.items || []) {
+          if (item.type === "group") {
+            const g = item.group;
+            const label = g.value === null || g.value === undefined ? EMPTY_LABEL : exportValue(g.value);
+            out.rows.push([String(g.level), label, g.count].concat(cellsOf(g.cells)));
+            out.bold.push(true);
+          } else {
+            out.rows.push([EXPORT_LEVELS.element, null, null].concat(cellsOf(rows[item.index].values)));
+            out.bold.push(false);
+          }
+        }
+        const total = input.total || { count: 0, cells: {} };
+        out.rows.push([EXPORT_LEVELS.total, null, total.count].concat(cellsOf(total.cells || {})));
+        out.bold.push(true);
+        out.total = true;
+        return out;
+      }
+
+      /**
+       * One CSV field (REQ-008, RFC 4180, DEC-6): numbers with a decimal comma; a text starting with = + - @ gets a
+       * leading "'" (formula injection); a field with ; " CR or LF is quoted, quotes doubled; null is empty.
+       */
+      export function csvField(value) {
+        if (value === null || value === undefined) return "";
+        if (typeof value === "number") return germanPlainNumber(value);
+        let s = String(value);
+        if (/^[=+\-@]/.test(s)) s = "'" + s;
+        return /[;"\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }
+
+      /**
+       * CSV text of an export sheet (REQ-008): UTF-8 BOM (as U+FEFF; the download encodes UTF-8), separator ";",
+       * CRLF after every record, header row first. options.pause(fraction) is awaited every EXPORT_STEP_ROWS rows.
+       */
+      export async function toCsv(sheet, options) {
+        const pause = options && options.pause;
+        const parts = ["\ufeff" + sheet.headers.map(csvField).join(";") + "\r\n"];
+        const n = sheet.rows.length;
+        for (let start = 0; start < n; start += EXPORT_STEP_ROWS) {
+          const end = Math.min(n, start + EXPORT_STEP_ROWS);
+          let chunk = "";
+          for (let r = start; r < end; r++) {
+            const row = sheet.rows[r];
+            let line = "";
+            for (let c = 0; c < row.length; c++) line += (c ? ";" : "") + csvField(row[c]);
+            chunk += line + "\r\n";
+          }
+          parts.push(chunk);
+          if (pause) await pause(end / n);
+        }
+        return parts.join("");
+      }
+
+      /** Spreadsheet column name of a 0-based index: 0 -> A, 25 -> Z, 26 -> AA. */
+      export function columnName(index) {
+        let name = "";
+        for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) name = String.fromCharCode(65 + ((n - 1) % 26)) + name;
+        return name;
+      }
+
+      /**
+       * Text for XML element content of an .xlsx part: & < > escaped, CR kept as a character reference, characters
+       * XML 1.0 forbids (controls other than TAB / LF / CR, U+FFFE / U+FFFF) and a literal "_xHHHH_" written in the
+       * OOXML escape form _xHHHH_ (Excel reads them back as the original characters).
+       */
+      export function xmlText(text) {
+        return (
+          String(text)
+            .replace(/_(x[0-9A-Fa-f]{4}_)/g, "_x005F_$1")
+            // eslint-disable-next-line no-control-regex
+            .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g, (c) => "_x" + c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0") + "_")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\r/g, "&#13;")
+        );
+      }
+
+      const CRC_TABLE = (() => {
+        const table = new Uint32Array(256);
+        for (let n = 0; n < 256; n++) {
+          let c = n;
+          for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+          table[n] = c >>> 0;
+        }
+        return table;
+      })();
+
+      /** CRC-32 (ZIP) of bytes, continuing from crc (0 to start). */
+      export function crc32(bytes, crc) {
+        let c = (crc === undefined ? 0 : crc) ^ 0xffffffff;
+        for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+        return (c ^ 0xffffffff) >>> 0;
+      }
+
+      /** Raw deflate of byte chunks with CompressionStream('deflate-raw'); null where the runtime has none. */
+      async function deflateRaw(chunks) {
+        if (typeof CompressionStream !== "function") return null;
+        const stream = new Blob(chunks).stream().pipeThrough(new CompressionStream("deflate-raw"));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+      }
+
+      /**
+       * ZIP archive of entries [{ name, chunks [Uint8Array] }] (spec 4.1: ZIP via CompressionStream('deflate-raw');
+       * stored when the runtime has no CompressionStream). Fixed timestamp 1980-01-01 00:00, so equal content gives
+       * equal bytes. Returns a Uint8Array.
+       */
+      export async function zipArchive(entries, pause) {
+        const enc = new TextEncoder();
+        const parts = [];
+        const central = [];
+        let offset = 0;
+        for (const entry of entries) {
+          const name = enc.encode(entry.name);
+          let crc = 0;
+          let size = 0;
+          for (const chunk of entry.chunks) {
+            crc = crc32(chunk, crc);
+            size += chunk.length;
+          }
+          if (pause) await pause();
+          const deflated = await deflateRaw(entry.chunks);
+          const method = deflated ? 8 : 0;
+          const data = deflated ? [deflated] : entry.chunks;
+          const compressed = deflated ? deflated.length : size;
+          const local = new DataView(new ArrayBuffer(30));
+          local.setUint32(0, 0x04034b50, true);
+          local.setUint16(4, 20, true); // version needed 2.0
+          local.setUint16(6, 0x0800, true); // UTF-8 names
+          local.setUint16(8, method, true);
+          local.setUint16(10, 0, true); // time 00:00
+          local.setUint16(12, 0x21, true); // date 1980-01-01
+          local.setUint32(14, crc, true);
+          local.setUint32(18, compressed, true);
+          local.setUint32(22, size, true);
+          local.setUint16(26, name.length, true);
+          local.setUint16(28, 0, true);
+          parts.push(new Uint8Array(local.buffer), name, ...data);
+          const dir = new DataView(new ArrayBuffer(46));
+          dir.setUint32(0, 0x02014b50, true);
+          dir.setUint16(4, 20, true); // made by 2.0 (MS-DOS)
+          dir.setUint16(6, 20, true);
+          dir.setUint16(8, 0x0800, true);
+          dir.setUint16(10, method, true);
+          dir.setUint16(12, 0, true);
+          dir.setUint16(14, 0x21, true);
+          dir.setUint32(16, crc, true);
+          dir.setUint32(20, compressed, true);
+          dir.setUint32(24, size, true);
+          dir.setUint16(28, name.length, true);
+          dir.setUint32(42, offset, true);
+          central.push(new Uint8Array(dir.buffer), name);
+          offset += 30 + name.length + compressed;
+        }
+        let dirSize = 0;
+        for (const c of central) dirSize += c.length;
+        const end = new DataView(new ArrayBuffer(22));
+        end.setUint32(0, 0x06054b50, true);
+        end.setUint16(8, entries.length, true);
+        end.setUint16(10, entries.length, true);
+        end.setUint32(12, dirSize, true);
+        end.setUint32(16, offset, true);
+        const all = parts.concat(central, [new Uint8Array(end.buffer)]);
+        let length = 0;
+        for (const p of all) length += p.length;
+        const out = new Uint8Array(length);
+        let at = 0;
+        for (const p of all) {
+          out.set(p, at);
+          at += p.length;
+        }
+        return out;
+      }
+
+      const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+      const NS_MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+      const NS_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+      const NS_PKG_REL = "http://schemas.openxmlformats.org/package/2006/relationships";
+      const CT = "application/vnd.openxmlformats-officedocument.spreadsheetml.";
+
+      /** Length of a cell text in characters (code points) for the column width. */
+      function textWidth(value) {
+        if (value === null || value === undefined) return 0;
+        const s = typeof value === "number" ? germanPlainNumber(value) : String(value);
+        let longest = 0;
+        for (const line of s.split("\n")) {
+          let n = 0;
+          for (let i = 0; i < line.length; i++) {
+            const code = line.charCodeAt(i);
+            if (code < 0xdc00 || code > 0xdfff) n++;
+          }
+          if (n > longest) longest = n;
+        }
+        return longest;
+      }
+
+      /**
+       * Excel workbook (.xlsx bytes, Uint8Array) of an export sheet (REQ-008, ASM-004): one sheet `Tabelle`, header
+       * bold and frozen, autofilter over header and rows (without the total row), numbers as numeric cells, texts as
+       * shared strings (a text starting with "=" stays text), column widths fitted, group and total rows bold.
+       * options.pause(fraction) is awaited every EXPORT_STEP_ROWS rows and before each compressed part.
+       */
+      export async function toXlsx(sheet, options) {
+        const pause = options && options.pause;
+        const enc = new TextEncoder();
+        const width = sheet.headers.length;
+        const n = sheet.rows.length;
+        const strings = new Map();
+        const stringList = [];
+        const stringIndex = (text) => {
+          const s = text.length > XLSX_MAX_TEXT ? text.slice(0, XLSX_MAX_TEXT) : text;
+          let i = strings.get(s);
+          if (i === undefined) {
+            i = stringList.length;
+            strings.set(s, i);
+            stringList.push(s);
+          }
+          return i;
+        };
+        const names = [];
+        for (let c = 0; c < width; c++) names.push(columnName(c));
+        const widths = sheet.headers.map((h) => textWidth(h) + 3); // bold header and the filter button
+        const cell = (ref, value, style) => {
+          if (value === null || value === undefined) return "";
+          if (typeof value === "number") return '<c r="' + ref + '"' + style + "><v>" + plainNumber(value) + "</v></c>";
+          return '<c r="' + ref + '"' + style + ' t="s"><v>' + stringIndex(String(value)) + "</v></c>";
+        };
+        const rowXml = (r, values, bold) => {
+          const style = bold ? ' s="1"' : "";
+          let xml = '<row r="' + r + '"' + (bold ? ' s="1" customFormat="1"' : "") + ">";
+          for (let c = 0; c < width; c++) {
+            const value = values[c];
+            xml += cell(names[c] + r, value, style);
+            const w = textWidth(value);
+            if (w > widths[c]) widths[c] = w;
+          }
+          return xml + "</row>";
+        };
+        const body = [];
+        body.push(enc.encode(rowXml(1, sheet.headers, true)));
+        for (let start = 0; start < n; start += EXPORT_STEP_ROWS) {
+          const end = Math.min(n, start + EXPORT_STEP_ROWS);
+          let chunk = "";
+          for (let r = start; r < end; r++) chunk += rowXml(r + 2, sheet.rows[r], sheet.bold[r]);
+          body.push(enc.encode(chunk));
+          if (pause) await pause((0.8 * end) / n);
+        }
+        const last = names.length ? names[width - 1] : "A";
+        const filterEnd = Math.max(1, n + 1 - (sheet.total ? 1 : 0));
+        const filterRef = "A1:" + last + filterEnd;
+        let cols = "";
+        if (width) {
+          cols = "<cols>";
+          for (let c = 0; c < width; c++) {
+            const w = Math.min(XLSX_WIDTH.max, Math.max(XLSX_WIDTH.min, widths[c] + 2));
+            cols += '<col min="' + (c + 1) + '" max="' + (c + 1) + '" width="' + w + '" customWidth="1"/>';
+          }
+          cols += "</cols>";
+        }
+        const sheetHead =
+          XML_HEAD +
+          '<worksheet xmlns="' + NS_MAIN + '" xmlns:r="' + NS_REL + '">' +
+          '<dimension ref="A1' + (width ? ":" + last + (n + 1) : "") + '"/>' +
+          '<sheetViews><sheetView tabSelected="1" workbookViewId="0">' +
+          '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' +
+          '<selection pane="bottomLeft" activeCell="A2" sqref="A2"/>' +
+          "</sheetView></sheetViews>" +
+          '<sheetFormatPr defaultRowHeight="15"/>' +
+          cols +
+          "<sheetData>";
+        const sheetTail = "</sheetData>" + (width ? '<autoFilter ref="' + filterRef + '"/>' : "") + "</worksheet>";
+        let sst = XML_HEAD + '<sst xmlns="' + NS_MAIN + '" count="' + stringList.length + '" uniqueCount="' + stringList.length + '">';
+        const sstParts = [];
+        for (let i = 0; i < stringList.length; i++) {
+          sst += '<si><t xml:space="preserve">' + xmlText(stringList[i]) + "</t></si>";
+          if (sst.length > 1 << 20) {
+            sstParts.push(enc.encode(sst));
+            sst = "";
+          }
+        }
+        sstParts.push(enc.encode(sst + "</sst>"));
+        const sheetName = XLSX_SHEET_NAME;
+        const workbook =
+          XML_HEAD +
+          '<workbook xmlns="' + NS_MAIN + '" xmlns:r="' + NS_REL + '">' +
+          '<bookViews><workbookView xWindow="0" yWindow="0" windowWidth="16000" windowHeight="9000"/></bookViews>' +
+          '<sheets><sheet name="' + sheetName + '" sheetId="1" r:id="rId1"/></sheets>' +
+          (width
+            ? '<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">' +
+              sheetName + "!$A$1:$" + last + "$" + filterEnd + "</definedName></definedNames>"
+            : "") +
+          "</workbook>";
+        const styles =
+          XML_HEAD +
+          '<styleSheet xmlns="' + NS_MAIN + '">' +
+          '<fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font>' +
+          '<font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts>' +
+          '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
+          '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+          '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+          '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+          '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>' +
+          '<cellStyles count="1"><cellStyle name="Standard" xfId="0" builtinId="0"/></cellStyles>' +
+          "</styleSheet>";
+        const contentTypes =
+          XML_HEAD +
+          '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+          '<Default Extension="xml" ContentType="application/xml"/>' +
+          '<Override PartName="/xl/workbook.xml" ContentType="' + CT + 'sheet.main+xml"/>' +
+          '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="' + CT + 'worksheet+xml"/>' +
+          '<Override PartName="/xl/styles.xml" ContentType="' + CT + 'styles+xml"/>' +
+          '<Override PartName="/xl/sharedStrings.xml" ContentType="' + CT + 'sharedStrings+xml"/>' +
+          "</Types>";
+        const rootRels =
+          XML_HEAD +
+          '<Relationships xmlns="' + NS_PKG_REL + '">' +
+          '<Relationship Id="rId1" Type="' + NS_REL + '/officeDocument" Target="xl/workbook.xml"/>' +
+          "</Relationships>";
+        const workbookRels =
+          XML_HEAD +
+          '<Relationships xmlns="' + NS_PKG_REL + '">' +
+          '<Relationship Id="rId1" Type="' + NS_REL + '/worksheet" Target="worksheets/sheet1.xml"/>' +
+          '<Relationship Id="rId2" Type="' + NS_REL + '/styles" Target="styles.xml"/>' +
+          '<Relationship Id="rId3" Type="' + NS_REL + '/sharedStrings" Target="sharedStrings.xml"/>' +
+          "</Relationships>";
+        const text = (s) => [enc.encode(s)];
+        let done = 0;
+        const zipPause = pause
+          ? () => {
+              done++;
+              return pause(0.8 + (0.2 * done) / 7);
+            }
+          : null;
+        return zipArchive(
+          [
+            { name: "[Content_Types].xml", chunks: text(contentTypes) },
+            { name: "_rels/.rels", chunks: text(rootRels) },
+            { name: "xl/workbook.xml", chunks: text(workbook) },
+            { name: "xl/_rels/workbook.xml.rels", chunks: text(workbookRels) },
+            { name: "xl/styles.xml", chunks: text(styles) },
+            { name: "xl/sharedStrings.xml", chunks: sstParts },
+            {
+              name: "xl/worksheets/sheet1.xml",
+              chunks: [enc.encode(sheetHead)].concat(body, [enc.encode(sheetTail)]),
+            },
+          ],
+          zipPause,
+        );
+      }
+
+      // ---------------------------------------------------------------------------------------------------------
+      // Viewer file (TASK-009; REQ-010, spec 4.2): element table encoding and the fixed HTML skeleton
+      // ---------------------------------------------------------------------------------------------------------
+
+      /** Version of the encoded element table (encodeTable / decodeTable). */
+      export const TABLE_VERSION = 1;
+
+      // value codes in the flat value list of a row: [key * 4 + code, payload, ...]
+      const V_TEXT = 0; // payload: index into strings
+      const V_NUMBER = 1; // payload: the number (finite, not -0)
+      const V_MULTI = 2; // payload: [indices into strings]
+      const V_OTHER = 3; // payload: { v: value } as JSON, or { z: 1 } for -0
+
+      /**
+       * Encodes the element table of the loaded models for the viewer file (spec 4.2, 4.4 encodeTable): models
+       * [{ id, name, fileName, rows, properties, spaceProperties, spaceIds, contextIds }] (rows as spec 4.3, properties
+       * as createExtractor gives them: Map key -> { pset, name, occurrence, type, kinds Set, units Set }). Property keys
+       * and text values are stored once (dictionaries in order of first use, so equal input gives equal output); every
+       * row is [localId, guid string index or -1, geometry 0 | 1, [key * 4 + code, payload, ...]]. The result is plain
+       * JSON data; decodeTable gives the models back with equal rows (row key and model rebuilt from id and localId).
+       */
+      export function encodeTable(models) {
+        const keys = [];
+        const keyIndex = new Map();
+        const strings = [];
+        const stringIndex = new Map();
+        const keyOf = (k) => {
+          let i = keyIndex.get(k);
+          if (i === undefined) {
+            i = keys.length;
+            keys.push(k);
+            keyIndex.set(k, i);
+          }
+          return i;
+        };
+        const str = (s) => {
+          let i = stringIndex.get(s);
+          if (i === undefined) {
+            i = strings.length;
+            strings.push(s);
+            stringIndex.set(s, i);
+          }
+          return i;
+        };
+        const encodeProps = (props) =>
+          props
+            ? [...props].map(([k, m]) => [keyOf(k), m.pset, m.name, Boolean(m.occurrence), Boolean(m.type), [...m.kinds], [...m.units]])
+            : [];
+        const out = [];
+        for (const model of models) {
+          const rows = [];
+          for (const row of model.rows) {
+            const flat = [];
+            for (const k in row.values) {
+              const v = row.values[k];
+              if (v === undefined) continue;
+              const base = keyOf(k) * 4;
+              if (typeof v === "string") flat.push(base + V_TEXT, str(v));
+              else if (typeof v === "number" && Number.isFinite(v) && !Object.is(v, -0)) flat.push(base + V_NUMBER, v);
+              else if (Array.isArray(v) && v.every((x) => typeof x === "string")) flat.push(base + V_MULTI, v.map(str));
+              else flat.push(base + V_OTHER, Object.is(v, -0) ? { z: 1 } : { v });
+            }
+            rows.push([row.localId, row.guid === null || row.guid === undefined ? -1 : str(row.guid), row.geometry ? 1 : 0, flat]);
+          }
+          out.push({
+            id: model.id,
+            name: model.name,
+            fileName: model.fileName,
+            spaceIds: Array.from(model.spaceIds || []),
+            contextIds: Array.from(model.contextIds || []),
+            properties: encodeProps(model.properties),
+            spaceProperties: encodeProps(model.spaceProperties),
+            rows,
+          });
+        }
+        return { version: TABLE_VERSION, keys, strings, models: out };
+      }
+
+      /** Inverse of encodeTable: [{ id, name, fileName, rows, properties, spaceProperties, spaceIds, contextIds }]. */
+      export function decodeTable(table) {
+        if (!table || table.version !== TABLE_VERSION) throw new Error("Unbekanntes Tabellenformat der Viewer-Datei.");
+        const { keys, strings } = table;
+        const decodeProps = (list) =>
+          new Map(
+            list.map(([k, pset, name, occurrence, type, kinds, units]) => [
+              keys[k],
+              { pset, name, occurrence, type, kinds: new Set(kinds), units: new Set(units) },
+            ]),
+          );
+        return table.models.map((m) => {
+          const rows = new Array(m.rows.length);
+          for (let r = 0; r < m.rows.length; r++) {
+            const [localId, guid, geometry, flat] = m.rows[r];
+            const values = {};
+            for (let i = 0; i < flat.length; i += 2) {
+              const code = flat[i] % 4;
+              const key = keys[(flat[i] - code) / 4];
+              const p = flat[i + 1];
+              if (code === V_TEXT) values[key] = strings[p];
+              else if (code === V_NUMBER) values[key] = p;
+              else if (code === V_MULTI) values[key] = p.map((s) => strings[s]);
+              else values[key] = p.z ? -0 : p.v;
+            }
+            rows[r] = {
+              key: m.id + ":" + localId,
+              model: m.id,
+              localId,
+              guid: guid === -1 ? null : strings[guid],
+              geometry: geometry === 1,
+              values,
+            };
+          }
+          return {
+            id: m.id,
+            name: m.name,
+            fileName: m.fileName,
+            rows,
+            properties: decodeProps(m.properties),
+            spaceProperties: decodeProps(m.spaceProperties),
+            spaceIds: m.spaceIds.slice(),
+            contextIds: m.contextIds.slice(),
+          };
+        });
+      }
+
+      /** Text for HTML element content and attribute values: & < > " ' escaped. */
+      export function escapeHtml(text) {
+        return String(text).replace(/[&<>"']/g, (c) => "&#" + c.charCodeAt(0) + ";");
+      }
+
+      /** Bytes -> Base64 text (chunked, so large payloads do not exceed the argument limit of fromCharCode). */
+      export function bytesToBase64(bytes) {
+        const CHUNK = 0x8000 * 3; // a multiple of 3: chunks encode without padding in between
+        const parts = [];
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          const sub = bytes.subarray(i, i + CHUNK);
+          let binary = "";
+          for (let j = 0; j < sub.length; j += 0x8000)
+            binary += String.fromCharCode.apply(null, sub.subarray(j, j + 0x8000));
+          parts.push(btoa(binary));
+        }
+        return parts.join("");
+      }
+
+      /** gzip with the native CompressionStream (deterministic: same bytes in, same bytes out). */
+      export async function gzipBytes(bytes) {
+        const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+      }
+
+      /** Payload element ids of the viewer file (read by cv-viewer-bootstrap). */
+      export const VIEWER_PAYLOAD = {
+        runtime: "cv-payload-runtime",
+        table: "cv-payload-table",
+        config: "cv-payload-config",
+        model: (i) => "cv-payload-model-" + i,
+      };
+
+      /**
+       * The viewer file as a list of text parts (spec 4.2: a fixed skeleton, never the live DOM). input: { title,
+       * generator (text of the generator meta), exported (ISO time of the export, the only part that differs between
+       * two exports of the same state), css, helpers (classic script: tovLinkModules), bootstrap (classic script),
+       * payloads [{ id, base64 }] }. Title and meta values are HTML-escaped; css and scripts must not contain a closing
+       * script / style tag or a comment opener in a script (checked: an Error names the part), payloads are Base64 (gzip) text.
+       */
+      export function viewerHtmlParts(input) {
+        const CLOSE = "<" + "/script>";
+        const OPEN = "<" + "script"; // never literal in a script block: it would change how the builder is parsed
+        const checks = [
+          ["css", input.css, /<\/style/i],
+          ["helpers", input.helpers, /<\/script|<!-{2}/i],
+          ["bootstrap", input.bootstrap, /<\/script|<!-{2}/i],
+        ];
+        for (const [name, text, re] of checks) if (re.test(text)) throw new Error("Viewer-Datei: " + name + " enth\u00e4lt ein schlie\u00dfendes Tag.");
+        for (const p of input.payloads)
+          if (!/^[A-Za-z0-9+/=]*$/.test(p.base64)) throw new Error("Viewer-Datei: Nutzdaten " + p.id + " sind kein Base64.");
+        const parts = [
+          "<!doctype html>\n",
+          '<html lang="de">\n<head>\n<meta charset="utf-8">\n',
+          '<meta name="viewport" content="width=device-width, initial-scale=1">\n',
+          '<meta name="generator" content="' + escapeHtml(input.generator) + '">\n',
+          '<meta name="cv-exported" content="' + escapeHtml(input.exported) + '">\n',
+          "<title>" + escapeHtml(input.title) + "</title>\n",
+          '<style id="cv-css">' + input.css + "</style>\n",
+          '</head>\n<body>\n<div id="cv-root">Viewer wird geladen ...</div>\n',
+        ];
+        for (const p of input.payloads) {
+          parts.push(OPEN + ' type="application/octet-stream" id="' + escapeHtml(p.id) + '">');
+          parts.push(p.base64);
+          parts.push(CLOSE + "\n");
+        }
+        parts.push(OPEN + ' id="cv-viewer-helpers">' + input.helpers + CLOSE + "\n");
+        parts.push(OPEN + ' id="cv-viewer-bootstrap">' + input.bootstrap + CLOSE + "\n");
+        parts.push("</body>\n</html>\n");
+        return parts;
       }
     </script>
 
@@ -4028,6 +4664,16 @@
         });
         searchInput.addEventListener("input", () => {
           query = searchInput.value.trim().toLowerCase();
+          applySearch(true);
+        });
+        // Escape in the search field clears only the field, not the element selection (REQ-007-AC5 Esc is handled
+        // by the document listener only when no control handled it; TASK-006c R2)
+        searchInput.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          if (searchInput.value === "") return;
+          searchInput.value = "";
+          query = "";
           applySearch(true);
         });
         toggle.addEventListener("click", () => handlers.collapse(id, !root.classList.contains("cv-collapsed")));
@@ -5749,7 +6395,7 @@
         loadButton.id = "cv-load";
         loadButton.disabled = true;
         loadButton.addEventListener("click", () => fileInput.click());
-        // configuration save / load (REQ-009, builder only); `HTML exportieren` follows in TASK-009
+        // configuration save / load (REQ-009) and `HTML exportieren` (REQ-010): builder only
         const configInput = el("input");
         configInput.type = "file";
         configInput.accept = ".json,application/json";
@@ -5880,10 +6526,19 @@
         columnsButton.append(icon("columns"), document.createTextNode("Spalten"));
         columnsButton.addEventListener("click", () => options.tableHandlers.chooser());
         tableTools.append(columnsButton);
-        for (const label of ["Export CSV", "Export Excel"]) {
+        // exports of the shown table rows (TASK-008, REQ-008); enabled while a model is loaded and no action runs
+        const exportButtons = [];
+        for (const [label, format] of [
+          ["Export CSV", "csv"],
+          ["Export Excel", "xlsx"],
+        ]) {
           const button = el("button", "cv-btn cv-small", label);
           button.type = "button";
+          button.id = "cv-export-" + format;
           button.disabled = true;
+          button.title = "Zuerst ein IFC-Modell laden.";
+          button.addEventListener("click", () => options.tableHandlers.exportTable(format));
+          exportButtons.push(button);
           tableTools.append(button);
         }
         tableHead.append(tableTitle, viewSeg, groupTools, tableTools);
@@ -5990,6 +6645,7 @@
           loadButton,
           configInput,
           saveButton,
+          htmlButton,
           openButton,
           setHeader,
           /** Opens the dialog `Titel, Datum und Logo` (see openHeaderDialog). */
@@ -6105,19 +6761,38 @@
           setBusy(value) {
             busy = value;
             loadButton.disabled = value;
-            saveButton.disabled = value;
+            saveButton.disabled = value || !configLoadable;
             openButton.disabled = value || !configLoadable;
+            for (const button of exportButtons) button.disabled = value || !configLoadable;
+            htmlButton.disabled = value || !configLoadable;
             if (headerEdit) headerEdit.disabled = value;
             if (spacesToggle) spacesToggle.disabled = value;
             for (const button of removeButtons) button.disabled = value;
           },
-          /** `Konfiguration laden` needs a loaded model (REQ-009 applies a configuration to the loaded models). */
+          /**
+           * `Konfiguration laden` needs a loaded model (REQ-009 applies a configuration to the loaded models); so do
+           * `Konfiguration speichern` (TASK-007 C3), the table exports `Export CSV` / `Export Excel` (TASK-008) and
+           * `HTML exportieren` (TASK-009).
+           */
           setConfigLoadable(value) {
             configLoadable = Boolean(value);
+            const hint = "Zuerst ein IFC-Modell laden.";
             openButton.disabled = busy || !configLoadable;
-            openButton.title = configLoadable
-              ? "Konfiguration (JSON) auf die geladenen Modelle anwenden"
-              : "Zuerst ein IFC-Modell laden.";
+            openButton.title = configLoadable ? "Konfiguration (JSON) auf die geladenen Modelle anwenden" : hint;
+            saveButton.disabled = busy || !configLoadable;
+            saveButton.title = configLoadable ? "Aktuelle Ansicht als Konfiguration (JSON) speichern" : hint;
+            htmlButton.disabled = busy || !configLoadable;
+            htmlButton.title = configLoadable
+              ? "Modelle, Daten und aktuelle Ansicht als Offline-Viewer (HTML) exportieren"
+              : hint;
+            for (const button of exportButtons) {
+              button.disabled = busy || !configLoadable;
+              button.title = !configLoadable
+                ? hint
+                : button.id === "cv-export-csv"
+                  ? "Angezeigte Tabellenzeilen als CSV exportieren"
+                  : "Angezeigte Tabellenzeilen als Excel-Datei (.xlsx) exportieren";
+            }
           },
           /** Calls onFiles(files) for files dropped anywhere on the page (builder). */
           onDropFiles(onFiles) {
@@ -6911,6 +7586,7 @@
         createColumnStore,
         defaultColumnWidth,
         evaluateFilters,
+        exportSheet,
         facetCounts,
         filterRows,
         groupDisplayRows,
@@ -6924,6 +7600,8 @@
         numberRange,
         pruneSelection,
         sortRows,
+        toCsv,
+        toXlsx,
         uniqueModelName,
         visibleRows,
       } from "calc-core";
@@ -6963,6 +7641,13 @@
        * saves, last ({ ok, fileName, errorClass, message, ms } | { ok, fileName, notice, skipped, ms }; ms = parse and
        * apply time), lastSaved
        * ({ fileName, text }) }; window.CalcConfig.state() is the configuration a save would write.
+       * export (TASK-008, REQ-008): { count (finished exports), last ({ ok, format 'csv' | 'xlsx', fileName, rows (data
+       * rows without the header), columns, view, ms } | { ok: false, format, fileName, message, ms }) }; phase is
+       * "exporting" while an export runs.
+       * mode (TASK-009): "builder" | "viewer". viewerExport (TASK-009, REQ-010, builder): { count (finished
+       * `HTML exportieren` actions), last ({ ok, fileName, bytes (file size), models, rows, ms } | { ok: false,
+       * fileName, message, ms }) }; phase is "exporting" while it runs. viewer (viewer file only): { startMs (bootstrap
+       * start -> ready, from performance.timeOrigin) }.
        */
       const hook = {
         phase: "starting",
@@ -6997,6 +7682,10 @@
         view: null,
         header: null,
         config: { loads: 0, saves: 0, last: null, lastSaved: null },
+        export: { count: 0, last: null },
+        mode: null,
+        viewerExport: { count: 0, last: null },
+        viewer: null,
         test: { crashNextConversion: false, neverStartNextConversion: false, startTimeoutMs: null },
       };
       window.__calc = hook;
@@ -7012,9 +7701,13 @@
        * options: { mode: "builder" | "viewer", root, workerUrl,
        *   convert(file, onProgress(fraction|null, step?)) -> Promise<{ bytes, elementClasses }> (builder),
        *   extract(model, { modelId, modelName, elementClasses, withGeometry }, onProgress(fraction))
-       *     -> Promise<{ rows, properties, spaceProperties, spaceIds }> (builder) }.
+       *     -> Promise<{ rows, properties, spaceProperties, spaceIds }> (builder),
+       *   buildViewer({ title, models, config, includeSpaces }, pause(fraction)) -> Promise<Blob parts> (builder:
+       *     the viewer file, TASK-009),
+       *   viewer: { models (decodeTable), frags [.frag bytes per model], config, includeSpaces } (viewer file) }.
        */
       export async function start(options) {
+        hook.mode = options.mode;
         // Filter state (REQ-003, REQ-004): filter sets in display order; one filter per set, id = property key.
         const filterSets = DEFAULT_FILTER_SETS.map((key) => ({ id: key, key, collapsed: false, selected: [] }));
         let catalog = new Map();
@@ -7425,6 +8118,10 @@
         }
 
         const tableHandlers = {
+          /** `Export CSV` / `Export Excel` (REQ-008). */
+          exportTable(format) {
+            exportTable(format);
+          },
           /** Header click: ascending -> descending -> unsorted (REQ-006). */
           sort(key) {
             if (!sort || sort.key !== key) setSort(key, "asc");
@@ -7782,6 +8479,10 @@
               return value === null ? col.empties : col.index.get(value) !== undefined;
             },
             columns: columns.map((c) => c.key),
+            isNumber: (key) => {
+              const entry = catalog.get(key);
+              return Boolean(entry && entry.kind === "number");
+            },
           });
           closePopup();
           if (apply.header) setHeader(apply.header);
@@ -7852,7 +8553,7 @@
           return { notice, skipped };
         }
 
-        /** Offers text as a file download (builder; works from file:// as well). */
+        /** Offers text, bytes or a Blob as a file download (works from file:// as well). */
         function download(text, fileName, type) {
           const url = URL.createObjectURL(new Blob([text], { type }));
           const link = document.createElement("a");
@@ -7874,6 +8575,188 @@
           hook.config.saves++;
           hook.config.lastSaved = { fileName, text };
           return { fileName, text };
+        }
+
+        /**
+         * The rows the table shows now as an export sheet (REQ-008, exportSheet): the visible columns with their
+         * header titles (unit included); single view: the filtered rows in table order; grouping view: the shown
+         * group and element rows (expanded groups only) and the total row last.
+         */
+        function exportSheetNow() {
+          return exportSheet({
+            rows: store.rows,
+            columns: columns.map((c) => {
+              const entry = catalog.get(c.key);
+              return { key: c.key, title: entry ? entry.header : c.key };
+            }),
+            view: tableView,
+            order,
+            items: displayItems,
+            total: tree ? tree.total : null,
+          });
+        }
+
+        const EXPORT_FORMATS = {
+          csv: { label: "Export CSV", suffix: ".csv", type: "text/csv;charset=utf-8" },
+          xlsx: {
+            label: "Export Excel",
+            suffix: ".xlsx",
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        };
+
+        /**
+         * `Export CSV` / `Export Excel` (REQ-008, REQ-011 file name `<Titel>_<YYYY-MM-DD>.csv|.xlsx`, NFR-004 progress):
+         * the table rows at the click are written in steps with the progress overlay and offered as a download.
+         * Needs a loaded model and no running action. Returns window.__calc.export.last or null when not started.
+         */
+        async function exportTable(format) {
+          const spec = EXPORT_FORMATS[format];
+          if (!spec || busy || !models.length) return null;
+          const t0 = performance.now();
+          const header = effectiveHeader();
+          const fileName = safeFileName(header.title, header.date, spec.suffix);
+          busy = true;
+          ui.setBusy(true);
+          hook.phase = "exporting";
+          let result;
+          try {
+            progress(fileName, spec.label, 0);
+            const sheet = exportSheetNow();
+            const pause = async (fraction) => {
+              progress(fileName, spec.label, fraction);
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            };
+            await pause(0);
+            const data = format === "csv" ? await toCsv(sheet, { pause }) : await toXlsx(sheet, { pause });
+            progress(fileName, spec.label, 1);
+            download(data, fileName, spec.type);
+            result = {
+              ok: true,
+              format,
+              fileName,
+              rows: sheet.rows.length,
+              columns: sheet.headers.length,
+              view: tableView,
+              ms: performance.now() - t0,
+            };
+          } catch (error) {
+            const message =
+              "Der Export ist fehlgeschlagen" + (error && error.message ? " (" + error.message + ")." : ".");
+            ui.addMessage(message);
+            result = { ok: false, format, fileName, message, ms: performance.now() - t0 };
+          } finally {
+            settleOverlay();
+            hook.progress = null;
+            busy = false;
+            ui.setBusy(false);
+            hook.phase = "ready";
+          }
+          hook.export.count++;
+          hook.export.last = result;
+          if (queued.length) loadFiles([]);
+          return result;
+        }
+
+        /**
+         * `HTML exportieren` (REQ-010, TASK-009, builder): the loaded models (.frag bytes), their element table and the
+         * current configuration (header with the date and title as shown) go into one offline viewer file
+         * `<Titel>_<YYYY-MM-DD>.html` (options.buildViewer assembles it), with the progress overlay. Needs a loaded model
+         * and no running action. Returns window.__calc.viewerExport.last or null when not started.
+         */
+        async function exportViewerFile() {
+          if (busy || !models.length || !options.buildViewer) return null;
+          const t0 = performance.now();
+          const config = configState();
+          const fileName = safeFileName(config.header.title, config.header.date, ".html");
+          const label = "HTML exportieren";
+          busy = true;
+          ui.setBusy(true);
+          hook.phase = "exporting";
+          let result;
+          try {
+            const pause = async (fraction) => {
+              progress(fileName, label, fraction);
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            };
+            await pause(0);
+            const parts = await options.buildViewer(
+              {
+                title: config.header.title,
+                config,
+                includeSpaces: hook.options.includeSpaces,
+                models: models.map((m) => ({
+                  id: m.id,
+                  name: m.name,
+                  fileName: m.fileName,
+                  rows: m.rows,
+                  properties: m.properties,
+                  spaceProperties: m.spaceProperties,
+                  spaceIds: m.spaceIds,
+                  contextIds: m.contextIds,
+                  fragBytes: m.fragBytes,
+                })),
+              },
+              pause,
+            );
+            const blob = new Blob(parts, { type: "text/html;charset=utf-8" });
+            progress(fileName, label, 1);
+            download(blob, fileName, "text/html;charset=utf-8");
+            result = {
+              ok: true,
+              fileName,
+              bytes: blob.size,
+              models: models.length,
+              rows: models.reduce((n, m) => n + m.rows.length, 0),
+              ms: performance.now() - t0,
+            };
+          } catch (error) {
+            const message =
+              "Der HTML-Export ist fehlgeschlagen" + (error && error.message ? " (" + error.message + ")." : ".");
+            ui.addMessage(message);
+            result = { ok: false, fileName, message, ms: performance.now() - t0 };
+          } finally {
+            settleOverlay();
+            hook.progress = null;
+            busy = false;
+            ui.setBusy(false);
+            hook.phase = "ready";
+          }
+          hook.viewerExport.count++;
+          hook.viewerExport.last = result;
+          if (queued.length) loadFiles([]);
+          return result;
+        }
+
+        /**
+         * Starts the viewer file (REQ-010, TASK-009): shows the embedded models (.frag bytes, IfcSpace hidden unless the
+         * builder showed them), takes the embedded element table instead of an extraction and applies the exported
+         * configuration. Nothing is persisted; reopening the file shows this state again.
+         */
+        async function openViewer(data) {
+          busy = true;
+          ui.setBusy(true);
+          hook.phase = "loading";
+          try {
+            hook.options.includeSpaces = Boolean(data.includeSpaces);
+            for (let i = 0; i < data.models.length; i++) {
+              const m = data.models[i];
+              progress(m.fileName, "Anzeige", data.models.length > 1 ? i / data.models.length : null);
+              await engine.loadModel(data.frags[i], m.id);
+              if (!hook.options.includeSpaces && m.spaceIds.length) await engine.setItemsVisible(m.id, m.spaceIds, false);
+              models.push({ ...m, fragBytes: null });
+            }
+            publish();
+            if (data.config) {
+              const applied = applyConfiguration(data.config);
+              if (applied.notice) ui.addMessage(applied.notice, "notice");
+            }
+          } finally {
+            settleOverlay();
+            hook.progress = null;
+            busy = false;
+            ui.setBusy(false);
+          }
         }
 
         /**
@@ -8106,7 +8989,11 @@
          */
         window.CalcConfig = {
           state: () => configState(),
-          loadText: (text, fileName) => loadConfigurationText(text, fileName || "konfiguration.json"),
+          // the viewer file offers no configuration loading (REQ-010), not even through the test seam
+          loadText:
+            options.mode === "builder"
+              ? (text, fileName) => loadConfigurationText(text, fileName || "konfiguration.json")
+              : undefined,
           header: () => effectiveHeader(),
         };
         /** Table seam (TASK-006a): configuration part (state / setState, TASK-007) and render statistics. */
@@ -8207,7 +9094,9 @@
               progress(file.name, step || "Konvertierung", fraction),
             );
             progress(file.name, "Anzeige", null);
-            const loaded = await engine.loadModel(converted.bytes, id);
+            // Fragments transfers the bytes it loads to its worker (detached here): the engine gets a copy, the
+            // original stays for `HTML exportieren` (TASK-009)
+            const loaded = await engine.loadModel(converted.bytes.slice(), id);
             shown = true;
             progress(file.name, "Extraktion", 0);
             const data = await options.extract(
@@ -8327,15 +9216,19 @@
           });
           ui.spacesToggle.addEventListener("change", () => setIncludeSpaces(ui.spacesToggle.checked));
           ui.loadButton.disabled = false;
-          ui.saveButton.disabled = false;
           ui.saveButton.addEventListener("click", () => saveConfiguration());
           ui.configInput.addEventListener("change", () => {
             const file = ui.configInput.files && ui.configInput.files[0];
             ui.configInput.value = "";
             if (file) loadConfigurationFile(file); // a cancelled dialog changes nothing
           });
+          ui.htmlButton.addEventListener("click", () => exportViewerFile());
         }
         publish();
+        if (options.mode === "viewer" && options.viewer) {
+          await openViewer(options.viewer);
+          hook.viewer = { startMs: performance.now() };
+        }
         hook.phase = "ready";
         return {
           loadFiles,
@@ -8372,6 +9265,12 @@
           /** Header (REQ-011): { title, date, logo } as shown; setHeader({ title?, date?, logo? }). */
           header: effectiveHeader,
           setHeader,
+          /** `Export CSV` / `Export Excel` of the shown table rows (REQ-008): exportTable('csv' | 'xlsx'). */
+          exportTable,
+          /** The export sheet of the shown table rows (exportSheet; for the viewer file and tests). */
+          exportSheet: exportSheetNow,
+          /** `HTML exportieren` (REQ-010, builder): the offline viewer file as a download. */
+          exportViewerFile,
         };
       }
 
@@ -8384,7 +9283,80 @@
     </script>
 
     <!-- Classic bootstrap of the viewer file (reads payloads, links, starts): TASK-009. ASCII only. -->
-    <script type="text/plain" id="cv-viewer-bootstrap"></script>
+    <script type="text/plain" id="cv-viewer-bootstrap">
+      // Viewer file start (TASK-009, spec 4.2). Runs after the helpers script (tovLinkModules). Reads the embedded
+      // gzip + Base64 payloads, links the runtime modules to Blob URLs and calls start({ mode: "viewer" }). Makes no
+      // network request: every module, the Fragments worker, the models and the data are in this file (NFR-005).
+      /* global tovLinkModules -- defined by the helpers script before this one in the viewer file */
+      (function () {
+        "use strict";
+        var root = document.getElementById("cv-root");
+
+        function fail(error) {
+          var message = error && error.message ? error.message : String(error);
+          window.__calc = window.__calc || { models: [], modelCount: 0, elementCount: 0 };
+          window.__calc.phase = "error";
+          window.__calc.error = message;
+          root.textContent = "Die Viewer-Datei konnte nicht gestartet werden: " + message;
+          root.style.padding = "24px";
+          root.style.color = "#D72622";
+          document.documentElement.dataset.cvReady = "viewer";
+        }
+
+        function base64Bytes(id) {
+          var node = document.getElementById(id);
+          if (!node) throw new Error("Eingebettete Daten fehlen: " + id);
+          var binary = atob(node.textContent.trim());
+          var bytes = new Uint8Array(binary.length);
+          for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          node.textContent = ""; // the decoded copy is enough; frees the text
+          return bytes;
+        }
+
+        async function payload(id) {
+          var stream = new Blob([base64Bytes(id)]).stream().pipeThrough(new DecompressionStream("gzip"));
+          return new Uint8Array(await new Response(stream).arrayBuffer());
+        }
+
+        async function json(id) {
+          return JSON.parse(new TextDecoder().decode(await payload(id)));
+        }
+
+        async function run() {
+          if (typeof DecompressionStream === "undefined")
+            throw new Error("Dieser Browser wird nicht unterst\u00fctzt. Bitte einen aktuellen Browser verwenden.");
+          root.textContent = "Viewer wird vorbereitet ...";
+          var runtime = await json("cv-payload-runtime");
+          var resolve = tovLinkModules(runtime.sources, runtime.aliases);
+          var workerUrl = URL.createObjectURL(new Blob([runtime.worker], { type: "text/javascript" }));
+          var table = await json("cv-payload-table");
+          var config = await json("cv-payload-config");
+          var frags = [];
+          for (var i = 0; i < table.models.length; i++) frags.push(await payload("cv-payload-model-" + i));
+          var app = await import(resolve("cv-app"));
+          var core = await import(resolve("calc-core"));
+          try {
+            await app.start({
+              mode: "viewer",
+              root: root,
+              workerUrl: workerUrl,
+              viewer: {
+                models: core.decodeTable(table),
+                frags: frags,
+                config: config.config,
+                includeSpaces: Boolean(config.includeSpaces),
+              },
+            });
+            window.__calc.versions = runtime.versions;
+          } catch (error) {
+            app.fail(root, error && error.message ? error.message : String(error));
+          }
+          document.documentElement.dataset.cvReady = "viewer";
+        }
+
+        run().catch(fail);
+      })();
+    </script>
 
     <script type="module" id="cv-builder">
       // Builder-only logic (spec \u00a74.2). Library versions are pinned; jsDelivr "+esm" resolves the dependency graph.
@@ -8520,6 +9492,27 @@
         return classic;
       }
 
+      /**
+       * Tiny replacement for web-ifc (3.5 MB) in the viewer file (ref L2070-2084, DEC-7): Fragments imports web-ifc
+       * statically, but only the IfcImporter (never used by the viewer) needs it. Constants keep their values;
+       * functions and classes throw when called.
+       */
+      function makeWebIfcStub(webIfcNamespace) {
+        const lines = [
+          'const missing = () => { throw new Error("web-ifc ist in der Viewer-Datei nicht enthalten"); };',
+        ];
+        for (const name of Object.keys(webIfcNamespace).sort()) {
+          if (!/^[A-Za-z_$][\w$]*$/.test(name)) continue;
+          const value = webIfcNamespace[name];
+          let expression = "{}";
+          if (value === null || ["number", "string", "boolean"].includes(typeof value))
+            expression = JSON.stringify(value);
+          else if (typeof value === "function") expression = "class { constructor() { missing(); } }";
+          lines.push(name === "default" ? `export default ${expression};` : `export const ${name} = ${expression};`);
+        }
+        return lines.join("\n");
+      }
+
       const blobUrl = (text) => URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
       const block = (id) => document.getElementById(id).textContent;
 
@@ -8560,12 +9553,21 @@
 
         const worker = toClassicWorkerSource(await fetchText(WORKER_URL));
         const convertSource = tovLinkModules.toString() + "\n(" + convertWorkerMain.toString() + ")();";
+        // runtime of the viewer file (TASK-009): every library module except web-ifc (stub), the app modules, all
+        // aliases and the classic Fragments worker; built on the first `HTML exportieren`
+        const viewerRuntime = () => ({
+          sources: { ...sources, [webIfcKey]: makeWebIfcStub(webIfc) },
+          aliases: { ...aliases },
+          worker,
+          versions: { fragments: FRAGMENTS_VERSION, ...versions },
+        });
         return {
           resolve,
           core,
           classNames,
           libSources,
           webIfcKey,
+          viewerRuntime,
           aliases: { "@thatopen/fragments": FRAGMENTS_KEY, three: aliases.three },
           versions: { fragments: FRAGMENTS_VERSION, ...versions },
           fragmentsWorkerUrl: blobUrl(worker),
@@ -8702,6 +9704,45 @@
         return { rows: result.rows, properties: result.properties, spaceProperties: result.spaceProperties, spaceIds };
       }
 
+      /**
+       * `HTML exportieren` (REQ-010, spec 4.2): assembles the viewer file from the fixed skeleton (cv-css, the
+       * tovLinkModules helper, cv-viewer-bootstrap) and gzip + Base64 payloads: runtime, element table (encodeTable),
+       * configuration and one .frag per model. Returns the file as text parts (Blob parts). data: { title, models,
+       * config, includeSpaces }; pause(fraction) shows progress and yields.
+       */
+      let runtimePayload = null; // Base64 of the runtime: the same for every export of this session
+      async function buildViewer(lib, data, pause) {
+        const core = lib.core;
+        const pack = async (bytes) => core.bytesToBase64(await core.gzipBytes(bytes));
+        const packJson = (value) => pack(new TextEncoder().encode(JSON.stringify(value)));
+        if (!runtimePayload) runtimePayload = await packJson(lib.viewerRuntime());
+        await pause(0.2);
+        const missing = data.models.find((m) => !m.fragBytes || !m.fragBytes.byteLength);
+        if (missing) throw new Error("Modelldaten fehlen: " + missing.fileName);
+        const table = await packJson(core.encodeTable(data.models));
+        await pause(0.4);
+        const config = await packJson({ config: data.config, includeSpaces: Boolean(data.includeSpaces) });
+        const payloads = [
+          { id: core.VIEWER_PAYLOAD.runtime, base64: runtimePayload },
+          { id: core.VIEWER_PAYLOAD.table, base64: table },
+          { id: core.VIEWER_PAYLOAD.config, base64: config },
+        ];
+        for (let i = 0; i < data.models.length; i++) {
+          payloads.push({ id: core.VIEWER_PAYLOAD.model(i), base64: await pack(data.models[i].fragBytes) });
+          await pause(0.4 + (0.5 * (i + 1)) / data.models.length);
+        }
+        const v = lib.versions;
+        return core.viewerHtmlParts({
+          title: data.title || "Calc Viewer",
+          generator: `Calc Viewer Builder (That Open Fragments ${v.fragments}, three ${v.three}, web-ifc ${v.webIfc})`,
+          exported: new Date().toISOString(),
+          css: document.getElementById("cv-css").textContent,
+          helpers: '"use strict";\n' + tovLinkModules.toString() + "\n",
+          bootstrap: block("cv-viewer-bootstrap"),
+          payloads,
+        });
+      }
+
       const root = document.getElementById("cv-root");
       root.textContent = "Bibliotheken werden geladen ...";
       try {
@@ -8717,6 +9758,7 @@
               return convertIfc(lib, file, onProgress);
             },
             extract: (model, info, onProgress) => extractModel(lib, model, info, onProgress),
+            buildViewer: (data, pause) => buildViewer(lib, data, pause),
           });
           window.__calc.versions = lib.versions;
         } catch (error) {

@@ -403,3 +403,39 @@ test("[unit] classifyLogo / isLogoDataUrl: PNG, JPG, SVG by content, size limit,
     assert.ok(!isLogoDataUrl(bad), String(bad).slice(0, 40));
   assert.ok(isLogoDataUrl("data:image/png;base64," + Buffer.alloc(LOGO_MAX_BYTES).toString("base64")));
 });
+
+test("[unit] applyConfig: a range column filter on a non-numeric column is reported and skipped (TASK-007 C1)", () => {
+  const config = {
+    schema: "calc-viewer-config/1",
+    table: {
+      columns: ["Kategorie", "Vol"],
+      columnFilters: [
+        { key: "Kategorie", type: "range", min: 1, max: 2 },
+        { key: "Vol", type: "range", min: 1, max: 4 },
+      ],
+    },
+  };
+  const ctx = { ...ctxOf(ROWS), isNumber: (key) => key === "Vol" };
+  const { apply, skipped } = applyConfig(config, ctx);
+  assert.deepEqual(apply.table.columnFilters, [{ key: "Vol", type: "range", min: 1, max: 4 }]);
+  assert.deepEqual(skipped.invalid, ["Spaltenfilter Kategorie (Bereich auf einer Textspalte)"]);
+  assert.match(configNotice(skipped), /Ungültige Angaben: Spaltenfilter Kategorie \(Bereich auf einer Textspalte\)\./);
+  // without isNumber in the context the range filter is kept (callers that cannot tell the kind)
+  assert.equal(applyConfig(config, ctxOf(ROWS)).apply.table.columnFilters.length, 2);
+});
+
+test("[unit] applyConfig: groupBy keys beyond two levels are named in the notice (TASK-007 C2)", () => {
+  const config = {
+    schema: "calc-viewer-config/1",
+    table: { view: "grouped", groupBy: ["Kategorie", "Kategorie", "Geschoss", "Material", "Fehlt.X", "Vol"] },
+  };
+  const { apply, skipped } = applyConfig(config, ctxOf(ROWS));
+  assert.deepEqual(apply.table.groupBy, ["Kategorie", "Geschoss"]);
+  assert.deepEqual(skipped.properties, ["Fehlt.X"]);
+  assert.deepEqual(skipped.invalid, [
+    "Gruppierung Material (höchstens 2 Ebenen)",
+    "Gruppierung Vol (höchstens 2 Ebenen)",
+  ]);
+  const notice = configNotice(skipped);
+  assert.ok(notice.includes("Gruppierung Material (höchstens 2 Ebenen); Gruppierung Vol (höchstens 2 Ebenen)"), notice);
+});

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-009-AC2 and NFR-001 (spec Testing -> Test data)",
+    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2 and NFR-001 (spec Testing -> Test data)",
     "generatedBy": "node scripts/ref/derive-reference.mjs",
     "method": "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
     "reviewedBy": "fresh-context tester (not the TASK-002 implementer)",
@@ -1267,6 +1267,1132 @@
       "elementsInFzk": 13
     },
     "note": "Property keys '<Pset>.<Property>' (occurrence over type) of elements of row classes (IfcAnnotation, IfcOpeningElement, IfcVirtualElement, IfcDistributionPort, IfcSpace left out). absentProperty and absentKategorie exist in the Duplex fixture and not in AC20-FZK-Haus."
+  },
+  "REQ-008-export": {
+    "single": {
+      "files": [
+        "fzk-export.ifc",
+        "Ifc2x3_Duplex_Architecture.ifc"
+      ],
+      "filter": {
+        "Kategorie": [
+          "IfcWallStandardCase"
+        ]
+      },
+      "properties": {
+        "number": "CalcTest_Export.Zahl",
+        "text": "CalcTest_Export.Text"
+      },
+      "rows": [
+        {
+          "stepId": 15042,
+          "GlobalId": "2XPyKWY018sA1ygZKgQPtU",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Int-ERDG-4",
+          "Geschoss": "Erdgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": {
+            "value": 1234567.891,
+            "literal": "1234567.891",
+            "csv": "1234567,891"
+          },
+          "Text": "+49 721 608-0"
+        },
+        {
+          "stepId": 17040,
+          "GlobalId": "3PfS__Y_DBAfq5naM6zD2Z",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Int-ERDG-2",
+          "Geschoss": "Erdgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": {
+            "value": 1e-7,
+            "literal": "0.0000001",
+            "csv": "0,0000001"
+          },
+          "Text": "-12 mm Fuge"
+        },
+        {
+          "stepId": 18465,
+          "GlobalId": "2ptk1k7qn8_Qk22vjh$0DE",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Int-ERDG-1",
+          "Geschoss": "Erdgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": {
+            "value": -2.5,
+            "literal": "-2.5",
+            "csv": "-2,5"
+          },
+          "Text": "@Wand"
+        },
+        {
+          "stepId": 18698,
+          "GlobalId": "3jjW3rL656ex34Gws22EfM",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Int-ERDG-3",
+          "Geschoss": "Erdgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": {
+            "value": 2.5e+21,
+            "literal": "2500000000000000000000.",
+            "csv": "2500000000000000000000"
+          },
+          "Text": "Zeile 1\nZeile 2; mit \"Zitat\" und Semikolon"
+        },
+        {
+          "stepId": 20598,
+          "GlobalId": "1$wmdwWPjDYuku_ghVkynE",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Int-ERDG-5",
+          "Geschoss": "Erdgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": null,
+          "Text": "Größe Äußenwand – 5 € 漢字"
+        },
+        {
+          "stepId": 21966,
+          "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Ext-ERDG-1",
+          "Geschoss": "Erdgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": {
+            "value": 0.12345,
+            "literal": "0.12345",
+            "csv": "0,12345"
+          },
+          "Text": "=SUM(A1)"
+        },
+        {
+          "stepId": 27421,
+          "GlobalId": "16DNNqzfP2thtfaOflvsKA",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Ext-ERDG-4",
+          "Geschoss": "Erdgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": null,
+          "Text": "Langer Wert 0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567"
+        },
+        {
+          "stepId": 31470,
+          "GlobalId": "25fsbPyk15VvuXI$yNKenK",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Ext-ERDG-3",
+          "Geschoss": "Erdgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 32407,
+          "GlobalId": "1bzfVsJqn8De5PukCrqylz",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Ext-ERDG-2",
+          "Geschoss": "Erdgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 60012,
+          "GlobalId": "0knNIAVBPBFvBy_m5QVHsU",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Ext-OG-1",
+          "Geschoss": "Dachgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 67536,
+          "GlobalId": "25OWQvmXj5BPgyergP43tY",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Ext-OG-2",
+          "Geschoss": "Dachgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 67828,
+          "GlobalId": "3VCarUKgH1buLo22Ozxe6J",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Ext-OG-3",
+          "Geschoss": "Dachgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 75347,
+          "GlobalId": "3Ttjr$59XEWfWN1WUHjelZ",
+          "Modell": "fzk-export",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Wand-Ext-OG-4",
+          "Geschoss": "Dachgeschoss",
+          "Material": [
+            "Leichtbeton 102890359"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 3797,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FNtn",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:138062",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 3999,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FNqI",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:138157",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4043,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FNr2",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:138237",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4087,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FNhv",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:138310",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4131,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FNld",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):138584",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4219,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FNau",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):139143",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4287,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FNbT",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:139234",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4399,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FKRi",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:139347",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4465,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FKRH",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:139374",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4508,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FKST",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):139682",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4553,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FKIu",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):139783",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4598,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FKGS",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):139939",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4643,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FK80",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Foundation - Concrete (417mm):140479",
+          "Geschoss": "T/FDN",
+          "Material": [
+            "Concrete - Cast In Situ"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4818,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FK9N",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Foundation - Concrete (417mm):140520",
+          "Geschoss": "T/FDN",
+          "Material": [
+            "Concrete - Cast In Situ"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4868,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FKEr",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Foundation - Concrete (417mm):140554",
+          "Geschoss": "T/FDN",
+          "Material": [
+            "Concrete - Cast In Situ"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4918,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FKE5",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Foundation - Concrete (417mm):140602",
+          "Geschoss": "T/FDN",
+          "Material": [
+            "Concrete - Cast In Situ"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 4968,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FK3E",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Foundation - Concrete (435mm):140913",
+          "Geschoss": "T/FDN",
+          "Material": [
+            "Concrete - Cast In Situ"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5057,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FK04",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Foundation - Concrete (435mm):140987",
+          "Geschoss": "T/FDN",
+          "Material": [
+            "Concrete - Cast In Situ"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5106,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FK1b",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Foundation - Concrete (435mm):141018",
+          "Geschoss": "T/FDN",
+          "Material": [
+            "Concrete - Cast In Situ"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5448,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLQD",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:143410",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5498,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLR9",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:143478",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5548,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLOH",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:143534",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5598,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLPP",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:143590",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5642,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLTF",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):143856",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5687,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLIE",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):143921",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5731,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLJd",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):143960",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5775,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLMr",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Plumbing (152mm Stud):144138",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5859,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLKI",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):144301",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5903,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FL8v",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):144518",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5948,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FL9r",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):144586",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 5992,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FL96",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):144633",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 6036,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLEJ",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):144684",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 6080,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FLCm",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Plumbing (152mm Stud):144783",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 22663,
+          "GlobalId": "0jf0rYHfX3RAB3bSIRjmmy",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:184944",
+          "Geschoss": "Roof",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 22708,
+          "GlobalId": "0jf0rYHfX3RAB3bSIRjmpw",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:185014",
+          "Geschoss": "Roof",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 22753,
+          "GlobalId": "0jf0rYHfX3RAB3bSIRjmoa",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:185064",
+          "Geschoss": "Roof",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 22798,
+          "GlobalId": "0jf0rYHfX3RAB3bSIRjmr1",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Exterior - Brick on Block:185101",
+          "Geschoss": "Roof",
+          "Material": [
+            "Insulation / Thermal Barriers - Rigid insulation",
+            "Masonry - Brick",
+            "Masonry - Concrete Block",
+            "Metal - Stud Layer",
+            "Misc. Air Layers - Air Space",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 24596,
+          "GlobalId": "0iEHWY1$XA8eQeeULq4jZ1",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (152 mm Stud):189074",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 24680,
+          "GlobalId": "0iEHWY1$XA8eQeeULq4j_U",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (152 mm Stud):189901",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 24723,
+          "GlobalId": "0iEHWY1$XA8eQeeULq4jpl",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):190140",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 24768,
+          "GlobalId": "0iEHWY1$XA8eQeeULq4jDb",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (152 mm Stud):190774",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 24813,
+          "GlobalId": "0iEHWY1$XA8eQeeULq4jE6",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (152 mm Stud):190933",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 31431,
+          "GlobalId": "0dxE1Sy6nDqfpDb5vIMNiA",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (152 mm Stud):193247",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 31476,
+          "GlobalId": "0dxE1Sy6nDqfpDb5vIMN_Z",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (152 mm Stud):194166",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 35199,
+          "GlobalId": "1aj$VJZFn2TxepZUBcKpvt",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):203347",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 35357,
+          "GlobalId": "1aj$VJZFn2TxepZUBcKpZw",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):203998",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 35452,
+          "GlobalId": "1aj$VJZFn2TxepZUBcKpee",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):204300",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 35497,
+          "GlobalId": "1aj$VJZFn2TxepZUBcKphf",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Partition (92mm Stud):204493",
+          "Geschoss": "Level 1",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 37913,
+          "GlobalId": "3Y4YRln2r91vflHcHE5IVS",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (38 mm Stud):217414",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 37970,
+          "GlobalId": "3Y4YRln2r91vflHcHE5IVT",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (38 mm Stud):217415",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 38015,
+          "GlobalId": "3Y4YRln2r91vflHcHE5IVI",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (38 mm Stud):217416",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 38060,
+          "GlobalId": "3Y4YRln2r91vflHcHE5IVJ",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (38 mm Stud):217417",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 38105,
+          "GlobalId": "3Y4YRln2r91vflHcHE5ITp",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (38 mm Stud):217577",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 38150,
+          "GlobalId": "3Y4YRln2r91vflHcHE5ITm",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (38 mm Stud):217578",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 38195,
+          "GlobalId": "3Y4YRln2r91vflHcHE5ITn",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (38 mm Stud):217579",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        },
+        {
+          "stepId": 38240,
+          "GlobalId": "3Y4YRln2r91vflHcHE5ITs",
+          "Modell": "Ifc2x3_Duplex_Architecture",
+          "Kategorie": "IfcWallStandardCase",
+          "Name": "Basic Wall:Interior - Furring (38 mm Stud):217580",
+          "Geschoss": "Level 2",
+          "Material": [
+            "Metal - Stud Layer",
+            "Plasterboard"
+          ],
+          "Zahl": null,
+          "Text": null
+        }
+      ]
+    },
+    "grouped": {
+      "file": "AC20-FZK-Haus.ifc",
+      "level": "Kategorie",
+      "expanded": "IfcWallStandardCase",
+      "column": "BaseQuantities.NetVolume",
+      "walls": [
+        {
+          "GlobalId": "2XPyKWY018sA1ygZKgQPtU",
+          "Name": "Wand-Int-ERDG-4",
+          "Geschoss": "Erdgeschoss",
+          "BaseQuantities.NetVolume": 2.49624
+        },
+        {
+          "GlobalId": "3PfS__Y_DBAfq5naM6zD2Z",
+          "Name": "Wand-Int-ERDG-2",
+          "Geschoss": "Erdgeschoss",
+          "BaseQuantities.NetVolume": 2.909316
+        },
+        {
+          "GlobalId": "2ptk1k7qn8_Qk22vjh$0DE",
+          "Name": "Wand-Int-ERDG-1",
+          "Geschoss": "Erdgeschoss",
+          "BaseQuantities.NetVolume": 2.226
+        },
+        {
+          "GlobalId": "3jjW3rL656ex34Gws22EfM",
+          "Name": "Wand-Int-ERDG-3",
+          "Geschoss": "Erdgeschoss",
+          "BaseQuantities.NetVolume": 3.412152
+        },
+        {
+          "GlobalId": "1$wmdwWPjDYuku_ghVkynE",
+          "Name": "Wand-Int-ERDG-5",
+          "Geschoss": "Erdgeschoss",
+          "BaseQuantities.NetVolume": 2.08896189111
+        },
+        {
+          "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+          "Name": "Wand-Ext-ERDG-1",
+          "Geschoss": "Erdgeschoss",
+          "BaseQuantities.NetVolume": 5.80797
+        },
+        {
+          "GlobalId": "16DNNqzfP2thtfaOflvsKA",
+          "Name": "Wand-Ext-ERDG-4",
+          "Geschoss": "Erdgeschoss",
+          "BaseQuantities.NetVolume": 6.604875
+        },
+        {
+          "GlobalId": "25fsbPyk15VvuXI$yNKenK",
+          "Name": "Wand-Ext-ERDG-3",
+          "Geschoss": "Erdgeschoss",
+          "BaseQuantities.NetVolume": 6.417
+        },
+        {
+          "GlobalId": "1bzfVsJqn8De5PukCrqylz",
+          "Name": "Wand-Ext-ERDG-2",
+          "Geschoss": "Erdgeschoss",
+          "BaseQuantities.NetVolume": 7.317
+        },
+        {
+          "GlobalId": "0knNIAVBPBFvBy_m5QVHsU",
+          "Name": "Wand-Ext-OG-1",
+          "Geschoss": "Dachgeschoss",
+          "BaseQuantities.NetVolume": 5.54440602973
+        },
+        {
+          "GlobalId": "25OWQvmXj5BPgyergP43tY",
+          "Name": "Wand-Ext-OG-2",
+          "Geschoss": "Dachgeschoss",
+          "BaseQuantities.NetVolume": 2.05637684052
+        },
+        {
+          "GlobalId": "3VCarUKgH1buLo22Ozxe6J",
+          "Name": "Wand-Ext-OG-3",
+          "Geschoss": "Dachgeschoss",
+          "BaseQuantities.NetVolume": 5.54440602973
+        },
+        {
+          "GlobalId": "3Ttjr$59XEWfWN1WUHjelZ",
+          "Name": "Wand-Ext-OG-4",
+          "Geschoss": "Dachgeschoss",
+          "BaseQuantities.NetVolume": 2.05637684052
+        }
+      ]
+    },
+    "note": "Single view: every IfcWallStandardCase of both files (STEP id order per file). Zahl.csv is the IfcReal literal of the STEP text with a decimal comma (expected CSV cell); Text is the decoded IfcText (STEP \\X2\\ escapes). Material = sorted distinct names, joined with ', ' in the export. Grouped: the walls of AC20-FZK-Haus (element rows under the expanded IfcWallStandardCase group) with NetVolume rounded to 12 significant digits; group rows and the total row from REQ-006-grouping-fzk."
   },
   "REQ-002-AC7": {
     "file": "Ifc2x3_SampleCastle.ifc",

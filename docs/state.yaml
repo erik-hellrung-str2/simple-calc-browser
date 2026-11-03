@@ -25,7 +25,7 @@ blocking_questions: []
 active_changes: []
 pending_release: []
 reserved_ids: {}
-next_action: "Apply R-4 settle patch with tests, then TASK-008 (CSV/XLSX export + follow-ups C1-C3, R2), then TASK-009 (viewer file export), each with independent verification; Q-002/Q-003 asked (non-blocking)."
+next_action: "TASK-010 performance and robustness pass (NFR-001..004 formal measurement, Q-002 deviation for software WebGL, follow-ups V1-V3, progress bar colour, 151 MB set), then verification phase."
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
@@ -43,3 +43,4 @@ history:
   - {date: 2026-11-02, event: "TASK-006a table done (verification PASS); TASK-006b grouping done (verification FAIL on a test measurement bug, fixed, recheck PASS); R-4 confirmed: complete 3D frame at 30k elements 1.1-1.7 s"}
   - {date: 2026-11-02, event: "TASK-006c selection and TASK-007 configuration done (verification PASS each); R-4 spike: one frame per click via settle patch, 30k complete frame 298-349 ms; Q-002, Q-003 opened"}
   - {date: 2026-11-02, event: "Q-002 answered (NFR-001 = last changed frame drawn; deviation for software WebGL), Q-003 answered (group selection only shrinks)"}
+  - {date: 2026-11-03, event: "R-4 settle patch applied (one frame per click; 30k complete frame 235-378 ms median), TASK-008 export and TASK-009 viewer file done; all independently verified PASS (TASK-009 verification resumed after container restart)"}

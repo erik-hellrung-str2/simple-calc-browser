@@ -11,6 +11,10 @@
 //   fzk-range.ifc   property set 'CalcTest_Range' with 'Wert' = IfcReal on six walls (1.9, 2, 2.5, 3.5, 5, 5.1;
 //                   the other elements have no value): the bounds and neighbours of the numeric column filter
 //                   `von` 2 `bis` 5 (REQ-006-AC9) and a value for the decimal comma input `2,5` (TASK-003 D2).
+//   fzk-export.ifc  property set 'CalcTest_Export' on seven walls with 'Zahl' (IfcReal: 0.12345, a large, a tiny,
+//                   a negative value, one beyond 1e21) and 'Text' (IfcText: values starting with = + - @, a line
+//                   break with ';' and quotes, non-ASCII, 1,000 characters) for the CSV / Excel export (REQ-008-AC1,
+//                   AC4, T7 robustness). Non-ASCII and control characters are written as STEP \X2\ escapes.
 //
 // Everything else is byte-identical to the source (CRLF line ends kept); new entities are appended to DATA with
 // ids above the source's maximum and deterministic GlobalIds (scripts/lib/ifc-synth.mjs ifcGuidFromSeed).
@@ -122,11 +126,72 @@ export function fzkRange(source) {
   return appendRecords(renameFile(source, "fzk-range.ifc"), records);
 }
 
+/** Encodes a JS string as STEP string content: '' for ', \\ for \, \X2\hhhh\X0\ for everything outside ASCII 32-126. */
+export function stepString(text) {
+  let out = "";
+  let wide = "";
+  const flush = () => {
+    if (wide) out += "\\X2\\" + wide + "\\X0\\";
+    wide = "";
+  };
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code >= 32 && code <= 126) {
+      flush();
+      out += text[i] === "'" ? "''" : text[i] === "\\" ? "\\\\" : text[i];
+    } else wide += code.toString(16).toUpperCase().padStart(4, "0");
+  }
+  flush();
+  return out;
+}
+
+/**
+ * Walls of the source (STEP id) with the CalcTest_Export values of fzk-export.ifc (REQ-008): [stepId, Zahl as STEP
+ * real literal or null, Text or null].
+ */
+export const EXPORT_PROPERTY = { pset: "CalcTest_Export", number: "Zahl", text: "Text" };
+export const EXPORT_LONG_TEXT = ("Langer Wert " + "0123456789".repeat(100)).slice(0, 1000);
+export const EXPORT_VALUES = [
+  [21966, "0.12345", "=SUM(A1)"],
+  [15042, "1234567.891", "+49 721 608-0"],
+  [17040, "0.0000001", "-12 mm Fuge"],
+  [18465, "-2.5", "@Wand"],
+  [18698, "2500000000000000000000.", 'Zeile 1\nZeile 2; mit "Zitat" und Semikolon'],
+  [20598, null, "Gr\u00f6\u00dfe \u00c4u\u00dfenwand \u2013 5 \u20ac \u6f22\u5b57"],
+  [27421, null, EXPORT_LONG_TEXT],
+];
+
+/** fzk-export.ifc: one property set CalcTest_Export per wall of EXPORT_VALUES (REQ-008 export tests). */
+export function fzkExport(source) {
+  const n = maxId(source);
+  const oh = `#${MASS_TARGET.ownerHistory}`;
+  const records = [];
+  let id = n + 1;
+  for (const [stepId, number, text] of EXPORT_VALUES) {
+    const props = [];
+    if (number !== null) {
+      records.push(`#${id}= IFCPROPERTYSINGLEVALUE('${EXPORT_PROPERTY.number}',$,IFCREAL(${number}),$);`);
+      props.push(id++);
+    }
+    if (text !== null) {
+      records.push(`#${id}= IFCPROPERTYSINGLEVALUE('${EXPORT_PROPERTY.text}',$,IFCTEXT('${stepString(text)}'),$);`);
+      props.push(id++);
+    }
+    records.push(
+      `#${id}= IFCPROPERTYSET('${ifcGuidFromSeed("fzk-export:pset:" + stepId)}',${oh},'${EXPORT_PROPERTY.pset}',$,(${props.map((p) => "#" + p).join(",")}));`,
+      `#${id + 1}= IFCRELDEFINESBYPROPERTIES('${ifcGuidFromSeed("fzk-export:rel:" + stepId)}',${oh},$,$,(#${stepId}),#${id});`,
+    );
+    id += 2;
+  }
+  return appendRecords(renameFile(source, "fzk-export.ifc"), records);
+}
+
 export const UNIT_FIXTURES = {
   "fzk-feet.ifc": fzkFeet,
   "fzk-unit-a.ifc": fzkUnitA,
   "fzk-unit-b.ifc": fzkUnitB,
   "fzk-range.ifc": fzkRange,
+  "fzk-export.ifc": fzkExport,
 };
 
 const PURPOSE = {
@@ -134,6 +199,7 @@ const PURPOSE = {
   "fzk-unit-a.ifc": `numeric non-length property ${MASS_PROPERTY.pset}.${MASS_PROPERTY.name} with mass unit kg (IfcSIUnit) (REQ-002-AC6 gemischt)`,
   "fzk-unit-b.ifc": `numeric non-length property ${MASS_PROPERTY.pset}.${MASS_PROPERTY.name} with mass unit pound (IfcConversionBasedUnit) (REQ-002-AC6 gemischt)`,
   "fzk-range.ifc": `numeric property ${RANGE_PROPERTY.pset}.${RANGE_PROPERTY.name} (IfcReal) on six walls: 1.9, 2, 2.5, 3.5, 5, 5.1 (REQ-006-AC9 range bounds, TASK-003 D2 decimal comma)`,
+  "fzk-export.ifc": `property set ${EXPORT_PROPERTY.pset} on seven walls: ${EXPORT_PROPERTY.number} (IfcReal incl. 0.12345, 1e-7, 2.5e21) and ${EXPORT_PROPERTY.text} (IfcText starting with = + - @, line break, ';', quotes, non-ASCII, 1,000 characters) (REQ-008 CSV / Excel export)`,
 };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

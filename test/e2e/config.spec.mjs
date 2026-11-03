@@ -7,7 +7,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { test, expect } from "../support/network-guard.mjs";
-import { REF, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
+import { REF, fixture, loadFiles, openBuilder, removeModel } from "../support/builder.mjs";
 import { addFilterSet, filterSet, setTitles, toggleValue } from "../support/filter-area.mjs";
 import { colourBy, idle } from "../support/view-3d.mjs";
 import { addColumn, checkColumnValue, clickSort, header, typeBound } from "../support/table.mjs";
@@ -415,5 +415,69 @@ test("@e2e @robustness tolerant load: many missing values (notice capped), malfo
   await page.waitForFunction((n) => window.__calc.config.loads > n, before);
   await expect(page.locator("#cv-title")).toHaveText("Abgelegt");
   expect(await page.evaluate(() => window.__calc.loadErrors.length)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test("@robustness @REQ-009-AC2 loaded configuration: a range filter on a text column and grouping keys beyond two levels are named in the notice and skipped (TASK-007 C1, C2)", async ({
+  page,
+}) => {
+  const errors = await openWith(page, [FZK]);
+  const config = {
+    schema: "calc-viewer-config/1",
+    table: {
+      view: "grouped",
+      groupBy: ["Kategorie", "Geschoss", "Material", "Name"],
+      columns: [
+        { key: "Kategorie", width: 160 },
+        { key: "Name", width: 240 },
+        { key: VOLUME, width: 150 },
+      ],
+      sort: null,
+      columnFilters: [
+        { key: "Name", type: "range", min: 1, max: 2 },
+        { key: VOLUME, type: "range", min: 0.5, max: null },
+      ],
+    },
+  };
+  const last = await loadConfig(page, configFile(config));
+  expect(last.ok).toBe(true);
+  expect(last.skipped.invalid).toEqual([
+    "Gruppierung Material (höchstens 2 Ebenen)",
+    "Gruppierung Name (höchstens 2 Ebenen)",
+    "Spaltenfilter Name (Bereich auf einer Textspalte)",
+  ]);
+  await expect(notices(page)).toHaveCount(1);
+  const notice = await notices(page).first().textContent();
+  expect(notice).toContain("Ungültige Angaben: Gruppierung Material (höchstens 2 Ebenen); Gruppierung Name");
+  expect(notice).toContain("Spaltenfilter Name (Bereich auf einer Textspalte)");
+  // the valid parts are applied: two grouping levels, the numeric range filter only
+  expect(await page.evaluate(() => window.CalcTable.grouping())).toEqual({
+    view: "grouped",
+    groupBy: ["Kategorie", "Geschoss"],
+  });
+  expect((await page.evaluate(() => window.CalcTable.state())).columnFilters).toEqual([
+    { key: VOLUME, type: "range", min: 0.5, max: null },
+  ]);
+  expect(errors).toEqual([]);
+});
+
+test("@e2e @REQ-009 `Konfiguration speichern` is disabled without a model, like `Konfiguration laden` (TASK-007 C3)", async ({
+  page,
+}) => {
+  const errors = await openBuilder(page);
+  const save = page.getByRole("button", { name: "Konfiguration speichern", exact: true });
+  const load = page.getByRole("button", { name: "Konfiguration laden", exact: true });
+  for (const button of [save, load]) {
+    await expect(button).toBeDisabled();
+    await expect(button).toHaveAttribute("title", "Zuerst ein IFC-Modell laden.");
+  }
+  await loadFiles(page, FZK);
+  await idle(page);
+  await expect(save).toBeEnabled();
+  await expect(load).toBeEnabled();
+  expect((await saveConfig(page)).fileName).toMatch(/_Konfiguration\.json$/);
+  await removeModel(page, "AC20-FZK-Haus");
+  await expect(save).toBeDisabled();
+  await expect(load).toBeDisabled();
   expect(errors).toEqual([]);
 });
