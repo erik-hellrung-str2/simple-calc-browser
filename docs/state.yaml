@@ -5,27 +5,28 @@ tier: S
 track: lean
 autonomy: autonomous
 modifiers: [ui, brownfield]
-cycle: 1
+cycle: 2
 
-current_phase: maintenance
-current_increment: INC-1
+current_phase: spec
+current_increment: INC-2
 resume_after: null
 
 phases:
-  - {id: intake,         status: done, gate: human, approval: {by: human, date: 2026-11-02, note: "Freigeben"}}
-  - {id: spec,           status: done, gate: agent, approval: {by: agent, date: 2026-11-02, note: "independent review + re-check; findings applied"}}
-  - {id: implementation, status: done, gate: agent}
-  - {id: verification,   status: done, gate: agent}
-  - {id: testing,        status: done, gate: agent, approval: {by: agent, date: 2026-11-03, note: "cycle 2 GO WITH DEVIATIONS; NFR-001 deviation accepted by human 2026-11-03"}}
-  - {id: release,        status: done, gate: human, approval: {by: human, date: 2026-11-03, note: "release gate: all blocks approved; CR-001 approved; Q-001 keep; release with manual checks open"}}
+  - {id: intake,         status: done, gate: human, approval: {by: human, date: 2026-11-04, note: "cycle 2 scoped intake = CR-002 with 8 user answers; CR-002 approved (Freigeben)"}}
+  - {id: spec,           status: in_progress, gate: agent}
+  - {id: implementation, status: todo, gate: agent}
+  - {id: verification,   status: todo, gate: agent}
+  - {id: testing,        status: todo, gate: agent}
+  - {id: release,        status: todo, gate: human}
 
 increments:
   - {id: INC-1, cycle: 1, status: done, gate: agent}
+  - {id: INC-2, cycle: 2, status: todo, gate: agent}
 blocking_questions: []
-active_changes: []
+active_changes: [CR-002]
 pending_release: []
 reserved_ids: {}
-next_action: "CR-002 (feature-size, high risk): change re-review, then human approval (Approve / Reject / Defer); on approval tag pre-CR-002 and start cycle 2 (spec delta)."
+next_action: "Cycle 2 spec delta for CR-002 (REQ-004/005/006/007/008/009/010 changed, REQ-012/013 new, DEC-15 changed, new DEC hide/isolate + config), independent spec review, spec gate (agent); then tasks INC-2."
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
@@ -48,3 +49,5 @@ history:
   - {date: 2026-11-03, event: "testing cycle 2: GO WITH DEVIATIONS (BUG-T1 verified fixed; BUG-T3 minor fixed by orchestrator and independently rechecked; BUG-T4 NFR-001 perf test red on software rendering, deviation to the user); release docs written (release notes, runbook, CHANGELOG, README as-built, decisions-to-confirm) and as-built reviewed PASS, 9 minor findings applied; release gate awaiting human approval"}
   - {date: 2026-11-03, event: "release gate approved by human (all decision blocks; NFR-001 deviation accepted; CR-001 approved and applied; Q-001 keep; ASM-001/002/003/006/007/008 confirmed); release 1.0.0 tagged v1.0.0; maintenance"}
   - {date: 2026-11-04, event: "CR-002 submitted by user (viewer alignment with HTML Model Viewer); analysed (3 fresh-context agents); 8 user clarifications; change review FAIL, findings applied; awaiting re-review and human approval"}
+  - {date: 2026-11-04, event: "earlier cycle-1 phase approvals are in the history above (intake 2026-11-02, release 2026-11-03)"}
+  - {date: 2026-11-04, event: "CR-002 approved by human (Freigeben); tag pre-CR-002; cycle 2 started (scoped intake = CR-002), spec delta in progress"}
