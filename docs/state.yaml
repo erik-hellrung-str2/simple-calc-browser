@@ -22,7 +22,7 @@ phases:
 increments:
   - {id: INC-1, cycle: 1, status: done, gate: agent}
 blocking_questions: []
-active_changes: [CR-002]
+active_changes: []
 pending_release: []
 reserved_ids: {}
 next_action: "CR-002 (feature-size, high risk): change re-review, then human approval (Approve / Reject / Defer); on approval tag pre-CR-002 and start cycle 2 (spec delta)."
