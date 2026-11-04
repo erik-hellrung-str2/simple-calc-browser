@@ -22,10 +22,10 @@ phases:
 increments:
   - {id: INC-1, cycle: 1, status: done, gate: agent}
 blocking_questions: []
-active_changes: []
+active_changes: [CR-002]
 pending_release: []
 reserved_ids: {}
-next_action: "Maintenance after 1.0.0: manual release checks open (T12 Chrome/Edge/Firefox and GPU measurement of NFR-001, R-3 Excel, umlaut download names, real project files); findings and known issues (BUG-T2, Failed to fetch offline) via /change."
+next_action: "CR-002 (feature-size, high risk): change re-review, then human approval (Approve / Reject / Defer); on approval tag pre-CR-002 and start cycle 2 (spec delta)."
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
@@ -47,3 +47,4 @@ history:
   - {date: 2026-11-03, event: "TASK-010 done (NFR-001..004 met, T7 green; verified PASS); verification phase: 3 lenses, 23 findings, 15 fixed, rest documented; recheck FAIL on UX M1 messages; testing cycle 1 NO-GO (BUG-T1, same defect); BUG-T1 fixed by orchestrator with regression test; spec working sections updated (SYNC F8); testing cycle 2 started"}
   - {date: 2026-11-03, event: "testing cycle 2: GO WITH DEVIATIONS (BUG-T1 verified fixed; BUG-T3 minor fixed by orchestrator and independently rechecked; BUG-T4 NFR-001 perf test red on software rendering, deviation to the user); release docs written (release notes, runbook, CHANGELOG, README as-built, decisions-to-confirm) and as-built reviewed PASS, 9 minor findings applied; release gate awaiting human approval"}
   - {date: 2026-11-03, event: "release gate approved by human (all decision blocks; NFR-001 deviation accepted; CR-001 approved and applied; Q-001 keep; ASM-001/002/003/006/007/008 confirmed); release 1.0.0 tagged v1.0.0; maintenance"}
+  - {date: 2026-11-04, event: "CR-002 submitted by user (viewer alignment with HTML Model Viewer); analysed (3 fresh-context agents); 8 user clarifications; change review FAIL, findings applied; awaiting re-review and human approval"}
