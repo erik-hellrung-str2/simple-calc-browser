@@ -15,7 +15,7 @@
 import { test, expect } from "../support/perf-lock.mjs";
 import { fetched, loadFiles, openBuilder } from "../support/builder.mjs";
 import { filterSet } from "../support/filter-area.mjs";
-import { colourBy, idle, viewState } from "../support/view-3d.mjs";
+import { colourBy, idle, setGhosts, viewState } from "../support/view-3d.mjs";
 import { measureViewClick, summariseViewClicks } from "../support/perf-measure.mjs";
 
 const BUDGET_MS = 500; // NFR-001
@@ -56,13 +56,21 @@ test("@perf @NFR-001 @REQ-005 volume set (>= 30,000 elements): a filter click dr
     state = await viewState(page);
     expect(state.opaque.length).toBe(geometry);
   }
-  await page.getByRole("radio", { name: "Ausblenden" }).click();
+  // CR-002 (TASK-015a): the ghost toggle is in the pill `Filter entfernen`, shown while a filter is active, so the
+  // mode is switched with the value checked; the measured clicks start unchecked as before
+  const ghosts = async (on) => {
+    await box.click();
+    await setGhosts(page, on);
+    await box.click();
+    await idle(page);
+  };
+  await ghosts(false);
   for (let i = 0; i < 5; i++) {
     results.hide.push(await measureViewClick(page, () => box.click()));
     expect((await viewState(page)).hidden.length).toBe(geometry - (await insideWithGeometry()));
     await box.click();
   }
-  await page.getByRole("radio", { name: "Geist" }).click();
+  await ghosts(true);
   await colourBy(page, "Kategorie", "Kategorie");
   for (let i = 0; i < 3; i++) {
     results.coloured.push(await measureViewClick(page, () => box.click()));

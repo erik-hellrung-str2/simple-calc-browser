@@ -921,26 +921,6 @@
         font-size: 12px;
         white-space: nowrap;
       }
-      /* `Elemente ausserhalb des Filters:` on two short lines, so the bar fits one row at 1280 px (TASK-005 L4) */
-      #cv-mode-label {
-        max-width: 112px;
-        font-size: 11px;
-        line-height: 1.15;
-        white-space: normal;
-      }
-      .cv-view-btn.cv-fit {
-        width: 32px;
-        padding: 0;
-        justify-content: center;
-      }
-      .cv-fit-text {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip-path: inset(50%);
-        white-space: nowrap;
-      }
       .cv-colour-text {
         display: flex;
         flex-direction: column;
@@ -1574,7 +1554,7 @@
         --cv-pills-h: 0px;
         --cv-props-top: 16px;
       }
-      /* interim: below the 1.0.0 view bar while it exists (removed by TASK-015a / TASK-016) */
+      /* interim: below the 1.0.0 view bar (`Faerben nach`, `Schnitt`) while it exists (removed by TASK-016 / TASK-017c) */
       .cv-canvas-box:has(> .cv-view-bar:not([hidden])) {
         --cv-props-top: 52px;
       }
@@ -1813,6 +1793,640 @@
       .cv-row-tool:focus-visible {
         outline: 2px solid var(--cv-accent);
         outline-offset: -2px;
+      }
+
+      /*
+       * TASK-014 click menu and section handle (REQ-013, CR-002), copied from the reference (CSS ref L1864-1884;
+       * screenshots ref-10, ref-13): the menu is a zero-size anchor moved to the clicked point by cv-3d (transform);
+       * the white card sits 20 px above the point (below it with .cv-pick-below), the red dot marks the point. The
+       * handle is a 36 px white circle with a red border, centred on its anchor.
+       */
+      .cv-pick {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 5;
+        width: 0;
+        height: 0;
+        pointer-events: none;
+      }
+      .cv-pick-dot {
+        position: absolute;
+        left: -9px;
+        top: -9px;
+        width: 18px;
+        height: 18px;
+        border: 3px solid #fff;
+        border-radius: 50%;
+        background: var(--cv-accent);
+        box-shadow: 0 1px 4px rgba(23, 24, 26, 0.4);
+      }
+      .cv-pick-card {
+        position: absolute;
+        left: 0;
+        bottom: 20px;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 2px;
+        padding: 6px;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: var(--cv-shadow);
+        pointer-events: auto;
+      }
+      .cv-pick-card::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -5px;
+        width: 10px;
+        height: 10px;
+        background: #fff;
+        transform: translateX(-50%) rotate(45deg);
+      }
+      .cv-pick-below .cv-pick-card {
+        top: 20px;
+        bottom: auto;
+      }
+      .cv-pick-below .cv-pick-card::after {
+        top: -5px;
+        bottom: auto;
+      }
+      .cv-pick-btn {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        min-width: 76px;
+        padding: 8px 6px;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--cv-ink-2);
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .cv-pick-btn:hover {
+        background: var(--cv-accent-soft);
+        color: var(--cv-accent);
+      }
+      .cv-pick-btn:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: -2px;
+      }
+      .cv-pick-btn svg {
+        width: 22px;
+        height: 22px;
+      }
+      .cv-pick-close {
+        position: absolute;
+        top: -11px;
+        right: -11px;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: #fff;
+        color: var(--cv-ink-2);
+        box-shadow: 0 1px 4px rgba(23, 24, 26, 0.3);
+        cursor: pointer;
+      }
+      .cv-pick-close:hover {
+        color: var(--cv-accent);
+      }
+      .cv-pick-close svg {
+        width: 14px;
+        height: 14px;
+      }
+      .cv-section-handle {
+        position: absolute;
+        left: -18px;
+        top: -18px;
+        z-index: 4;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: 3px solid var(--cv-accent);
+        border-radius: 50%;
+        background: #fff;
+        color: var(--cv-accent);
+        box-shadow: var(--cv-shadow);
+        cursor: grab;
+        touch-action: none;
+      }
+      .cv-section-handle:hover,
+      .cv-section-handle.cv-dragging {
+        background: var(--cv-accent);
+        color: #fff;
+      }
+      .cv-section-handle.cv-dragging {
+        cursor: grabbing;
+      }
+      .cv-section-handle:focus-visible {
+        outline: 2px solid var(--cv-ink);
+        outline-offset: 2px;
+      }
+      .cv-section-handle svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      /*
+       * TASK-015a in-viewer tools (REQ-005, REQ-012, CR-002), copied from the reference (CSS ref L1739-1766,
+       * L1796-1861, L1886-1887; screenshots ref-01..03): title chip top left, navigation hint and the round glass
+       * toolbar `3D-Werkzeuge` bottom centre, the filter / colouring panel above the toolbar, the pill stack bottom
+       * right (the properties panel ends above it through --cv-pills-h).
+       */
+      .cv-title-chip {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        max-width: min(320px, calc(100% - 32px));
+        padding: 8px 14px 8px 12px;
+        border-left: 3px solid var(--cv-accent);
+        border-radius: 4px 12px 12px 4px;
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(12px);
+        box-shadow: var(--cv-shadow);
+        pointer-events: none;
+      }
+      .cv-title-chip[hidden] {
+        display: none;
+      }
+      .cv-title-chip-text {
+        overflow: hidden;
+        color: var(--cv-ink);
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .cv-title-chip-sub {
+        color: var(--cv-muted);
+        font-size: 11px;
+      }
+      .cv-hint {
+        position: absolute;
+        left: 50%;
+        bottom: 82px;
+        z-index: 1;
+        max-width: calc(100% - 32px);
+        overflow: hidden;
+        transform: translateX(-50%);
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(12px);
+        box-shadow: var(--cv-shadow);
+        color: var(--cv-ink-2);
+        font-size: 12px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        pointer-events: none;
+        transition:
+          opacity 0.6s,
+          visibility 0s;
+      }
+      .cv-hint[hidden] {
+        display: none;
+      }
+      /* faded: invisible after the 0.6 s fade (ref .tov-hidden is opacity 0 only) */
+      .cv-hint.cv-hint-gone {
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 0.6s,
+          visibility 0s 0.6s;
+      }
+      .cv-toolbar {
+        position: absolute;
+        left: 50%;
+        bottom: 20px;
+        z-index: 2;
+        display: flex;
+        gap: 4px;
+        padding: 6px;
+        transform: translateX(-50%);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(12px);
+        box-shadow: var(--cv-shadow);
+      }
+      .cv-toolbar[hidden] {
+        display: none;
+      }
+      .cv-toolbar .cv-tool-btn {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        color: var(--cv-ink-2);
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .cv-toolbar .cv-tool-btn:hover {
+        background: rgba(53, 56, 58, 0.08);
+        color: var(--cv-accent);
+      }
+      .cv-toolbar .cv-tool-btn:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: 2px;
+      }
+      .cv-toolbar .cv-tool-btn.cv-on,
+      .cv-toolbar .cv-tool-btn.cv-on:hover {
+        background: var(--cv-accent);
+        color: #fff;
+      }
+      .cv-toolbar .cv-tool-btn .cv-icon,
+      .cv-toolbar .cv-tool-btn svg {
+        width: 20px;
+        height: 20px;
+      }
+      /* red dot while a rule or search (`Filter`) or colouring (`Faerben`) is active (ref .tov-has-filter) */
+      .cv-toolbar .cv-tool-btn.cv-has-dot::after {
+        content: "";
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--cv-accent);
+        box-shadow: 0 0 0 2px #fff;
+      }
+      .cv-float-panel {
+        position: absolute;
+        left: 50%;
+        bottom: 80px;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        width: min(380px, calc(100% - 32px));
+        max-height: calc(100% - 112px);
+        overflow: hidden;
+        transform: translateX(-50%);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(14px);
+        box-shadow: var(--cv-shadow);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .cv-float-panel[hidden] {
+        display: none;
+      }
+      .cv-float-panel * {
+        box-sizing: border-box;
+      }
+      .cv-float-head {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        padding: 10px 12px 8px 16px;
+        border-bottom: 1px solid rgba(164, 168, 172, 0.35);
+      }
+      .cv-float-kicker {
+        flex: 1;
+        min-width: 0;
+        color: var(--cv-accent);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .cv-float-body {
+        display: grid;
+        gap: 10px;
+        min-height: 0;
+        padding: 12px 16px 14px;
+        overflow: auto;
+      }
+      .cv-float-body:empty {
+        display: none;
+      }
+      .cv-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: var(--cv-accent);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .cv-link:hover {
+        background: var(--cv-accent-soft);
+      }
+      .cv-link:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: 1px;
+      }
+      .cv-link[hidden] {
+        display: none;
+      }
+      .cv-link .cv-icon,
+      .cv-link svg {
+        width: 18px;
+        height: 18px;
+      }
+      .cv-rule-add {
+        justify-self: start;
+        margin-left: -8px;
+      }
+      .cv-float-search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        padding: 0 10px;
+        border: 1px solid var(--cv-faint);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--cv-muted);
+      }
+      .cv-float-search:focus-within {
+        border-color: var(--cv-accent);
+        box-shadow: 0 0 0 3px rgba(215, 38, 34, 0.12);
+      }
+      .cv-float-search .cv-icon,
+      .cv-float-search svg {
+        flex: none;
+        width: 18px;
+        height: 18px;
+      }
+      .cv-float-search input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        outline: none;
+        background: transparent;
+        color: var(--cv-ink);
+        font: inherit;
+      }
+      .cv-rules {
+        display: grid;
+        gap: 6px;
+      }
+      .cv-rules:empty {
+        display: none;
+      }
+      .cv-filter-status {
+        padding-top: 8px;
+        border-top: 1px solid rgba(164, 168, 172, 0.35);
+        color: var(--cv-muted);
+        font-size: 12px;
+      }
+      .cv-filter-status:empty {
+        display: none;
+      }
+      .cv-pills {
+        position: absolute;
+        right: 16px;
+        bottom: 20px;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+      }
+      .cv-pill {
+        display: flex;
+        align-items: center;
+        padding: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(12px);
+        box-shadow: var(--cv-shadow);
+      }
+      .cv-pill[hidden] {
+        display: none;
+      }
+      .cv-pill button {
+        display: inline-flex;
+        align-items: center;
+        height: 40px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--cv-ink);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .cv-pill button:hover {
+        background: rgba(53, 56, 58, 0.08);
+        color: var(--cv-accent);
+      }
+      .cv-pill button:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: 2px;
+      }
+      .cv-pill-main {
+        gap: 8px;
+        padding: 0 10px;
+        white-space: nowrap;
+      }
+      .cv-pill-main .cv-icon,
+      .cv-pill-main svg {
+        width: 20px;
+        height: 20px;
+        color: var(--cv-accent);
+      }
+      .cv-pill .cv-pill-toggle {
+        justify-content: center;
+        width: 32px;
+        padding: 0;
+      }
+      .cv-pill-toggle .cv-icon,
+      .cv-pill-toggle svg {
+        width: 18px;
+        height: 18px;
+        color: var(--cv-muted);
+      }
+      .cv-pill .cv-pill-ghost {
+        width: 40px;
+        margin-right: 2px;
+      }
+      .cv-pill-ghost .cv-icon,
+      .cv-pill-ghost svg {
+        width: 20px;
+        height: 20px;
+        color: var(--cv-ink-2);
+      }
+      .cv-pill .cv-pill-ghost.cv-on {
+        background: rgba(215, 38, 34, 0.1);
+      }
+      .cv-pill-ghost.cv-on svg,
+      .cv-pill-ghost:hover svg {
+        color: var(--cv-accent);
+      }
+
+      /*
+       * TASK-015b rule rows and dialog `Filter bearbeiten` (REQ-012, CR-002), copied from the reference (CSS ref
+       * L1815-1820 rule rows, L1890-1924 dialogs, inputs, suggestion list).
+       */
+      .cv-rule {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 2px 2px 10px;
+        border-radius: 8px;
+        background: rgba(23, 24, 26, 0.05);
+      }
+      .cv-rule-text {
+        flex: 1;
+        min-width: 0;
+        padding: 5px 0;
+        border: 0;
+        background: none;
+        color: var(--cv-ink);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        overflow-wrap: anywhere;
+      }
+      .cv-rule-text:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: 2px;
+      }
+      .cv-rule-mode {
+        font-weight: 600;
+        color: var(--cv-accent);
+      }
+      .cv-rule-note {
+        display: block;
+        color: var(--cv-muted);
+        font-size: 12px;
+      }
+      .cv-rule .cv-rule-remove {
+        flex: none;
+        width: 28px;
+        height: 28px;
+      }
+      .cv-dialog-wide {
+        width: min(860px, 100%);
+        overflow: visible;
+      }
+      .cv-dialog-wide .cv-dialog-body {
+        overflow: visible;
+        padding: 16px 20px;
+      }
+      .cv-rule-dialog .cv-dialog-foot {
+        gap: 10px;
+        padding: 12px 20px;
+        border-top: 1px solid var(--cv-line);
+      }
+      .cv-rule-dialog .cv-btn {
+        height: 36px;
+        padding: 0 18px;
+        font-size: 14px;
+      }
+      .cv-rule-form {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr) 140px minmax(0, 1fr);
+        gap: 8px;
+      }
+      .cv-input,
+      .cv-select {
+        width: 100%;
+        min-width: 0;
+        height: 36px;
+        padding: 0 10px;
+        border: 1px solid var(--cv-faint);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--cv-ink);
+        font: inherit;
+      }
+      .cv-input:focus,
+      .cv-select:focus {
+        outline: none;
+        border-color: var(--cv-accent);
+        box-shadow: 0 0 0 3px rgba(215, 38, 34, 0.12);
+      }
+      .cv-input:disabled {
+        background: #f4f5f6;
+        color: var(--cv-faint);
+      }
+      .cv-input.cv-invalid {
+        border-color: var(--cv-accent);
+        background: #fdf3f2;
+      }
+      .cv-combo {
+        position: relative;
+        min-width: 0;
+      }
+      .cv-suggest {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        z-index: 2;
+        width: max(100%, 260px);
+        max-height: min(320px, 45vh);
+        padding: 4px 0;
+        overflow: auto;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: var(--cv-shadow);
+      }
+      .cv-suggest-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        padding: 7px 14px;
+        color: var(--cv-ink);
+        text-align: left;
+        cursor: pointer;
+        overflow-wrap: anywhere;
+      }
+      .cv-suggest-item:hover,
+      .cv-suggest-item.cv-on {
+        background: rgba(23, 24, 26, 0.05);
+      }
+      .cv-suggest-group {
+        font-size: 11px;
+        color: var(--cv-muted);
+      }
+      .cv-suggest-more {
+        padding: 6px 14px;
+        font-size: 12px;
+        color: var(--cv-muted);
+      }
+      @media (max-width: 700px) {
+        .cv-rule-form {
+          grid-template-columns: 1fr 1fr;
+        }
       }
 
       /*
@@ -3422,6 +4036,62 @@
           mode: modeEntry ? modeEntry[1] : String(rule.mode),
           text: property + " " + op + " \u201e" + rule.value + "\u201c",
         };
+      }
+
+      /** Entries of the `Eigenschaft` suggestion list of `Filter bearbeiten` before `+<n> mehr` (REQ-012, ref L220). */
+      export const RULE_PROPERTY_LIMIT = 50;
+      /** `Wert` suggestions of `Filter bearbeiten`: distinct display texts of the chosen property (REQ-012, ref L221). */
+      export const RULE_VALUE_LIMIT = 200;
+
+      /**
+       * `Eigenschaft` suggestions of `Filter bearbeiten` (REQ-012, TASK-015b; ref L694-709): the catalogue entries
+       * (in catalogue order: `Allgemein` first, then by group and label) whose label or group contains the query in
+       * any letter case (an empty query lists all), at most limit of them. Returns { items, more } (more = matches
+       * left out).
+       */
+      export function ruleProperties(entries, query, limit = RULE_PROPERTY_LIMIT) {
+        const q = String(query || "")
+          .trim()
+          .toLowerCase();
+        const matches = [];
+        for (const entry of entries || []) {
+          if (!q || entry.label.toLowerCase().includes(q) || String(entry.group || "").toLowerCase().includes(q))
+            matches.push(entry);
+        }
+        return { items: matches.slice(0, limit), more: Math.max(0, matches.length - limit) };
+      }
+
+      /**
+       * The catalogue entry whose label equals the typed text (REQ-012: "a typed text that equals a property label
+       * exactly is accepted"; trimmed; the exact spelling first, else ignoring letter case as ref L728-732), or null.
+       */
+      export function findRuleProperty(entries, typed) {
+        const text = String(typed || "").trim();
+        if (!text) return null;
+        const list = [...(entries || [])];
+        const exact = list.find((entry) => entry.label === text);
+        if (exact) return exact;
+        const lower = text.toLowerCase();
+        return list.find((entry) => entry.label.toLowerCase() === lower) || null;
+      }
+
+      /**
+       * `Wert` suggestions of `Filter bearbeiten` (REQ-012, DEC-19): the distinct display texts (displayText; what a
+       * rule compares, so a picked suggestion always matches) of the values of property key over the rows, in value
+       * order (compareValues: numbers ascending, then texts), at most limit; the empty value is left out.
+       */
+      export function ruleValueTexts(source, key, limit = RULE_VALUE_LIMIT) {
+        if (!key) return [];
+        const col = asStore(source).column(key);
+        const seen = new Set();
+        const out = [];
+        for (let c = 0; c < col.emptyCode && out.length < limit; c++) {
+          const text = scalarText(col.values[c]);
+          if (text === "" || seen.has(text)) continue;
+          seen.add(text);
+          out.push(text);
+        }
+        return out;
       }
 
       // ---------------------------------------------------------------------------------------------------------
@@ -5152,7 +5822,17 @@
 
     <!-- DOM: layout, model list, messages, progress and status (builder and viewer file). ASCII only. -->
     <script type="text/plain" id="cv-ui-src">
-      import { EMPTY_LABEL, coreInfo, formatCell, germanDate, parseNumberInput } from "calc-core";
+      import {
+        EMPTY_LABEL,
+        RULE_MODES,
+        RULE_OPS,
+        coreInfo,
+        findRuleProperty,
+        formatCell,
+        germanDate,
+        parseNumberInput,
+        ruleProperties,
+      } from "calc-core";
 
       function el(tag, className, text) {
         const node = document.createElement(tag);
@@ -5190,6 +5870,13 @@
         hide: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" stroke-dasharray="2 2"/>',
         isolate:
           '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><g opacity=".35"><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></g>',
+        // 3D toolbar `Fokus` and the ghost toggle of the pill `Filter entfernen` (as the reference ICONS fit / ghost,
+        // ref L256, L267; TASK-015a)
+        focus:
+          '<path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/><rect x="9" y="9" width="6" height="6" rx="1"/>',
+        ghost:
+          '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" fill="currentColor" fill-opacity=".15"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9" stroke-dasharray="2 2.2"/>',
+        chevronDown: '<path d="M7 10l5 5 5-5"/>',
       };
 
       function icon(name) {
@@ -5749,36 +6436,17 @@
       }
 
       /**
-       * 3D view controls (REQ-005; top right of the model): `Elemente ausserhalb des Filters: Geist | Ausblenden`,
-       * `Faerben nach`, `Schnitt` (axis X / Y / Z; while a section is active a panel under it holds slider, flip and
-       * remove, so the bar stays one row at 1280 px, TASK-005 L4) and `Ansicht einpassen`. The legend is placed in
-       * legendHost under the canvas (spec "legend under the model"; it never covers geometry, TASK-005 L1).
-       * handlers: { mode(m), pickColour(), clearColour(), section(axis | null), sectionOffset(value), flip(), fit() }.
+       * Interim 1.0.0 3D view controls (REQ-005; top right of the model) until TASK-016 / TASK-017c: `Faerben nach`
+       * and `Schnitt` (axis X / Y / Z; while a section is active a panel under it holds slider, flip and remove, so the
+       * bar stays one row at 1280 px, TASK-005 L4). The legend is placed in legendHost under the canvas (1.0.0 "legend
+       * under the model"; it never covers geometry, TASK-005 L1). CR-002 (TASK-015a): `Elemente ausserhalb des
+       * Filters: Geist | Ausblenden` moved into the pill `Filter entfernen` (ghost toggle) and `Ansicht einpassen` is
+       * replaced by `Fokus` in the 3D toolbar (createViewTools).
+       * handlers: { pickColour(), clearColour(), section(axis | null), sectionOffset(value), flip() }.
        */
       function createViewControls(viewport, legendHost, handlers) {
         const bar = el("div", "cv-view-bar");
         bar.id = "cv-view-bar";
-
-        const modeBox = el("div", "cv-view-group");
-        const modeLabel = el("span", "cv-view-label", "Elemente au\u00dferhalb des Filters:");
-        modeLabel.id = "cv-mode-label";
-        const seg = el("div", "cv-seg");
-        seg.setAttribute("role", "radiogroup");
-        seg.setAttribute("aria-labelledby", "cv-mode-label");
-        const modeButtons = {};
-        for (const [value, text] of [
-          ["ghost", "Geist"],
-          ["hide", "Ausblenden"],
-        ]) {
-          const button = el("button", "cv-seg-btn", text);
-          button.type = "button";
-          button.dataset.mode = value;
-          button.setAttribute("role", "radio");
-          button.addEventListener("click", () => handlers.mode(value));
-          modeButtons[value] = button;
-          seg.append(button);
-        }
-        modeBox.append(modeLabel, seg);
 
         const colourBox = el("div", "cv-view-group");
         const colourButton = el("button", "cv-colour-btn");
@@ -5825,14 +6493,7 @@
         sectionPanel.append(slider, flip, sectionOff);
         sectionBox.append(sectionLabel, axisSeg, sectionPanel);
 
-        const fit = el("button", "cv-view-btn cv-fit");
-        fit.type = "button";
-        fit.id = "cv-fit";
-        fit.title = "Ansicht einpassen";
-        fit.append(icon("fit"), el("span", "cv-fit-text", "Ansicht einpassen"));
-        fit.addEventListener("click", () => handlers.fit());
-
-        bar.append(modeBox, colourBox, sectionBox, fit);
+        bar.append(colourBox, sectionBox);
 
         const legend = el("div", "cv-legend");
         legend.id = "cv-legend";
@@ -5846,12 +6507,6 @@
 
         return {
           element: bar,
-          setMode(mode) {
-            for (const [value, button] of Object.entries(modeButtons)) {
-              button.setAttribute("aria-checked", String(value === mode));
-              button.classList.toggle("cv-on", value === mode);
-            }
-          },
           /** Label of the colouring property, or null (no colouring). */
           setColouring(label) {
             const text = label ? "F\u00e4rben nach: " + label : "F\u00e4rben nach";
@@ -5919,6 +6574,275 @@
             const height = legend.offsetHeight;
             if (height > (parseFloat(legend.style.minHeight) || 0)) legend.style.minHeight = height + "px";
           },
+        };
+      }
+
+      /** Debounce of the search field `Suchen nach Objekten` (REQ-012, ref SEARCH_DEBOUNCE_MS). */
+      export const SEARCH_DEBOUNCE_MS = 250;
+      /** The navigation hint fades this long after the first model is shown (REQ-005, ref HINT_DURATION_MS). */
+      export const HINT_DURATION_MS = 6000;
+      /** Text of the navigation hint pill above the toolbar (REQ-005-AC10, ref L872). */
+      export const HINT_TEXT =
+        "Ziehen: drehen \u00b7 Rechts ziehen: verschieben \u00b7 Mausrad: zoomen \u00b7 Klick: Eigenschaften und Werkzeuge";
+
+      /**
+       * In-viewer tools of the 3D view as the reference (REQ-005, REQ-012, CR-002; TASK-015a; ref L865-876,
+       * L1306-1376, L1394-1430, CSS L1739-1766, L1796-1861): title chip (top left), navigation hint, the round glass
+       * toolbar `3D-Werkzeuge` (bottom centre) with `Fokus`, `Filter`, `Faerben`, the filter panel (kicker, panel
+       * `Zuruecksetzen`, search `Suchen nach Objekten`, rule list, `+ Filter hinzufuegen`, status `X von Y Objekten
+       * sichtbar`), the colouring panel (empty until TASK-016) and the pill stack (bottom right) with the pill `Filter
+       * entfernen` (ghost toggle on its left, chevron `Filter anzeigen` on its right). `Filter` and `Faerben` panels
+       * exclude each other. Texts from the model (title, search) are set as text only.
+       * handlers: { focus(), mode('ghost' | 'hide'), search(text) (after the debounce), resetPanel() (panel
+       * `Zuruecksetzen`), resetAll() (pill `Filter entfernen`), addRule(opener) (`+ Filter hinzufuegen`), editRule(index,
+       * opener) and removeRule(index) (rule rows, TASK-015b), panel(name | null) (optional: a panel was opened or
+       * closed) }.
+       */
+      function createViewTools(box, handlers) {
+        const titleChip = el("div", "cv-title-chip");
+        titleChip.id = "cv-title-chip";
+        titleChip.hidden = true;
+        const titleText = el("span", "cv-title-chip-text");
+        const titleSub = el("span", "cv-title-chip-sub");
+        titleSub.hidden = true;
+        titleChip.append(titleText, titleSub);
+
+        const hint = el("div", "cv-hint", HINT_TEXT);
+        hint.id = "cv-hint";
+        hint.hidden = true;
+        let hintStarted = false;
+
+        const bar = el("div", "cv-toolbar");
+        bar.id = "cv-toolbar";
+        bar.setAttribute("role", "toolbar");
+        bar.setAttribute("aria-label", "3D-Werkzeuge");
+        bar.hidden = true;
+        const toolButton = (name, label, id) => {
+          const button = iconButton(name, label, "cv-tool-btn");
+          button.id = id;
+          bar.append(button);
+          return button;
+        };
+        const focusButton = toolButton("focus", "Fokus", "cv-tool-focus");
+        focusButton.addEventListener("click", () => handlers.focus());
+        const filterButton = toolButton("filter", "Filter", "cv-tool-filter");
+        const colourButton = toolButton("palette", "F\u00e4rben", "cv-tool-colour");
+        for (const button of [filterButton, colourButton]) button.setAttribute("aria-pressed", "false");
+
+        /** A floating glass panel above the toolbar: { panel, head, body, reset (red link, hidden) }. */
+        function floatPanel(id, kicker, label) {
+          const panel = el("section", "cv-float-panel");
+          panel.id = id;
+          panel.hidden = true;
+          panel.setAttribute("role", "region");
+          panel.setAttribute("aria-label", label);
+          const head = el("div", "cv-float-head");
+          const reset = el("button", "cv-link");
+          reset.type = "button";
+          reset.hidden = true;
+          head.append(el("div", "cv-float-kicker", kicker), reset);
+          const body = el("div", "cv-float-body");
+          panel.append(head, body);
+          return { panel, head, body, reset };
+        }
+
+        // filter panel (REQ-012)
+        const filter = floatPanel("cv-filter-panel", "Filter", "Filter");
+        filter.reset.textContent = "Zur\u00fccksetzen";
+        filter.reset.id = "cv-filter-reset";
+        filter.reset.title = "Filterregeln und Suche entfernen";
+        filter.reset.addEventListener("click", () => handlers.resetPanel());
+        const searchBox = el("label", "cv-float-search");
+        searchBox.append(icon("search"));
+        const searchInput = el("input");
+        searchInput.type = "search";
+        searchInput.id = "cv-object-search";
+        searchInput.placeholder = "Suchen nach Objekten";
+        searchInput.setAttribute("aria-label", "Suchen nach Objekten");
+        searchInput.autocomplete = "off";
+        searchInput.spellcheck = false;
+        searchBox.append(searchInput);
+        const rules = el("div", "cv-rules");
+        rules.id = "cv-rules";
+        const addRule = el("button", "cv-link cv-rule-add");
+        addRule.type = "button";
+        addRule.id = "cv-rule-add";
+        addRule.append(icon("plus"), document.createTextNode("Filter hinzuf\u00fcgen"));
+        addRule.addEventListener("click", () => {
+          if (handlers.addRule) handlers.addRule(addRule);
+        });
+        const status = el("div", "cv-filter-status");
+        status.id = "cv-filter-status";
+        status.setAttribute("aria-live", "polite");
+        filter.body.append(searchBox, rules, addRule, status);
+        let searchTimer = 0;
+        searchInput.addEventListener("input", () => {
+          clearTimeout(searchTimer);
+          searchTimer = setTimeout(() => handlers.search(searchInput.value), SEARCH_DEBOUNCE_MS);
+        });
+
+        // colouring panel (REQ-005 `Faerben`; content in TASK-016)
+        const colour = floatPanel("cv-colour-panel", "F\u00e4rben", "F\u00e4rben");
+        colour.reset.textContent = "Entfernen";
+        colour.reset.id = "cv-colour-reset";
+
+        // pill stack bottom right (spec 2 User interface order); TASK-015a adds `Filter entfernen`
+        const pills = el("div", "cv-pills");
+        pills.id = "cv-pills";
+        const filterPill = el("div", "cv-pill");
+        filterPill.id = "cv-pill-filter";
+        filterPill.hidden = true;
+        const ghostToggle = el("button", "cv-pill-toggle cv-pill-ghost");
+        ghostToggle.type = "button";
+        ghostToggle.id = "cv-ghost-toggle";
+        ghostToggle.append(icon("ghost"));
+        let mode = "ghost";
+        ghostToggle.addEventListener("click", () => handlers.mode(mode === "ghost" ? "hide" : "ghost"));
+        const pillMain = el("button", "cv-pill-main");
+        pillMain.type = "button";
+        pillMain.id = "cv-pill-filter-reset";
+        pillMain.title = "Alle Filter entfernen";
+        pillMain.append(icon("filter"), el("span", "cv-pill-label", "Filter entfernen"));
+        pillMain.addEventListener("click", () => handlers.resetAll());
+        const pillShow = iconButton("chevronDown", "Filter anzeigen", "cv-pill-toggle");
+        pillShow.classList.remove("cv-icon-btn");
+        pillShow.id = "cv-pill-filter-show";
+        pillShow.addEventListener("click", () => openPanel("filter"));
+        filterPill.append(ghostToggle, pillMain, pillShow);
+        pills.append(filterPill);
+
+        box.append(titleChip, hint, filter.panel, colour.panel, pills, bar);
+
+        // the properties panel ends above the pill stack (--cv-pills-h, as the reference's --tov-pills-h)
+        function layoutPills() {
+          box.style.setProperty("--cv-pills-h", pills.offsetHeight + "px");
+        }
+
+        let open = null; // "filter" | "colour" | null
+        const panels = { filter: [filter.panel, filterButton], colour: [colour.panel, colourButton] };
+        function openPanel(name) {
+          const next = name && panels[name] ? name : null;
+          if (next === open) return;
+          open = next;
+          for (const [key, [panel, button]] of Object.entries(panels)) {
+            panel.hidden = key !== open;
+            button.classList.toggle("cv-on", key === open);
+            button.setAttribute("aria-pressed", String(key === open));
+          }
+          if (handlers.panel) handlers.panel(open);
+        }
+        filterButton.addEventListener("click", () => openPanel(open === "filter" ? null : "filter"));
+        colourButton.addEventListener("click", () => openPanel(open === "colour" ? null : "colour"));
+
+        function hideHint() {
+          hint.classList.add("cv-hint-gone");
+          hint.setAttribute("aria-hidden", "true");
+        }
+
+        return {
+          element: bar,
+          /** Shows the toolbar while a model is loaded (REQ-005-AC7); without one the panels close. */
+          setLoaded(loaded) {
+            bar.hidden = !loaded;
+            if (!loaded) openPanel(null);
+          },
+          /**
+           * Shows the navigation hint once (the first model shown): it fades HINT_DURATION_MS later or at the first
+           * pointer press on the canvas, whichever is first (REQ-005-AC10, ref L872-876).
+           */
+          startHint() {
+            if (hintStarted) return;
+            hintStarted = true;
+            hint.hidden = false;
+            setTimeout(hideHint, HINT_DURATION_MS);
+            const onPress = (event) => {
+              if (event.target && event.target.tagName !== "CANVAS") return;
+              box.removeEventListener("pointerdown", onPress, true);
+              hideHint();
+            };
+            box.addEventListener("pointerdown", onPress, true);
+          },
+          /** Title chip (REQ-005-AC10): title (absent while empty) and, with more than one model, `<n> Modelle`. */
+          setTitle(text, modelCount) {
+            titleChip.hidden = !text;
+            titleText.textContent = text || "";
+            titleChip.title = text || "";
+            titleSub.hidden = !(modelCount > 1);
+            titleSub.textContent = modelCount > 1 ? formatCount(modelCount) + " Modelle" : "";
+          },
+          /** Ghost toggle (REQ-005-AC1): pressed `Ausgeblendete verbergen` while ghosts are shown. */
+          setMode(next) {
+            mode = next === "hide" ? "hide" : "ghost";
+            const label = mode === "ghost" ? "Ausgeblendete verbergen" : "Ausgeblendete anzeigen";
+            ghostToggle.title = label;
+            ghostToggle.setAttribute("aria-label", label);
+            ghostToggle.setAttribute("aria-pressed", String(mode === "ghost"));
+            ghostToggle.classList.toggle("cv-on", mode === "ghost");
+          },
+          /** Panel status `X von Y Objekten sichtbar` (the numbers of the status line). */
+          setStatus(shown, total) {
+            status.textContent = formatCount(shown) + " von " + formatCount(total) + " Objekten sichtbar";
+          },
+          /** Panel status while the display-text index is built (fraction 0..1). */
+          setIndexing(fraction) {
+            status.textContent = "Eigenschaften werden gelesen ... " + Math.floor(fraction * 100) + " %";
+          },
+          /**
+           * Filter state: textActive (a rule or a search text: `Filter` dot, panel `Zuruecksetzen`), pill (any filter
+           * source active or any rule: pill `Filter entfernen` shown).
+           */
+          setFilterState(state) {
+            filterButton.classList.toggle("cv-has-dot", Boolean(state.textActive));
+            filter.reset.hidden = !state.textActive;
+            if (filterPill.hidden !== !state.pill) {
+              filterPill.hidden = !state.pill;
+              layoutPills();
+            }
+          },
+          /**
+           * Rule rows (REQ-012, TASK-015b; ref L1394-1410): one row per rule `<Aktion>: <Eigenschaft> <vergleich>
+           * \u201e<Wert>\u201c` (items: { mode, text } of describeRule, missing: property not loaded) with the action in red;
+           * the row text (title `Filter bearbeiten`) calls handlers.editRule(index, button), its x (`Filter entfernen`)
+           * handlers.removeRule(index). A rule whose property is not loaded shows the grey note `Eigenschaft nicht
+           * geladen` (DEC-21). Texts are set as text only.
+           */
+          setRules(items) {
+            const focusedAt = [...rules.children].findIndex((row) => row.contains(document.activeElement));
+            rules.replaceChildren(
+              ...items.map((item, index) => {
+                const row = el("div", "cv-rule");
+                row.dataset.index = String(index);
+                const edit = el("button", "cv-rule-text");
+                edit.type = "button";
+                edit.title = "Filter bearbeiten";
+                edit.append(el("span", "cv-rule-mode", item.mode + ": "), document.createTextNode(item.text));
+                if (item.missing) edit.append(el("span", "cv-rule-note", "Eigenschaft nicht geladen"));
+                edit.addEventListener("click", () => handlers.editRule(index, edit));
+                const remove = iconButton("close", "Filter entfernen", "cv-rule-remove");
+                remove.addEventListener("click", () => handlers.removeRule(index));
+                row.append(edit, remove);
+                return row;
+              }),
+            );
+            // a removed row took the focus with it: keep it in the list (next row) or on `+ Filter hinzufuegen`
+            if (focusedAt !== -1 && !rules.contains(document.activeElement)) {
+              const next = rules.children[Math.min(focusedAt, rules.children.length - 1)];
+              (next ? next.querySelector(".cv-rule-remove") : addRule).focus();
+            }
+          },
+          /** Sets the search field (reset, configuration) without a search event; a pending debounce is dropped. */
+          setSearch(text) {
+            clearTimeout(searchTimer);
+            searchInput.value = text;
+          },
+          /** Opens a panel ("filter" | "colour") or closes the open one (null). */
+          openPanel,
+          panel: () => open,
+          layoutPills,
+          filterPanel: filter,
+          colourPanel: colour,
+          rules,
+          pills,
         };
       }
 
@@ -7103,6 +8027,257 @@
         return { show, showGroup, clear, element: panel };
       }
 
+      let ruleDialogCount = 0;
+
+      /**
+       * Dialog `Filter bearbeiten` (REQ-012, TASK-015b) as the reference (ref L654-740, CSS L1890-1924; screenshots
+       * ref-04, ref-05): one row of four fields - `Aktion` (select, RULE_MODES), `Eigenschaft` (combobox with a
+       * suggestion list of the catalogue: label, below it the group in grey, at most RULE_PROPERTY_LIMIT entries then
+       * `+<n> mehr`; disabled for `Freie Textsuche`), `Vergleich` (select, RULE_OPS) and `Wert` (text input with a
+       * datalist of the property's display texts) - and the buttons `Abbrechen` and `Anwenden`.
+       * options: { rule ({ mode, key, op, value } to edit, or null for a new one: `Isolieren`, `Enthaelt`), entries
+       * (catalogue entries), valuesFor(key) -> display texts, apply(rule) }. `Anwenden` with a missing or unknown
+       * property (except `Freie Textsuche`) or an empty value marks the field invalid (`cv-invalid`, aria-invalid) and
+       * keeps the dialog open; a typed text that equals a label is accepted (findRuleProperty). `Abbrechen`, the close
+       * button, `Esc` and the backdrop close it without change; focus returns to options.returnFocus. All texts from
+       * the model or the user are set as text only.
+       */
+      function openRuleDialog(host, options) {
+        const entries = options.entries || [];
+        const current = options.rule || { mode: "isolate", key: null, op: "contains", value: "" };
+        const uid = ++ruleDialogCount;
+        const backdrop = el("div", "cv-backdrop");
+        const dialog = el("div", "cv-dialog cv-dialog-wide cv-rule-dialog");
+        dialog.id = "cv-rule-dialog";
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("aria-labelledby", "cv-rule-dialog-title");
+        const head = el("div", "cv-dialog-head");
+        const heading = el("div", "cv-dialog-title", "Filter bearbeiten");
+        heading.id = "cv-rule-dialog-title";
+        const close = iconButton("close", "Schlie\u00dfen", "cv-dialog-close");
+        head.append(heading, close);
+        const body = el("div", "cv-dialog-body");
+
+        const select = (choices, value, label, id) => {
+          const node = el("select", "cv-select");
+          node.id = id;
+          node.setAttribute("aria-label", label);
+          for (const [optionValue, text] of choices) {
+            const option = el("option", "", text);
+            option.value = optionValue;
+            node.append(option);
+          }
+          node.value = value;
+          return node;
+        };
+        const mode = select(RULE_MODES, current.mode, "Aktion", "cv-rule-mode");
+        const combo = el("div", "cv-combo");
+        const propertyInput = el("input", "cv-input");
+        propertyInput.type = "text";
+        propertyInput.id = "cv-rule-property";
+        propertyInput.placeholder = "Eigenschaft";
+        propertyInput.autocomplete = "off";
+        propertyInput.spellcheck = false;
+        propertyInput.setAttribute("aria-label", "Eigenschaft");
+        propertyInput.setAttribute("role", "combobox");
+        propertyInput.setAttribute("aria-autocomplete", "list");
+        propertyInput.setAttribute("aria-expanded", "false");
+        const suggestions = el("div", "cv-suggest");
+        suggestions.id = "cv-rule-suggest";
+        suggestions.setAttribute("role", "listbox");
+        suggestions.setAttribute("aria-label", "Eigenschaften");
+        suggestions.hidden = true;
+        propertyInput.setAttribute("aria-controls", suggestions.id);
+        combo.append(propertyInput, suggestions);
+        const operator = select(RULE_OPS, current.op, "Vergleich", "cv-rule-op");
+        const valueInput = el("input", "cv-input");
+        valueInput.type = "text";
+        valueInput.id = "cv-rule-value";
+        valueInput.placeholder = "Wert";
+        valueInput.autocomplete = "off";
+        valueInput.spellcheck = false;
+        valueInput.setAttribute("aria-label", "Wert");
+        valueInput.value = current.value || "";
+        const datalist = el("datalist");
+        datalist.id = "cv-rule-values-" + uid;
+        valueInput.setAttribute("list", datalist.id);
+        const form = el("div", "cv-rule-form");
+        form.append(mode, combo, operator, valueInput, datalist);
+        body.append(form);
+
+        const foot = el("div", "cv-dialog-foot");
+        const cancel = el("button", "cv-btn", "Abbrechen");
+        cancel.type = "button";
+        const ok = el("button", "cv-btn cv-primary", "Anwenden");
+        ok.type = "button";
+        ok.id = "cv-rule-apply";
+        foot.append(cancel, ok);
+        dialog.append(head, body, foot);
+        backdrop.append(dialog);
+        host.append(backdrop);
+
+        const byKey = new Map(entries.map((entry) => [entry.key, entry]));
+        let chosenKey = current.key && byKey.has(current.key) ? current.key : null;
+        propertyInput.value = chosenKey ? byKey.get(chosenKey).label : current.key ? String(current.key) : "";
+        let valuesKey; // property whose display texts the datalist holds
+        let items = []; // suggestion entries shown
+        let active = -1; // keyboard-highlighted suggestion
+
+        function setInvalid(input, invalid) {
+          input.classList.toggle("cv-invalid", invalid);
+          if (invalid) input.setAttribute("aria-invalid", "true");
+          else input.removeAttribute("aria-invalid");
+        }
+        function refreshValues(key) {
+          if (key === valuesKey) return;
+          valuesKey = key;
+          const texts = key ? options.valuesFor(key) : [];
+          datalist.replaceChildren(
+            ...texts.map((text) => {
+              const option = el("option");
+              option.value = text;
+              return option;
+            }),
+          );
+        }
+        function hideSuggestions() {
+          suggestions.hidden = true;
+          propertyInput.setAttribute("aria-expanded", "false");
+          propertyInput.removeAttribute("aria-activedescendant");
+          active = -1;
+        }
+        function choose(entry) {
+          chosenKey = entry.key;
+          propertyInput.value = entry.label;
+          setInvalid(propertyInput, false);
+          hideSuggestions();
+          refreshValues(entry.key);
+        }
+        function highlight(index) {
+          const nodes = suggestions.querySelectorAll("[role=option]");
+          active = nodes.length ? (index + nodes.length) % nodes.length : -1;
+          nodes.forEach((node, i) => {
+            node.classList.toggle("cv-on", i === active);
+            node.setAttribute("aria-selected", String(i === active));
+          });
+          if (active >= 0) {
+            propertyInput.setAttribute("aria-activedescendant", nodes[active].id);
+            nodes[active].scrollIntoView({ block: "nearest" });
+          } else propertyInput.removeAttribute("aria-activedescendant");
+        }
+        function showSuggestions() {
+          if (propertyInput.disabled) return;
+          const found = ruleProperties(entries, propertyInput.value);
+          items = found.items;
+          const nodes = items.map((entry, i) => {
+            const item = el("div", "cv-suggest-item");
+            item.id = "cv-rule-suggest-" + uid + "-" + i;
+            item.setAttribute("role", "option");
+            item.setAttribute("aria-selected", "false");
+            item.dataset.key = entry.key;
+            item.append(el("span", "cv-suggest-label", entry.label));
+            if (entry.group) item.append(el("span", "cv-suggest-group", entry.group));
+            // pointerdown + preventDefault: picked before the input's blur hides the list (as the reference)
+            item.addEventListener("pointerdown", (event) => {
+              event.preventDefault();
+              choose(entry);
+            });
+            return item;
+          });
+          if (found.more) nodes.push(el("div", "cv-suggest-more", "+" + formatCount(found.more) + " mehr"));
+          suggestions.replaceChildren(...nodes);
+          // no match: no list (as ref L708)
+          suggestions.hidden = !items.length;
+          propertyInput.setAttribute("aria-expanded", String(items.length > 0));
+          active = -1;
+          propertyInput.removeAttribute("aria-activedescendant");
+        }
+        propertyInput.addEventListener("focus", showSuggestions);
+        propertyInput.addEventListener("input", () => {
+          chosenKey = null;
+          setInvalid(propertyInput, false);
+          showSuggestions();
+          const exact = findRuleProperty(entries, propertyInput.value);
+          if (exact) refreshValues(exact.key);
+        });
+        propertyInput.addEventListener("blur", hideSuggestions);
+        propertyInput.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            if (suggestions.hidden) showSuggestions();
+            highlight(active + (event.key === "ArrowDown" ? 1 : active < 0 ? 0 : -1));
+          } else if (event.key === "Enter" && !suggestions.hidden && active >= 0) {
+            event.preventDefault();
+            event.stopPropagation(); // picks the suggestion; does not apply the dialog
+            choose(items[active]);
+          }
+        });
+        valueInput.addEventListener("input", () => setInvalid(valueInput, false));
+        function syncMode() {
+          propertyInput.disabled = mode.value === "text";
+          if (propertyInput.disabled) {
+            setInvalid(propertyInput, false);
+            hideSuggestions();
+          }
+        }
+        mode.addEventListener("change", syncMode);
+        syncMode();
+        if (chosenKey) refreshValues(chosenKey);
+
+        let open = true;
+        function finish() {
+          if (!open) return;
+          open = false;
+          document.removeEventListener("keydown", onKey, true);
+          backdrop.remove();
+          if (options.returnFocus && options.returnFocus.isConnected) options.returnFocus.focus();
+        }
+        function onKey(event) {
+          if (event.key === "Escape") {
+            event.preventDefault(); // handled: Escape closes the dialog only (not the panel, not the 3D selection)
+            event.stopPropagation();
+            finish();
+          } else if (event.key === "Enter" && event.target && event.target.tagName === "INPUT") {
+            if (event.target === propertyInput && !suggestions.hidden && active >= 0) return;
+            event.preventDefault();
+            ok.click();
+          }
+        }
+        document.addEventListener("keydown", onKey, true);
+        // pointerdown (as ref L593): the click that follows picking a suggestion may land on the backdrop once the
+        // list is gone, and must not close the dialog
+        backdrop.addEventListener("pointerdown", (event) => {
+          if (event.target === backdrop) finish();
+        });
+        close.addEventListener("click", finish);
+        cancel.addEventListener("click", finish);
+        ok.addEventListener("click", () => {
+          const isText = mode.value === "text";
+          let key = null;
+          if (!isText) {
+            if (chosenKey) key = chosenKey;
+            else {
+              const exact = findRuleProperty(entries, propertyInput.value);
+              if (exact) key = exact.key;
+            }
+          }
+          const value = valueInput.value.trim();
+          setInvalid(propertyInput, !isText && !key);
+          setInvalid(valueInput, value === "");
+          if ((!isText && !key) || value === "") {
+            hideSuggestions();
+            (!isText && !key ? propertyInput : valueInput).focus({ preventScroll: true });
+            return;
+          }
+          const rule = { mode: mode.value, key: isText ? null : key, op: operator.value, value };
+          finish();
+          options.apply(rule);
+        });
+        mode.focus();
+        return { close: finish, element: dialog };
+      }
+
       /** Name shown as title while there is neither a title nor a model (REQ-011 default: first model's Modell). */
       const APP_NAME = "Calc Viewer Builder";
 
@@ -7376,6 +8551,8 @@
         overlay.append(overlayBox);
         canvasBox.append(overlay);
         const viewControls = createViewControls(canvasBox, legendStrip, options.viewHandlers);
+        // toolbar `Fokus` / `Filter` / `Faerben`, hint, title chip, filter panel and pills (REQ-005, REQ-012, CR-002)
+        const viewTools = createViewTools(canvasBox, options.toolHandlers);
         // properties panel at the top right inside the 3D view (REQ-007, CR-002)
         const propsPanel = el("section", "cv-props-panel");
         propsPanel.id = "cv-props";
@@ -7576,10 +8753,15 @@
           filters: filterArea,
           table: tableView,
           view: viewControls,
+          tools: viewTools,
           details: detailsPanel,
           /** Opens the property catalogue dialog (title default `Filtersatz hinzufuegen`); onPick(key). */
           openCatalogue(entries, used, onPick, titleText) {
             return openCatalogue(app, entries, used, onPick, titleText);
+          },
+          /** Opens the dialog `Filter bearbeiten` (REQ-012; see openRuleDialog). */
+          openRuleDialog(options) {
+            return openRuleDialog(app, options);
           },
           /**
            * Table view switch and grouping controls (TASK-006b): view 'single' | 'grouped', levels [{ key, title } |
@@ -7740,8 +8922,53 @@
       import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
       const VIEW_DIRECTION = new THREE.Vector3(1, 0.75, 1).normalize();
-      const FIT_PADDING = 1.2;
+      const FIT_PADDING = 1.15; // `Fokus` and the fit after loading: tight box fit with the reference padding (ref L820-847)
       const CLICK_TOLERANCE_PX = 4; // a pointer that moved more than this is an orbit drag, not a pick (ref)
+      // `Markieren` paint (REQ-012, DEC-19; ref MARK_COLOR): wins over the colouring, below the selection (DEC-15)
+      const MARK_COLOR = "#f08a87";
+      /*
+       * `Schneiden` (REQ-013, ref L227-229, L1079-1169): faces with |vertical normal| >= threshold give a horizontal
+       * plane, others a vertical one; the plane sits SECTION_OFFSET towards the camera so the clicked face stays visible.
+       */
+      const SECTION_HORIZONTAL_THRESHOLD = 0.7;
+      const SECTION_OFFSET = 0.002; // m
+      const SECTION_MIN_DRAG_RATIO = 0.25; // floor for the drag speed when the normal points at the camera (ref)
+      const SECTION_KEY_STEP = 0.01; // arrow key on the handle: share of the models' extent along the normal
+      const SECTION_KEY_STEP_SHIFT = 0.1; // with Shift
+      const SECTION_MIN_STEP = 0.001; // m, at least 1 mm per key press
+      const PICK_MENU_FLIP_PX = 110; // the click menu opens below its point when the point is closer to the top (ref)
+      // reasons in the display mirror (spec 4.4): visibility shown | filter | tool, paint ghost | mark | colour
+      const SHOWN = "shown";
+      const FILTERED = "filter";
+      const TOOL = "tool";
+      const PAINT_MARK = "mark";
+      const PAINT_COLOUR = "colour";
+      // icons of the click menu and the section handle (constant markup, as the reference ICONS, ref L254-268)
+      const SVG_OPEN =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+      const ICONS = {
+        hide:
+          SVG_OPEN +
+          '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" stroke-dasharray="2 2"/></svg>',
+        isolate:
+          SVG_OPEN +
+          '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><g opacity=".35"><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></g></svg>',
+        scissors:
+          SVG_OPEN +
+          '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.12 8.12L12 12M20 4L8.12 15.88M14.8 14.8L20 20"/></svg>',
+        close: SVG_OPEN + '<path d="M6 6l12 12M18 6L6 18"/></svg>',
+      };
+
+      /**
+       * Scene frame of spec 4.4 (IFC X = three x, IFC Y = -three z, IFC Z = three y; m): a three vector as [x, y, z] with
+       * Z up (no negative zero), and back.
+       */
+      function toZUp(v) {
+        return [v.x + 0, -v.z + 0, v.y + 0];
+      }
+      function fromZUp(a) {
+        return new THREE.Vector3(a[0], a[2], -a[1]);
+      }
       // Selection highlight (ref HIGHLIGHT_COLOR) and X-ray ghost (ref GHOST_COLOR / GHOST_OPACITY, REQ-005).
       const SELECTION_COLOR = "#d72622";
       const GHOST_COLOR = "#a4a8ac";
@@ -7771,8 +8998,8 @@
        */
       export const CONTEXT_COLOR = "#e3e5e7";
       /**
-       * Section axes in IFC terms (REQ-005 `Schnitt` X / Y / Z): Fragments shows IFC Z-up models Y-up, so IFC X = three
-       * x, IFC Y = -three z, IFC Z = three y. dir: the IFC axis as a three vector.
+       * IFC axes as three vectors (1.0.0 axis section, converted to a plane as DEC-20; axisRange): Fragments shows IFC
+       * Z-up models Y-up, so IFC X = three x, IFC Y = -three z, IFC Z = three y.
        */
       const AXES = {
         X: new THREE.Vector3(1, 0, 0),
@@ -7783,7 +9010,12 @@
       /**
        * Starts three + Fragments in container. workerUrl: Blob URL of the classic Fragments worker (classic, because
        * module workers from Blob URLs fail under file:// and in opaque-origin frames; spec CON-002). options:
-       * { onPick(key | null) } is called after a click on the canvas (key of the picked element, null for empty space).
+       * - onPick(key | null): called after a click on the canvas (key of the picked element, null for empty space);
+       *   a hit also opens the click menu at the clicked point (REQ-013).
+       * - onMenu(action 'hide' | 'isolate', key): `Ausblenden` / `Isolieren` in the click menu (the menu closes first);
+       *   default: nothing (TASK-014 stub until TASK-017a wires the tools).
+       * - onSection(section | null): called when cv-3d changes the section itself (`Schneiden`, handle drag and keys,
+       *   removal of the last model with geometry), with the plane as state().section reports it.
        *
        * Rendering is on demand (TASK-004 verification P1): a frame is drawn only when the camera, the controls, the
        * view (Fragments tiles), visibility, highlight or clipping change, never in an idle loop.
@@ -7795,6 +9027,8 @@
        */
       export function createEngine(container, workerUrl, options) {
         const onPick = (options && options.onPick) || (() => {});
+        const onMenu = (options && options.onMenu) || (() => {});
+        const onSection = (options && options.onSection) || (() => {});
         const scene = new THREE.Scene();
         scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f94, 2.2));
         const sun = new THREE.DirectionalLight(0xffffff, 1.6);
@@ -7821,6 +9055,7 @@
           frameRequested = false;
           controls.update(); // with damping this emits "change" while the camera still moves -> next frame
           renderer.render(scene, camera);
+          placeOverlays(); // click menu and section handle follow the camera (ref frameHook)
           frames++;
           lastFrameAt = performance.now();
           if (changePending) {
@@ -8074,21 +9309,64 @@
           return box;
         }
 
-        /** `Ansicht einpassen`: camera on all models along the default view direction. */
-        function fit() {
-          const box = sceneBox();
+        /**
+         * Camera on box along the default view direction, as the reference (ref L820-847): the smallest distance at
+         * which all 8 corners are inside the frustum, times FIT_PADDING. For a corner offset p from the centre:
+         * d >= |p . right| / tan(hFov / 2) + p . dir (and the same for up / vFov).
+         */
+        function fitBox(box) {
           if (box.isEmpty()) return;
-          const sphere = box.getBoundingSphere(new THREE.Sphere());
-          const fov = THREE.MathUtils.degToRad(camera.fov / 2);
-          const distance = (sphere.radius * FIT_PADDING) / Math.sin(Math.min(fov, Math.atan(Math.tan(fov) * camera.aspect)));
-          controls.target.copy(sphere.center);
-          camera.position.copy(sphere.center).addScaledVector(VIEW_DIRECTION, distance);
+          const center = box.getCenter(new THREE.Vector3());
+          const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+          const tanH = tanV * camera.aspect;
+          const forward = VIEW_DIRECTION.clone().negate();
+          const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+          const up = new THREE.Vector3().crossVectors(right, forward);
+          const corner = new THREE.Vector3();
+          let distance = 0;
+          for (let i = 0; i < 8; i++) {
+            corner.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z);
+            corner.sub(center);
+            const towardCamera = corner.dot(VIEW_DIRECTION);
+            distance = Math.max(
+              distance,
+              Math.abs(corner.dot(right)) / tanH + towardCamera,
+              Math.abs(corner.dot(up)) / tanV + towardCamera,
+            );
+          }
+          distance = Math.max(distance * FIT_PADDING, 0.1);
+          controls.target.copy(center);
+          camera.position.copy(center).addScaledVector(VIEW_DIRECTION, distance);
           camera.near = Math.max(distance / 1000, 0.01);
           camera.far = distance * 100;
           camera.updateProjectionMatrix();
           controls.update();
           requestRender();
           updateView(true);
+        }
+
+        /** Fit on all models (after loading; `Fokus` without an opaque element; the 1.0.0 `Ansicht einpassen`). */
+        function fit() {
+          fitBox(sceneBox());
+        }
+
+        /**
+         * `Fokus` (REQ-005): fits the camera to the bounding box of the elements the mirror shows opaque (the latest
+         * applied display plan: ghosts, tool-hidden and filtered-out elements and elements without geometry do not
+         * count); with no opaque element it fits all models.
+         */
+        async function focus() {
+          const box = new THREE.Box3();
+          for (const [modelId, items] of mirror) {
+            const model = models.get(modelId);
+            if (!model) continue;
+            const ids = [];
+            for (const [localId, entry] of items) if (entry.key !== null && entry.vis && entry.paint !== GHOST) ids.push(localId);
+            if (!ids.length) continue;
+            const merged = await model.getMergedBox(ids);
+            if (merged && !merged.isEmpty()) box.union(merged);
+          }
+          fitBox(box.isEmpty() ? sceneBox() : box);
         }
 
         // ---------- serialised engine calls ----------
@@ -8103,7 +9381,13 @@
         }
 
         // ---------- display mirror (spec 4.4) ----------
-        const mirror = new Map(); // modelId -> Map(localId -> { key, vis, paint })
+        /*
+         * modelId -> Map(localId -> { key, vis, why, paint, paintWhy }): vis / paint = the engine state cv-3d set;
+         * why = the reason of the visibility (SHOWN | FILTERED | TOOL), paintWhy = the reason of the paint (GHOST |
+         * PAINT_MARK | PAINT_COLOUR | null), so state() tells tool-hidden from filtered out and marked from coloured even
+         * when a colouring colour equals the mark colour (spec 4.4).
+         */
+        const mirror = new Map();
         let selected = new Map(); // key -> { modelId, localId } highlighted as selection
         let appliedMode = "ghost";
         let lastAppliedAt = 0;
@@ -8139,12 +9423,15 @@
         }
 
         /**
-         * Applies a display plan: plan = { rows (row set, spec 4.3), inside (Uint8Array, 1 = row passes the filter),
+         * Applies a display plan: plan = { rows (row set, spec 4.3), inside (Uint8Array, 1 = row passes the filter
+         * sources), toolRemoved (optional Uint8Array, 1 = removed by `Ausblenden` / `Isolieren`, DEC-18), marked
+         * (optional Uint8Array, 1 = matches a `Markieren` rule), isolating (optional, true while isolation is active),
          * mode ('ghost' | 'hide'), colourOf(i) -> '#rrggbb' | null (colouring), context [{ model, ids }] (geometry
-         * that is no element row, e.g. the IfcSite terrain), filterActive }. Elements inside the filter are
-         * opaque (coloured if colourOf gives a colour); outside they are ghosts (transparent highlight, not pickable) or
-         * hidden (setVisible false). Precedence (DEC-15): selection > colour > ghost / hide. Only differences to the
-         * mirror are sent to the engine, grouped (one setVisible per direction, one highlight per paint and model).
+         * that is no element row, e.g. the IfcSite terrain), filterActive }. The class of a row: tool-removed (always
+         * hidden, never a ghost; wins over every other source), shown (opaque; mark paint, else colour) or outside the
+         * filter (ghost, i.e. transparent highlight, not pickable; or hidden in mode 'hide'). Precedence (DEC-15):
+         * selection > mark > colour > ghost / hide. Only differences to the mirror are sent to the engine, grouped (one
+         * setVisible per direction, one highlight per paint and model).
          */
         async function applyDisplay(plan) {
           const gen = ++generation;
@@ -8155,18 +9442,38 @@
             return w;
           };
           const rows = plan.rows;
+          const removed = plan.toolRemoved || null;
+          const marked = plan.marked || null;
+          const ghosts = plan.mode === "ghost";
           for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             if (!row.geometry) continue;
             const items = mirror.get(row.model);
             if (!items) continue; // model not (or no longer) in the scene
             let entry = items.get(row.localId);
-            if (!entry) items.set(row.localId, (entry = { key: row.key, vis: true, paint: null, gen }));
+            if (!entry)
+              items.set(row.localId, (entry = { key: row.key, vis: true, why: SHOWN, paint: null, paintWhy: null, gen }));
             entry.gen = gen;
             entry.key = row.key;
-            const inside = plan.inside[i] === 1;
-            const vis = inside || plan.mode === "ghost";
-            const paint = inside ? (plan.colourOf && plan.colourOf(i)) || null : plan.mode === "ghost" ? GHOST : null;
+            const why = removed !== null && removed[i] === 1 ? TOOL : plan.inside[i] === 1 ? SHOWN : FILTERED;
+            const vis = why === SHOWN || (why === FILTERED && ghosts);
+            let paint = null;
+            let paintWhy = null;
+            if (why === SHOWN) {
+              if (marked !== null && marked[i] === 1) {
+                paint = MARK_COLOR;
+                paintWhy = PAINT_MARK;
+              } else {
+                const colour = plan.colourOf ? plan.colourOf(i) : null;
+                if (colour) {
+                  paint = colour.toLowerCase();
+                  paintWhy = PAINT_COLOUR;
+                }
+              }
+            } else if (vis) {
+              paint = GHOST;
+              paintWhy = GHOST;
+            }
             if (entry.vis !== vis) (vis ? workOf(row.model).show : workOf(row.model).hide).push(row.localId);
             if (entry.paint !== paint && !selected.has(row.key)) {
               const w = workOf(row.model);
@@ -8174,16 +9481,25 @@
               if (paint !== null) groupBy(w.paint, paint, row.localId);
             }
             entry.vis = vis;
+            entry.why = why;
             entry.paint = paint;
+            entry.paintWhy = paintWhy;
           }
           // context geometry: like elements outside the filter while a filter is active, else as loaded (neutral grey
           // while colouring is active, L3); not in state()
-          const contextPaint =
-            plan.filterActive && plan.mode === "ghost" ? GHOST : !plan.filterActive && plan.colourOf ? CONTEXT_COLOR : null;
+          // while isolation is active it is hidden like tool-removed elements (REQ-013, ref L1231-1236)
+          const isolating = Boolean(plan.isolating);
+          const contextPaint = isolating
+            ? null
+            : plan.filterActive && ghosts
+              ? GHOST
+              : !plan.filterActive && plan.colourOf
+                ? CONTEXT_COLOR
+                : null;
           for (const { model: modelId, ids } of plan.context || []) {
             const items = mirror.get(modelId);
             if (!items) continue;
-            const vis = !plan.filterActive || plan.mode === "ghost";
+            const vis = !isolating && (!plan.filterActive || ghosts);
             const paint = contextPaint;
             for (const localId of ids) {
               let entry = items.get(localId);
@@ -8221,6 +9537,12 @@
           }
           appliedMode = plan.mode;
           lastAppliedAt = performance.now();
+          // the click menu closes when its element stops being shown (REQ-013)
+          if (menuPick !== null) {
+            const items = mirror.get(menuPick.modelId);
+            const entry = items && items.get(menuPick.localId);
+            if (!entry || entry.why !== SHOWN) closeMenu();
+          }
           settled();
           await updateView(true);
         }
@@ -8245,6 +9567,8 @@
           }
           for (const [key, { modelId, localId }] of next) if (!selected.has(key)) workOf(modelId).select.push(localId);
           selected = next;
+          // the click menu belongs to the selected element: it closes when its element leaves the selection
+          if (menuPick !== null && !keys.has(menuPick.key)) closeMenu();
           settle(work.keys()); // as applyDisplay: one complete frame (TASK-006c R1, group highlight)
           for (const [modelId, w] of work) {
             const model = models.get(modelId);
@@ -8258,9 +9582,11 @@
           await updateView(true);
         }
 
-        // ---------- section (REQ-005 `Schnitt`) ----------
+        // ---------- section (REQ-013 `Schneiden`; the 1.0.0 axis section is converted, DEC-20) ----------
         const sectionPlane = new THREE.Plane();
-        let section = null; // { axis, offset, flipped }
+        // { point, normal } in three world coordinates: point = plane point with the offset applied, normal = unit
+        // vector into the kept half-space (state() reports both in the Z-up scene frame of spec 4.4)
+        let section = null;
         /** Model extent along an IFC axis: { min, max } or null without models. */
         function axisRange(axis) {
           const box = sceneBox();
@@ -8270,25 +9596,251 @@
           const b = dir.dot(box.max);
           return { min: Math.min(a, b), max: Math.max(a, b) };
         }
-        /**
-         * Sets the section plane: { axis 'X' | 'Y' | 'Z', offset (IFC coordinate in m along the axis), flipped } or
-         * null. Not flipped keeps the part below the offset (coordinate <= offset), flipped keeps the part above.
-         */
-        function setSection(next) {
-          section = next ? { axis: next.axis, offset: next.offset, flipped: Boolean(next.flipped) } : null;
+        function sectionState() {
+          return section ? { point: toZUp(section.point), normal: toZUp(section.normal) } : null;
+        }
+        /** Sends the plane to the renderer (THREE keeps points with normal . p + constant >= 0). */
+        function applyPlane() {
           if (section) {
-            const dir = AXES[section.axis];
-            // THREE keeps points with normal . p + constant >= 0
-            if (section.flipped) sectionPlane.set(dir.clone(), -section.offset);
-            else sectionPlane.set(dir.clone().negate(), section.offset);
+            sectionPlane.set(section.normal, -section.normal.dot(section.point));
             renderer.clippingPlanes = [sectionPlane];
           } else renderer.clippingPlanes = [];
+          sectionHandle.hidden = section === null;
           requestRender(); // clipping is renderer state, not tile state
+          placeOverlays();
+        }
+        const finite3 = (a) => Array.isArray(a) && a.length === 3 && a.every((x) => typeof x === "number" && Number.isFinite(x));
+        /**
+         * Sets the section: null; a plane { point, normal } in the scene frame of spec 4.4 (offset already in point; a
+         * non-unit normal is normalised; an invalid plane is ignored and false returned); or the 1.0.0 axis section
+         * { axis 'X' | 'Y' | 'Z', offset, flipped } converted as DEC-20 (point 0 except the axis component = offset,
+         * normal -axis, or +axis when flipped: not flipped keeps the part with coordinate <= offset).
+         */
+        function setSection(next) {
+          if (!next) section = null;
+          else if (next.axis !== undefined) {
+            const dir = AXES[next.axis];
+            if (!dir || typeof next.offset !== "number" || !Number.isFinite(next.offset)) return Promise.resolve(false);
+            section = {
+              point: dir.clone().multiplyScalar(next.offset),
+              normal: next.flipped ? dir.clone() : dir.clone().negate(),
+            };
+          } else {
+            if (!finite3(next.point) || !finite3(next.normal)) return Promise.resolve(false);
+            const normal = fromZUp(next.normal);
+            if (!(normal.length() > 1e-6)) return Promise.resolve(false);
+            section = { point: fromZUp(next.point), normal: normal.normalize() };
+          }
+          applyPlane();
+          return updateView(true).then(() => true);
+        }
+        /**
+         * `Schneiden` at a picked point (three world coordinates) with the picked face's world normal, or null when the
+         * engine gave none (then the direction to the camera, ref L1082): |vertical component| >= 0.7 gives a
+         * horizontal plane, else a vertical one perpendicular to the face; the half facing the camera is removed and
+         * the plane sits SECTION_OFFSET towards the camera. A new cut replaces the plane.
+         */
+        function cut(point, faceNormal) {
+          const toCamera = camera.position.clone().sub(point);
+          const n = (faceNormal ? faceNormal.clone() : toCamera.clone()).normalize();
+          if (Math.abs(n.y) >= SECTION_HORIZONTAL_THRESHOLD) n.set(0, Math.sign(n.y), 0);
+          else n.setY(0).normalize();
+          if (n.dot(toCamera) < 0) n.negate(); // n points to the removed (camera) side
+          section = { point: point.clone().addScaledVector(n, SECTION_OFFSET), normal: n.negate() };
+          applyPlane();
+          onSection(sectionState());
           return updateView(true);
         }
+        function clearSection() {
+          if (!section) return;
+          section = null;
+          applyPlane();
+          onSection(null);
+          updateView(true);
+        }
+        /** Extent of the models' bounding box along the section normal (m; 0 without models). */
+        function sectionExtent() {
+          const box = sceneBox();
+          if (box.isEmpty() || !section) return 0;
+          const size = box.getSize(new THREE.Vector3());
+          const n = section.normal;
+          return Math.abs(n.x) * size.x + Math.abs(n.y) * size.y + Math.abs(n.z) * size.z;
+        }
+        /** Handle position: the centre of the models' bounding box projected onto the plane (the plane point without models). */
+        function sectionAnchor() {
+          const box = sceneBox();
+          if (box.isEmpty()) return section.point.clone();
+          const c = box.getCenter(new THREE.Vector3());
+          return c.addScaledVector(section.normal, -section.normal.dot(c.clone().sub(section.point)));
+        }
+        /** Moves the plane point along the normal by meters (+ = into the kept half, which shrinks). */
+        function moveSection(meters) {
+          if (!section) return;
+          section.point.addScaledVector(section.normal, meters);
+          applyPlane();
+          fragments.update(); // culling and raycasts follow the plane (rate-limited, as the camera)
+        }
 
-        // ---------- picking (REQ-007) ----------
-        /** The managed, visible, non-ghost element at client position (x, y) nearest to the camera, or null. */
+        // ---------- overlays: click menu and section handle (REQ-013, ref L985-1003, L1053-1169) ----------
+        function el(tag, className, text) {
+          const node = document.createElement(tag);
+          if (className) node.className = className;
+          if (text !== undefined) node.textContent = text;
+          return node;
+        }
+        const pickMenu = el("div", "cv-pick");
+        pickMenu.id = "cv-pick"; // zero-size anchor at the clicked point; the card is the menu
+        pickMenu.hidden = true;
+        const pickCard = el("div", "cv-pick-card");
+        pickCard.setAttribute("role", "menu");
+        pickCard.setAttribute("aria-label", "Elementwerkzeuge");
+        function menuItem(icon, label, className) {
+          const button = el("button", className);
+          button.type = "button";
+          button.setAttribute("role", "menuitem");
+          button.innerHTML = ICONS[icon];
+          return button;
+        }
+        const tool = (icon, label) => {
+          const button = menuItem(icon, label, "cv-pick-btn");
+          button.append(el("span", "", label));
+          pickCard.append(button);
+          return button;
+        };
+        const hideTool = tool("hide", "Ausblenden");
+        const isolateTool = tool("isolate", "Isolieren");
+        const sectionTool = tool("scissors", "Schneiden");
+        const pickClose = menuItem("close", "Men\u00fc schlie\u00dfen", "cv-pick-close");
+        pickClose.title = "Men\u00fc schlie\u00dfen";
+        pickClose.setAttribute("aria-label", "Men\u00fc schlie\u00dfen");
+        pickCard.append(pickClose);
+        pickMenu.append(pickCard, el("div", "cv-pick-dot"));
+
+        const sectionHandle = el("button", "cv-section-handle");
+        sectionHandle.id = "cv-section-handle";
+        sectionHandle.type = "button";
+        sectionHandle.title = "Schnitt verschieben (ziehen oder Pfeiltasten)";
+        sectionHandle.setAttribute("aria-label", "Schnitt verschieben");
+        sectionHandle.innerHTML = ICONS.scissors;
+        sectionHandle.hidden = true;
+        container.append(sectionHandle, pickMenu);
+
+        // { key, modelId, localId, point, normal } of the open click menu (three world coordinates), or null
+        let menuPick = null;
+        const projected = new THREE.Vector3();
+        /** Canvas pixel position of a world point, or null if it is behind the camera (outside the depth range). */
+        function toScreen(point) {
+          projected.copy(point).project(camera);
+          if (!(projected.z >= -1 && projected.z <= 1)) return null;
+          const canvas = renderer.domElement;
+          return { x: ((projected.x + 1) / 2) * canvas.clientWidth, y: ((1 - projected.y) / 2) * canvas.clientHeight };
+        }
+        /** Places the click menu at its point and the handle at its anchor (after each frame and on changes). */
+        function placeOverlays() {
+          if (menuPick !== null) {
+            const at = toScreen(menuPick.point);
+            pickMenu.style.visibility = at ? "" : "hidden"; // hidden while the point is behind the camera
+            if (at) {
+              pickMenu.style.transform = "translate(" + at.x + "px, " + at.y + "px)";
+              pickMenu.classList.toggle("cv-pick-below", at.y < PICK_MENU_FLIP_PX);
+            }
+          }
+          if (section !== null) {
+            const at = toScreen(sectionAnchor());
+            const canvas = renderer.domElement;
+            const inside = at !== null && at.x >= 0 && at.y >= 0 && at.x <= canvas.clientWidth && at.y <= canvas.clientHeight;
+            sectionHandle.style.visibility = inside ? "" : "hidden"; // hidden while off-screen or behind the camera
+            if (inside) sectionHandle.style.transform = "translate(" + at.x + "px, " + at.y + "px)";
+          }
+        }
+        function openMenu(hit) {
+          menuPick = hit;
+          pickMenu.hidden = false;
+          placeOverlays();
+        }
+        function closeMenu() {
+          menuPick = null;
+          pickMenu.hidden = true;
+        }
+        hideTool.addEventListener("click", () => {
+          const pick = menuPick;
+          closeMenu();
+          if (pick) onMenu("hide", pick.key);
+        });
+        isolateTool.addEventListener("click", () => {
+          const pick = menuPick;
+          closeMenu();
+          if (pick) onMenu("isolate", pick.key);
+        });
+        // the plane is taken from the clicked element's pick, after any display plan queued before it (spec T7)
+        sectionTool.addEventListener("click", () => {
+          const pick = menuPick;
+          closeMenu();
+          if (pick) enqueue(() => cut(pick.point, pick.normal));
+        });
+        pickClose.addEventListener("click", closeMenu);
+
+        // handle: dragging moves the plane along its normal, following the pointer on screen (ref L1137-1169)
+        let drag = null;
+        sectionHandle.addEventListener("pointerdown", (event) => {
+          if (!section || event.button !== 0) return;
+          event.preventDefault();
+          sectionHandle.setPointerCapture(event.pointerId);
+          drag = { x: event.clientX, y: event.clientY, start: section.point.clone(), anchor: sectionAnchor() };
+          controls.enabled = false;
+          sectionHandle.classList.add("cv-dragging");
+        });
+        sectionHandle.addEventListener("pointermove", (event) => {
+          if (!drag || !section) return;
+          const a = toScreen(drag.anchor);
+          const b = toScreen(drag.anchor.clone().add(section.normal));
+          if (!a || !b) return;
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          const pxPerMeterOnScreen = Math.hypot(dx, dy);
+          if (pxPerMeterOnScreen < 1e-3) {
+            dx = 0;
+            dy = -1;
+          } else {
+            dx /= pxPerMeterOnScreen;
+            dy /= pxPerMeterOnScreen;
+          }
+          const metersPerPixel =
+            (2 * camera.position.distanceTo(drag.anchor) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) /
+            renderer.domElement.clientHeight;
+          const pxPerMeter = Math.max(pxPerMeterOnScreen, SECTION_MIN_DRAG_RATIO / metersPerPixel);
+          const meters = ((event.clientX - drag.x) * dx + (event.clientY - drag.y) * dy) / pxPerMeter;
+          section.point.copy(drag.start);
+          moveSection(meters);
+        });
+        const endDrag = () => {
+          if (!drag) return;
+          drag = null;
+          controls.enabled = true;
+          sectionHandle.classList.remove("cv-dragging");
+          updateView(true);
+          onSection(sectionState());
+        };
+        sectionHandle.addEventListener("pointerup", endDrag);
+        sectionHandle.addEventListener("pointercancel", endDrag);
+        // keys: ArrowUp / ArrowRight along +normal (the kept half shrinks), ArrowDown / ArrowLeft along -normal;
+        // 1 % of the extent along the normal per press, 10 % with Shift, at least 1 mm (REQ-013)
+        sectionHandle.addEventListener("keydown", (event) => {
+          if (!section) return;
+          const sign = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 }[event.key];
+          if (!sign) return;
+          event.preventDefault();
+          const step = Math.max(SECTION_MIN_STEP, sectionExtent() * (event.shiftKey ? SECTION_KEY_STEP_SHIFT : SECTION_KEY_STEP));
+          moveSection(sign * step);
+          updateView(true);
+          onSection(sectionState());
+        });
+
+        // ---------- picking (REQ-007, REQ-013) ----------
+        /**
+         * The managed, visible, non-ghost element at client position (x, y) nearest to the camera: { key, modelId,
+         * localId, point, normal (world face normal or null), distance }, or null.
+         */
         async function pickAt(clientX, clientY) {
           const mouse = new THREE.Vector2(clientX, clientY);
           let best = null;
@@ -8299,10 +9851,18 @@
             for (const hit of hits || []) {
               const entry = items && items.get(hit.localId);
               if (!entry || entry.key === null || !entry.vis || entry.paint === GHOST) continue;
-              if (!best || hit.distance < best.distance) best = { key: entry.key, distance: hit.distance };
+              if (!best || hit.distance < best.distance)
+                best = {
+                  key: entry.key,
+                  modelId,
+                  localId: hit.localId,
+                  point: hit.point.clone(),
+                  normal: hit.normal ? hit.normal.clone() : null,
+                  distance: hit.distance,
+                };
             }
           }
-          return best ? best.key : null;
+          return best;
         }
         let downAt = null;
         renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -8314,7 +9874,12 @@
           downAt = null;
           if (moved > CLICK_TOLERANCE_PX) return;
           enqueue(() => pickAt(event.clientX, event.clientY)).then(
-            (key) => onPick(key),
+            (hit) => {
+              // a hit opens the click menu at the clicked point; empty space closes it (REQ-013, ref L959-1003)
+              if (hit) openMenu(hit);
+              else closeMenu();
+              onPick(hit ? hit.key : null);
+            },
             (error) => console.error(error),
           );
         });
@@ -8348,8 +9913,11 @@
         }
 
         /**
-         * Test seam (spec 4.4): { mode, opaque, ghost, hidden (Set of keys), colours (Map key -> '#rrggbb'), selected
-         * (Set), section ({ axis, offset, flipped } | null) }, derived from the calls made to the engine.
+         * Test seam (spec 4.4): { mode, opaque, ghost, hidden, toolHidden, marked, selected (Sets of keys), colours (Map
+         * key -> '#rrggbb', mark and colouring paint), section ({ point, normal } in the Z-up scene frame | null) },
+         * derived from the calls made to the engine and their reasons (display mirror): hidden = filtered out with
+         * ghosts off, toolHidden = removed by `Ausblenden` / `Isolieren`; opaque, ghost, hidden and toolHidden are
+         * disjoint; marked is a subset of opaque.
          */
         function state() {
           const out = {
@@ -8357,18 +9925,21 @@
             opaque: new Set(),
             ghost: new Set(),
             hidden: new Set(),
+            toolHidden: new Set(),
+            marked: new Set(),
             colours: new Map(),
             selected: new Set(selected.keys()),
-            section: section ? { ...section } : null,
+            section: sectionState(),
           };
           for (const items of mirror.values()) {
             for (const entry of items.values()) {
               if (entry.key === null) continue; // context geometry, no element
-              if (!entry.vis) out.hidden.add(entry.key);
+              if (!entry.vis) (entry.why === TOOL ? out.toolHidden : out.hidden).add(entry.key);
               else if (entry.paint === GHOST) out.ghost.add(entry.key);
               else {
                 out.opaque.add(entry.key);
                 if (entry.paint !== null) out.colours.set(entry.key, entry.paint);
+                if (entry.paintWhy === PAINT_MARK) out.marked.add(entry.key);
               }
             }
           }
@@ -8389,7 +9960,8 @@
           return out;
         }
 
-        return {
+        let lastPlan = null; // the latest display plan sent (test hook)
+        const api = {
           contextState,
           /**
            * Loads .frag bytes as model modelId and fits the camera; resolves to { modelId, model, withGeometry }
@@ -8425,8 +9997,11 @@
               const items = mirror.get(modelId);
               mirror.delete(modelId);
               if (items) for (const entry of items.values()) selected.delete(entry.key);
+              if (menuPick !== null && menuPick.modelId === modelId) closeMenu();
               scene.remove(model.object);
               await fragments.disposeModel(modelId);
+              // removing the last model with geometry removes the section (REQ-013)
+              if (section !== null && sceneBox().isEmpty()) clearSection();
               // Not update(true): its fence waits for a tile FINISH at the last dispatched request number, which
               // never arrives when no model is left (observed: removing the last model hung intermittently).
               fragments.update();
@@ -8446,6 +10021,7 @@
           },
           /** Applies a display plan (see applyDisplay); a plan waiting in the queue is replaced by a newer one. */
           display(plan) {
+            lastPlan = plan;
             if (queuedPlan) {
               queuedPlan.plan = plan;
               return queuedPlan.run;
@@ -8463,11 +10039,20 @@
             const set = new Set(keys);
             return enqueue(() => applySelection(set));
           },
+          /** Sets or clears the section (see setSection: plane, 1.0.0 axis section or null); resolves to true if applied. */
           setSection(next) {
             return enqueue(() => setSection(next));
           },
           axisRange,
           fit,
+          /** `Fokus` (REQ-005): fit to the opaque elements of the latest display plan queued before this call. */
+          focus() {
+            return enqueue(focus);
+          },
+          /** Closes the click menu (e.g. `Esc`, REQ-007 order). */
+          closeMenu,
+          /** True while the click menu is open. */
+          menuOpen: () => menuPick !== null,
           state,
           screenBox: (key) => enqueue(() => screenBox(key)),
           /** Visibility of items as the Fragments engine reports it (model.getVisible; test seam). */
@@ -8545,6 +10130,58 @@
             }
           },
         };
+
+        /**
+         * cv-3d test hook (TASK-014, spec 5): the 3D side of REQ-013 and REQ-005 `Fokus` before cv-app wires the tools
+         * (TASK-017a/c). Coordinates are [x, y, z] in the Z-up scene frame of spec 4.4; screen positions are client
+         * (page) pixels.
+         * - display(changes): re-applies the latest display plan with changed fields (e.g. toolRemoved, marked,
+         *   isolating); the next plan of cv-app replaces it.
+         * - lastPlan(), focus(), menu() ({ key, point, normal } of the open click menu | null), pickAt(x, y) (the hit
+         *   a click there would pick | null), cut(point, normal | null) (as `Schneiden` with that pick), setSection(plane
+         *   | axis section | null) (as cv-app), project(point)
+         *   ({ x, y } | null behind the camera), box(key) (element box { min, max }), extent() (models' extent along the
+         *   section normal), camera() / look(position, target).
+         */
+        const plainHit = (hit) =>
+          hit ? { key: hit.key, point: toZUp(hit.point), normal: hit.normal ? toZUp(hit.normal) : null } : null;
+        window.CalcView3D = {
+          display: (changes) => api.display({ ...lastPlan, ...changes }),
+          lastPlan: () => lastPlan,
+          focus: () => api.focus(),
+          menu: () => plainHit(menuPick),
+          pickAt: (x, y) => enqueue(() => pickAt(x, y)).then(plainHit),
+          cut: (point, normal) => enqueue(() => cut(fromZUp(point), normal ? fromZUp(normal) : null)),
+          setSection: (next) => api.setSection(next),
+          project(point) {
+            const at = toScreen(fromZUp(point));
+            if (!at) return null;
+            const rect = renderer.domElement.getBoundingClientRect();
+            return { x: rect.left + at.x, y: rect.top + at.y };
+          },
+          box: (key) =>
+            enqueue(async () => {
+              for (const [modelId, items] of mirror)
+                for (const [localId, entry] of items) {
+                  if (entry.key !== key) continue;
+                  const [box] = await models.get(modelId).getBoxes([localId]);
+                  const a = toZUp(box.min);
+                  const b = toZUp(box.max);
+                  return { min: a.map((x, i) => Math.min(x, b[i])), max: a.map((x, i) => Math.max(x, b[i])) };
+                }
+              return null;
+            }),
+          extent: () => sectionExtent(),
+          camera: () => ({ position: toZUp(camera.position), target: toZUp(controls.target) }),
+          look(position, target) {
+            camera.position.copy(fromZUp(position));
+            controls.target.copy(fromZUp(target));
+            controls.update();
+            requestRender();
+            fragments.update();
+          },
+        };
+        return api;
       }
     </script>
 
@@ -8590,6 +10227,8 @@
         normaliseGrouping,
         numberRange,
         pruneSelection,
+        describeRule,
+        ruleValueTexts,
         sortRows,
         toCsv,
         toXlsx,
@@ -8723,6 +10362,12 @@
         const filterListeners = [];
         // 3D coupling (TASK-005, REQ-005 / REQ-007): display mode, colouring, section, selection.
         let viewMode = "ghost";
+        // search text of the in-viewer filter panel `Suchen nach Objekten` (REQ-012, DEC-19; TASK-015a): a filter
+        // source like the filter sets (spec 4.3 { type: 'search' }); blank = no filter
+        let searchText = "";
+        // rules of the in-viewer filter panel (REQ-012, TASK-015b): [{ mode, key, op, value }] in list order (spec 4.3
+        // { type: 'rule' }); `Markieren` rules are listed but no filter source (DEC-19)
+        let rules = [];
         let colourKey = null;
         // colouring mode and scale colour (DEC-15 start values; set by a configuration, DEC-20). The 1.0.0 control
         // `Faerben nach` keeps them until the colouring panel of TASK-016 lets the user choose them.
@@ -8760,7 +10405,17 @@
         const coreFilters = () =>
           filterSets
             .map((s) => ({ id: s.id, key: s.key, type: "values", values: s.selected }))
-            .concat([...columnFilters].map(([key, f]) => ({ id: colId(key), key, ...f })));
+            .concat([...columnFilters].map(([key, f]) => ({ id: colId(key), key, ...f })))
+            .concat(searchText.trim() ? [{ id: "search", type: "search", text: searchText }] : [])
+            .concat(
+              rules
+                .map((rule, i) => ({ id: "rule:" + i, type: "rule", ...rule }))
+                // a rule whose property is not loaded (model removed) is left out of evaluation (REQ-012, DEC-21)
+                .filter((rule) => !ruleMissing(rule)),
+            );
+
+        /** True for a rule whose property is not in the catalogue of the loaded models (REQ-012, DEC-21). */
+        const ruleMissing = (rule) => rule.mode !== "text" && !catalog.has(rule.key);
 
         function setSpecs() {
           return filterSets.map((s) => {
@@ -8805,6 +10460,16 @@
           ui.filters.update(facets, evaluation.filters.length > 0);
           sync3d();
           ui.status(indices.length, store.size, hook.modelCount);
+          // in-viewer filter panel and pill (REQ-012): same X / Y as the status line; `Filter` dot and panel
+          // `Zuruecksetzen` while the search (TASK-015b: or a rule) is active; the pill while any source is active
+          if (!indexing) ui.tools.setStatus(indices.length, store.size);
+          ui.tools.setFilterState({
+            textActive: searchText.trim() !== "" || rules.length > 0,
+            pill: evaluation.filters.length > 0 || rules.length > 0,
+          });
+          ui.tools.setRules(rules.map((rule) => ({ ...describeRule(rule, catalog), missing: ruleMissing(rule) })));
+          hook.filter.search = searchText;
+          hook.filter.rules = rules.map((rule) => ({ ...rule }));
           updateTable(t0);
           updatePopup();
           const rows = store.rows;
@@ -8852,6 +10517,7 @@
             .concat(
               colourKey ? [colourKey] : [],
               [...columnFilters.keys()],
+              rules.filter((rule) => rule.mode !== "text").map((rule) => rule.key),
               sort ? [sort.key] : [],
               tableView === "grouped" ? groupBy : [],
             );
@@ -9463,6 +11129,7 @@
         function publishHeader() {
           const header = effectiveHeader();
           ui.setHeader(header);
+          ui.tools.setTitle(header.title, models.length); // title chip in the 3D view (REQ-005-AC10)
           hook.header = { ...header, titleSet: headerState.title !== null, dateSet: headerState.date !== null };
         }
 
@@ -9546,7 +11213,7 @@
           const d = apply.display || {};
           if (d.mode !== undefined) {
             viewMode = d.mode;
-            ui.view.setMode(viewMode);
+            ui.tools.setMode(viewMode);
           }
           if (d.colourMode !== undefined) colourMode = d.colourMode;
           if (d.scaleColour !== undefined) scaleColourHex = d.scaleColour;
@@ -9800,6 +11467,7 @@
             options.root.classList.remove("cv-starting");
             engine.holdFrames(false);
             settleOverlay();
+            if (models.length) ui.tools.startHint();
             hook.progress = null;
             busy = false;
             ui.setBusy(false);
@@ -9904,13 +11572,116 @@
           },
         };
 
-        const viewHandlers = {
+        /**
+         * Search of the filter panel (REQ-012-AC7, DEC-19): the display-text index is built in chunks on first use
+         * (status `Eigenschaften werden gelesen ... N %`, as ref L1379-1384), then the filters are evaluated; texts
+         * typed meanwhile wait for the same build and the latest text wins (refresh reads searchText).
+         */
+        let indexing = false;
+        async function ensureTextIndex() {
+          const target = store;
+          if (target.hasTextIndex()) return true;
+          indexing = true;
+          ui.tools.setIndexing(0);
+          try {
+            await target.buildTextIndex({
+              pause: (fraction) =>
+                new Promise((resolve) => {
+                  if (target === store) ui.tools.setIndexing(fraction);
+                  setTimeout(resolve, 0);
+                }),
+            });
+          } finally {
+            indexing = false;
+          }
+          return target === store;
+        }
+
+        /** Opens `Filter bearbeiten` (REQ-012) over the loaded catalogue; apply(rule) after a valid `Anwenden`. */
+        function openRuleDialog(rule, opener, apply) {
+          ui.openRuleDialog({
+            rule,
+            entries: [...catalog.values()],
+            valuesFor: (key) => (catalog.has(key) ? ruleValueTexts(store, key) : []),
+            apply,
+            returnFocus: opener || null,
+          });
+        }
+
+        /**
+         * Sets the rule list (REQ-012) and re-evaluates; a `Freie Textsuche` rule needs the display-text index (built
+         * with progress first, as the search). Columns of removed rules are dropped (store.retain).
+         */
+        async function setRules(next) {
+          rules = next;
+          store.retain(keysInUse());
+          if (rules.some((rule) => rule.mode === "text")) await ensureTextIndex();
+          refresh();
+        }
+
+        async function setSearch(text) {
+          const next = String(text);
+          if (next === searchText) return;
+          searchText = next;
+          if (next.trim()) await ensureTextIndex();
+          refresh();
+        }
+
+        /** Toolbar, filter panel and pill (TASK-015a; REQ-005, REQ-012). */
+        const toolHandlers = {
+          focus() {
+            engine.focus();
+          },
           mode(mode) {
             if (mode === viewMode) return;
             viewMode = mode;
-            ui.view.setMode(mode);
+            ui.tools.setMode(mode);
             sync3d();
           },
+          search(text) {
+            setSearch(text);
+          },
+          /** Panel `Zuruecksetzen`: the rules and the search text only (REQ-012-AC10, DEC-21). */
+          resetPanel() {
+            ui.tools.setSearch("");
+            const hadRules = rules.length > 0;
+            rules = [];
+            if (hadRules) store.retain(keysInUse());
+            if (searchText !== "") setSearch("");
+            else if (hadRules) refresh();
+          },
+          /** `+ Filter hinzufuegen`: dialog `Filter bearbeiten` for a new rule, added at the end (REQ-012-AC2). */
+          addRule(opener) {
+            openRuleDialog(null, opener, (rule) => setRules(rules.concat([rule])));
+          },
+          /** Rule row text: the dialog with the rule's values; `Anwenden` replaces it in place (REQ-012-AC10). */
+          editRule(index, opener) {
+            const rule = rules[index];
+            if (!rule) return;
+            openRuleDialog(rule, opener, (next) => {
+              if (rules[index] !== rule) return; // the list changed meanwhile (reset): nothing to replace
+              setRules(rules.map((r, i) => (i === index ? next : r)));
+            });
+          },
+          /** Rule row x `Filter entfernen` (REQ-012-AC10). */
+          removeRule(index) {
+            if (index < 0 || index >= rules.length) return;
+            setRules(rules.filter((_, i) => i !== index));
+          },
+          /** Pill `Filter entfernen`: the same as `Alle Filter zuruecksetzen` (User answer Q9, CR-002 1a; DEC-21). */
+          resetAll() {
+            filterHandlers.resetAll();
+          },
+          panel(name) {
+            // the index is built when the filter panel opens (as ref L1435-1449), so the first search is fast
+            if (name === "filter" && store.size && !store.hasTextIndex())
+              ensureTextIndex().then((current) => {
+                if (current) refresh();
+              });
+          },
+        };
+
+        const viewHandlers = {
           pickColour() {
             ui.openCatalogue([...catalog.values()], new Set(), (key) => setColouring(key), "F\u00e4rben nach");
           },
@@ -9928,9 +11699,6 @@
           },
           flip() {
             if (section) setSection({ ...section, flipped: !section.flipped });
-          },
-          fit() {
-            engine.fit();
           },
           clearSelection() {
             select(null);
@@ -9961,10 +11729,16 @@
             set.selected = [];
             changed();
           },
-          /** Clears every filter: filter sets and the table's column filters (REQ-004-AC4). */
+          /**
+           * Clears every filter source: filter sets, the table's column filters, the rules and the search text
+           * (REQ-004-AC4; hidden / isolated elements follow with TASK-017a).
+           */
           resetAll() {
             for (const set of filterSets) set.selected = [];
             columnFilters.clear();
+            rules = [];
+            searchText = "";
+            ui.tools.setSearch("");
             store.retain(keysInUse());
             publishTable();
             changed();
@@ -10010,6 +11784,7 @@
           title: options.title || (viewerHeader && viewerHeader.title) || undefined,
           filterHandlers,
           viewHandlers,
+          toolHandlers,
           tableHandlers,
           headerHandlers,
           // properties panel (REQ-007): `Schliessen` clears the selection; `Ausblenden` / `Isolieren` and the row tools
@@ -10020,12 +11795,19 @@
         ui.overlay("3D-Ansicht wird gestartet ...");
         // a 3D pick selects the element and shows its table row (REQ-007-AC1/AC2); empty space clears (AC5)
         const engine = createEngine(ui.viewport, options.workerUrl, { onPick: (key) => select(key, true) });
-        ui.view.setMode(viewMode);
+        ui.tools.setMode(viewMode);
         ui.view.setColouring(null);
         ui.view.setSection(null, null);
-        // Esc clears the selection (REQ-007-AC5); an Escape handled by a dialog is marked defaultPrevented.
+        // Esc clears the selection (REQ-007-AC5); with nothing selected it closes an open toolbar panel and returns the
+        // focus to its button (REQ-005 `Esc` order, completed in TASK-017c / TASK-019). An Escape handled by a dialog
+        // is marked defaultPrevented.
         document.addEventListener("keydown", (event) => {
-          if (event.key === "Escape" && !event.defaultPrevented) select(null);
+          if (event.key !== "Escape" || event.defaultPrevented) return;
+          if (selectedKey !== null || selectedGroup !== null) return select(null);
+          const open = ui.tools.panel();
+          if (!open) return;
+          ui.tools.openPanel(null);
+          document.getElementById(open === "filter" ? "cv-tool-filter" : "cv-tool-colour").focus();
         });
         /** Test seam (spec 4.4) and selection hook for the table (TASK-006c). */
         window.CalcView = {
@@ -10163,6 +11945,7 @@
           refresh();
           publishHeader(); // the default title follows the first model (REQ-011)
           ui.setConfigLoadable(models.length > 0);
+          ui.tools.setLoaded(models.length > 0);
           settleOverlay();
         }
 
@@ -10229,6 +12012,7 @@
         /** Ends a busy action; files dropped meanwhile start loading at once (phase stays "loading"). */
         function finishAction() {
           settleOverlay();
+          if (models.length) ui.tools.startHint(); // REQ-005-AC10: from the first shown model
           hook.progress = null;
           busy = false;
           ui.setBusy(false);

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2 and NFR-001 (spec Testing -> Test data)",
+    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2, REQ-012-AC2..AC6/AC8 and NFR-001 (spec Testing -> Test data)",
     "generatedBy": "node scripts/ref/derive-reference.mjs",
     "method": "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
     "reviewedBy": "fresh-context tester (not the TASK-002 implementer)",
@@ -2393,6 +2393,348 @@
       ]
     },
     "note": "Single view: every IfcWallStandardCase of both files (STEP id order per file). Zahl.csv is the IfcReal literal of the STEP text with a decimal comma (expected CSV cell); Text is the decoded IfcText (STEP \\X2\\ escapes). Material = sorted distinct names, joined with ', ' in the export. Grouped: the walls of AC20-FZK-Haus (element rows under the expanded IfcWallStandardCase group) with NetVolume rounded to 12 significant digits; group rows and the total row from REQ-006-grouping-fzk."
+  },
+  "REQ-012-rules": {
+    "file": "AC20-FZK-Haus.ifc",
+    "rows": 99,
+    "kategorien": [
+      "IfcAnnotation",
+      "IfcBeam",
+      "IfcDoor",
+      "IfcMember",
+      "IfcRailing",
+      "IfcSlab",
+      "IfcStair",
+      "IfcVirtualElement",
+      "IfcWallStandardCase",
+      "IfcWindow"
+    ],
+    "REQ-012-AC3": {
+      "rule": {
+        "mode": "isolate",
+        "key": "Kategorie",
+        "op": "contains",
+        "value": "wall"
+      },
+      "matchingKategorien": [
+        "IfcWallStandardCase"
+      ],
+      "count": 13,
+      "globalIds": [
+        "0knNIAVBPBFvBy_m5QVHsU",
+        "1$wmdwWPjDYuku_ghVkynE",
+        "16DNNqzfP2thtfaOflvsKA",
+        "1bzfVsJqn8De5PukCrqylz",
+        "25OWQvmXj5BPgyergP43tY",
+        "25fsbPyk15VvuXI$yNKenK",
+        "2XPyKWY018sA1ygZKgQPtU",
+        "2ptk1k7qn8_Qk22vjh$0DE",
+        "3PfS__Y_DBAfq5naM6zD2Z",
+        "3Ttjr$59XEWfWN1WUHjelZ",
+        "3VCarUKgH1buLo22Ozxe6J",
+        "3jjW3rL656ex34Gws22EfM",
+        "3rPX_Juz59peXXY6wDJl18"
+      ]
+    },
+    "REQ-012-AC4": {
+      "property": "Material",
+      "value": "holz",
+      "materials": [
+        "Holz"
+      ],
+      "matching": {
+        "count": 13,
+        "globalIds": [
+          "0B1RwEzzP3CfME5NR$Vqh5",
+          "0pGAjlJMP3ifYPATVF5xAR",
+          "13aSY79zb8fP4HApEJ0z_e",
+          "1DiYqhfzH9xxuJdVHwXCNa",
+          "1Oms875aH3Wg$9l65H2ZGw",
+          "1TAI4ouKX4Xx4lBDZIu5qM",
+          "1srAI$R4T8ihLXSNHmUSET",
+          "25nJxEpYf8LRDJNkMUVO0m",
+          "2EQh_jhP1B_A_AMuSJc5E0",
+          "2Q9w7oRXP249jBobEMVqlZ",
+          "2qiPPF3FrF8OIqfrKiSUqm",
+          "38a9vdh9bF5Qg28GWyHhlr",
+          "3BFcylCsX74PQAoRAe5fNv"
+        ]
+      },
+      "withoutMaterial": {
+        "count": 21,
+        "globalIds": [
+          "0CWpGkM7zEROS7WsgthNfA",
+          "0OL3LCjon8C8eMGVs718Tk",
+          "0dGzbiP6H1sPcT0NmqaFGO",
+          "0j7WClqLTB0gkHE605BLnY",
+          "0wuj6ac_Rv$ZYWzILFrlw0",
+          "11pyNSTMP9zfUCy679gsvT",
+          "1M$gxUrX1Fiwe3P64ww7U5",
+          "1TKECZOIj9cBBj4ne6lhuA",
+          "1WAtLpg_nDBxKhzIXT_jnH",
+          "1fzvgX3pDB88Tz63VWPBLu",
+          "1zOBw0Gej5Wf0QAJfHnOc0",
+          "2ACmFFQhT1Ouf0x4YRUh9m",
+          "2BEAsxujfCOxQo3wTVr7Wr",
+          "2HtybvLgf93veGIhadqbJ9",
+          "2Ml9lHXiTBN8zH$beU1ns5",
+          "2O1epMSyD6ol5XOFRviRIZ",
+          "2TSghi3E94BuNE_F6jBcWe",
+          "2jTRqchjf7oB0yhQ6462T0",
+          "3BTqRqk7D5EhoEfLy$YPgs",
+          "3YZcx3Gb58SwNRLuheFOxL",
+          "3x5bWRj6N6PhHPHxSQnO1r"
+        ]
+      }
+    },
+    "REQ-012-AC5": {
+      "number": {
+        "property": "BaseQuantities.Width",
+        "valuesShown0_3": 8,
+        "withoutValue": 65,
+        "cases": [
+          {
+            "op": "eq",
+            "value": "0,3",
+            "globalIds": [
+              "0knNIAVBPBFvBy_m5QVHsU",
+              "16DNNqzfP2thtfaOflvsKA",
+              "1bzfVsJqn8De5PukCrqylz",
+              "25OWQvmXj5BPgyergP43tY",
+              "25fsbPyk15VvuXI$yNKenK",
+              "3Ttjr$59XEWfWN1WUHjelZ",
+              "3VCarUKgH1buLo22Ozxe6J",
+              "3rPX_Juz59peXXY6wDJl18"
+            ]
+          },
+          {
+            "op": "eq",
+            "value": "0.3",
+            "globalIds": []
+          },
+          {
+            "op": "starts",
+            "value": "0,",
+            "globalIds": [
+              "07Enbsqm9C7AQC9iyBwfSD",
+              "0knNIAVBPBFvBy_m5QVHsU",
+              "0pGAjlJMP3ifYPATVF5xAR",
+              "1$wmdwWPjDYuku_ghVkynE",
+              "16DNNqzfP2thtfaOflvsKA",
+              "1Oms875aH3Wg$9l65H2ZGw",
+              "1bzfVsJqn8De5PukCrqylz",
+              "1pPHnf7cXCpPsNEnQf8_6B",
+              "25OWQvmXj5BPgyergP43tY",
+              "25fsbPyk15VvuXI$yNKenK",
+              "2IxUUNUVPB6Ob$eicCfP2N",
+              "2RGlQk4xH47RHK93zcTzUL",
+              "2XPyKWY018sA1ygZKgQPtU",
+              "2ptk1k7qn8_Qk22vjh$0DE",
+              "2qiPPF3FrF8OIqfrKiSUqm",
+              "3PfS__Y_DBAfq5naM6zD2Z",
+              "3Ttjr$59XEWfWN1WUHjelZ",
+              "3VCarUKgH1buLo22Ozxe6J",
+              "3jjW3rL656ex34Gws22EfM",
+              "3rPX_Juz59peXXY6wDJl18",
+              "3tCgZT92j6fw8fXgwCL3Jm"
+            ]
+          },
+          {
+            "op": "ends",
+            "value": ",3",
+            "globalIds": [
+              "0knNIAVBPBFvBy_m5QVHsU",
+              "16DNNqzfP2thtfaOflvsKA",
+              "1bzfVsJqn8De5PukCrqylz",
+              "25OWQvmXj5BPgyergP43tY",
+              "25fsbPyk15VvuXI$yNKenK",
+              "3Ttjr$59XEWfWN1WUHjelZ",
+              "3VCarUKgH1buLo22Ozxe6J",
+              "3rPX_Juz59peXXY6wDJl18"
+            ]
+          }
+        ]
+      },
+      "boolean": {
+        "property": "Pset_BeamCommon.LoadBearing",
+        "ja": {
+          "count": 45,
+          "globalIds": [
+            "06JZMOVBX8VucSQwQ3o$8d",
+            "09OmJpUcj4WvNp2dXHFMWj",
+            "0DTRkEz0r6gvzG6VdDr24n",
+            "0OKCG9uG53i9K16_x3YNfz",
+            "0VzptM87L6uOjQj08tTXIQ",
+            "0eaC0nL3XAOfFxRXK_2iAr",
+            "0hRh9WB$jCLwlAiq3vfmg9",
+            "0nsN_jkIrBQBuGFMg_zMEg",
+            "0oTQ6V1VbChulreA_hfmUa",
+            "0q1clcN4jF4gdikC9OySy7",
+            "17MHCgVYn2YPLX56yXUJbL",
+            "1NBDw_i_jD$u7IjvwmbPmx",
+            "1OckORehXEoB_KILQGJao5",
+            "1nGDFBBHvBJ9NmlweQO0fX",
+            "1qMEiq1Qz6guq8g1GCODiJ",
+            "1tpUOcVEPCGgFqSz0VbniQ",
+            "1ulHlNTuj798Os3k9phhVC",
+            "20AsUDMgH0JwAitydKgsOm",
+            "20bTaetQDApP5w8egFxj13",
+            "22oN_bO9T4jO5eG4GKW7be",
+            "23pmL_2aH88OVqWp_5Lfkf",
+            "2AxITdtlD1h9Y3ye8U93bV",
+            "2CxE0$jXr8iOH1VC2gLCXX",
+            "2DH$OLoObDkAtwqVzNdUnS",
+            "2OHMT7B69F5PRG_f3rMcjF",
+            "2SfSpj_pX9nvTeCOxeKqTd",
+            "2XyYurmzzDOAIoZ52R97Jm",
+            "2in0QvfYXEawl1f3MP1bq2",
+            "2jBFZiQw110vV7XY77KKfx",
+            "31Quw2HAvFqv$9_JgCuemp",
+            "31ry3UPYD7weLluBlhQxXZ",
+            "34zPS2PUTBDOe7g7RIRXK0",
+            "35W3cFc4L7MhJR0gIk9uis",
+            "36KGWr2Rv8QuUhNnocm2nH",
+            "37ab3q_iz8XRterfnMKTQX",
+            "3CS1rsE3bB7vMHAdjyaamh",
+            "3EgsECVVb6zQXnK3YFcWAu",
+            "3F58AqxJfF$QkuoceQhWg3",
+            "3UTqpydzf7i8J6iMY2tHil",
+            "3ePWkSzvLApwXTt3b0I2nV",
+            "3iSL8frGLDweFar9j4zgJ_",
+            "3jZHeNcfvDMf9wG$wx9XqG",
+            "3qFc3Wrr9BBPJyb2wB$4Ra",
+            "3sG$iUZAX499eUK87UfZk_",
+            "3xdLwxTMD7bw4hWoOQL41M"
+          ]
+        },
+        "nein": {
+          "count": 0
+        }
+      },
+      "multi": {
+        "file": "Ifc2x3_Duplex_Architecture.ifc",
+        "rows": 218,
+        "element": {
+          "stepId": 4131,
+          "GlobalId": "2O2Fr$t4X7Zf8NOew3FNld"
+        },
+        "elementMaterial": [
+          "Metal - Stud Layer",
+          "Plasterboard"
+        ],
+        "rule": {
+          "mode": "isolate",
+          "key": "Material",
+          "op": "eq",
+          "value": "plasterboard"
+        },
+        "count": 63,
+        "globalIds": [
+          "0dxE1Sy6nDqfpDb5vIMN_Z",
+          "0dxE1Sy6nDqfpDb5vIMNiA",
+          "0iEHWY1$XA8eQeeULq4jDb",
+          "0iEHWY1$XA8eQeeULq4jE6",
+          "0iEHWY1$XA8eQeeULq4jZ1",
+          "0iEHWY1$XA8eQeeULq4j_U",
+          "0iEHWY1$XA8eQeeULq4jpl",
+          "0jf0rYHfX3RAB3bSIRjmmy",
+          "0jf0rYHfX3RAB3bSIRjmoa",
+          "0jf0rYHfX3RAB3bSIRjmpw",
+          "0jf0rYHfX3RAB3bSIRjmr1",
+          "1aj$VJZFn2TxepZUBcKpZw",
+          "1aj$VJZFn2TxepZUBcKpee",
+          "1aj$VJZFn2TxepZUBcKphf",
+          "1aj$VJZFn2TxepZUBcKpvt",
+          "2O2Fr$t4X7Zf8NOew3FKGS",
+          "2O2Fr$t4X7Zf8NOew3FKIu",
+          "2O2Fr$t4X7Zf8NOew3FKRH",
+          "2O2Fr$t4X7Zf8NOew3FKRi",
+          "2O2Fr$t4X7Zf8NOew3FKST",
+          "2O2Fr$t4X7Zf8NOew3FKau",
+          "2O2Fr$t4X7Zf8NOew3FL8v",
+          "2O2Fr$t4X7Zf8NOew3FL96",
+          "2O2Fr$t4X7Zf8NOew3FL9r",
+          "2O2Fr$t4X7Zf8NOew3FLCm",
+          "2O2Fr$t4X7Zf8NOew3FLEJ",
+          "2O2Fr$t4X7Zf8NOew3FLIE",
+          "2O2Fr$t4X7Zf8NOew3FLJd",
+          "2O2Fr$t4X7Zf8NOew3FLKI",
+          "2O2Fr$t4X7Zf8NOew3FLMr",
+          "2O2Fr$t4X7Zf8NOew3FLOH",
+          "2O2Fr$t4X7Zf8NOew3FLPP",
+          "2O2Fr$t4X7Zf8NOew3FLQD",
+          "2O2Fr$t4X7Zf8NOew3FLR9",
+          "2O2Fr$t4X7Zf8NOew3FLTF",
+          "2O2Fr$t4X7Zf8NOew3FNau",
+          "2O2Fr$t4X7Zf8NOew3FNbT",
+          "2O2Fr$t4X7Zf8NOew3FNhv",
+          "2O2Fr$t4X7Zf8NOew3FNld",
+          "2O2Fr$t4X7Zf8NOew3FNqI",
+          "2O2Fr$t4X7Zf8NOew3FNr2",
+          "2O2Fr$t4X7Zf8NOew3FNtn",
+          "3Y4YRln2r91vflHcHE5ITm",
+          "3Y4YRln2r91vflHcHE5ITn",
+          "3Y4YRln2r91vflHcHE5ITp",
+          "3Y4YRln2r91vflHcHE5ITs",
+          "3Y4YRln2r91vflHcHE5IVI",
+          "3Y4YRln2r91vflHcHE5IVJ",
+          "3Y4YRln2r91vflHcHE5IVS",
+          "3Y4YRln2r91vflHcHE5IVT",
+          "3bXiCStxP6Fgxdej$yc503",
+          "3bXiCStxP6Fgxdej$yc50B",
+          "3bXiCStxP6Fgxdej$yc50U",
+          "3bXiCStxP6Fgxdej$yc50n",
+          "3bXiCStxP6Fgxdej$yc52o",
+          "3bXiCStxP6Fgxdej$yc554",
+          "3bXiCStxP6Fgxdej$yc55E",
+          "3bXiCStxP6Fgxdej$yc55M",
+          "3bXiCStxP6Fgxdej$yc55U",
+          "3bXiCStxP6Fgxdej$yc55c",
+          "3bXiCStxP6Fgxdej$yc55k",
+          "3bXiCStxP6Fgxdej$yc55m",
+          "3bXiCStxP6Fgxdej$yc5T8"
+        ],
+        "multiValued": 63
+      }
+    },
+    "REQ-012-AC6": {
+      "stepId": 21966,
+      "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+      "Name": "Wand-Ext-ERDG-1",
+      "count": 1,
+      "globalIds": [
+        "3rPX_Juz59peXXY6wDJl18"
+      ]
+    },
+    "REQ-012-AC8": {
+      "Geschoss": "Erdgeschoss",
+      "names": [
+        "Wand-Ext-ERDG-1",
+        "Wand-Ext-ERDG-2"
+      ],
+      "rules": [
+        {
+          "mode": "isolate",
+          "key": "Kategorie",
+          "op": "contains",
+          "value": "wall"
+        },
+        {
+          "mode": "hide",
+          "key": "Name",
+          "op": "ends",
+          "value": "ERDG-2"
+        }
+      ],
+      "count": 1,
+      "globalIds": [
+        "3rPX_Juz59peXXY6wDJl18"
+      ],
+      "Name": [
+        "Wand-Ext-ERDG-1"
+      ]
+    },
+    "note": "DEC-19 matching re-implemented here on the STEP text (toLocaleString de-DE, at most 3 decimals; IFC booleans Ja/Nein; lower-case comparison; multi-valued Material per value). AC6 checks every attribute, Typ, Geschoss, Material and every pset/qto value of every row for the GlobalId (Modell and Geometrie are not GlobalIds)."
   },
   "REQ-002-AC7": {
     "file": "Ifc2x3_SampleCastle.ifc",

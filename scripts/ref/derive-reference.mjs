@@ -692,12 +692,151 @@ function exportSection() {
   };
 }
 
+/**
+ * REQ-012 rules (TASK-015b, CR-002): expected key sets of the rule acceptance tests (AC2-AC6, AC8), derived from the
+ * STEP text with the DEC-19 matching written here independently of the product: a value's display text is the
+ * table text (numbers German with "." thousands, "," decimals, at most 3 decimals - toLocaleString("de-DE"); IFC
+ * booleans `Ja` / `Nein`; text as stored), compared lower-cased; Gleich = equal, Beginnt mit = prefix, Endet mit =
+ * suffix, Enthaelt = substring; a multi-valued property (Material) matches if any value matches; an element without
+ * the property never matches. Rows: STEP elements except IfcOpeningElement (not a row class, TASK-002) and IfcSpace
+ * (option off by default, DEC-13).
+ */
+function ruleSection() {
+  const NOT_ROWS = ["IfcOpeningElement", "IfcSpace"];
+  const rowsOf = (file) => {
+    const m = read(FIX + file);
+    return m.elements.map((id) => m.element(id)).filter((e) => !NOT_ROWS.includes(e.Kategorie));
+  };
+  const text = (v) => {
+    if (typeof v === "number") return v.toLocaleString("de-DE", { maximumFractionDigits: 3 });
+    if (v && typeof v === "object" && "enum" in v) return v.enum === "T" ? "Ja" : v.enum === "F" ? "Nein" : v.enum;
+    return String(v);
+  };
+  const texts = (e, key) => {
+    if (key === "Material") return e.Material;
+    if (["Kategorie", "Name", "GlobalId", "Geschoss", "Typ", "ObjectType", "Tag", "Description"].includes(key))
+      return e[key] == null || e[key] === "" ? [] : [e[key]];
+    const p = e.props[key];
+    return p && p.value != null && p.value !== "" ? [text(p.value)] : [];
+  };
+  const test = (t, op, needle) => {
+    const a = t.toLowerCase();
+    const b = needle.toLowerCase();
+    return op === "eq" ? a === b : op === "starts" ? a.startsWith(b) : op === "ends" ? a.endsWith(b) : a.includes(b);
+  };
+  const matches = (e, key, op, value) => texts(e, key).some((t) => test(t, op, value));
+  const guids = (list) => list.map((e) => e.GlobalId).sort();
+  const fzk = rowsOf("AC20-FZK-Haus.ifc");
+  const kategorien = [...new Set(fzk.map((e) => e.Kategorie))].sort(new Intl.Collator("de").compare);
+
+  // AC3: Isolieren Kategorie enthaelt "wall"
+  const ac3 = fzk.filter((e) => matches(e, "Kategorie", "contains", "wall"));
+  // AC4: Material enthaelt "holz" (the material `Holz`); elements without Material
+  const MATERIAL_TEXT = "holz";
+  const withMaterialText = fzk.filter((e) => matches(e, "Material", "contains", MATERIAL_TEXT));
+  const withoutMaterial = fzk.filter((e) => !e.Material.length);
+  // AC5: numeric BaseQuantities.Width shown `0,3`; boolean Pset_BeamCommon.LoadBearing `Ja`
+  const NUM = "BaseQuantities.Width";
+  const BOOL = "Pset_BeamCommon.LoadBearing";
+  const numCases = [
+    ["eq", "0,3"],
+    ["eq", "0.3"],
+    ["starts", "0,"],
+    ["ends", ",3"],
+  ].map(([op, value]) => ({ op, value, globalIds: guids(fzk.filter((e) => matches(e, NUM, op, value))) }));
+  const boolJa = fzk.filter((e) => matches(e, BOOL, "eq", "ja"));
+  const boolNein = fzk.filter((e) => matches(e, BOOL, "eq", "nein"));
+  // AC5 multi-valued: Duplex element with two materials (REQ-005-AC4), Material gleich "plasterboard"
+  const duplex = rowsOf("Ifc2x3_Duplex_Architecture.ifc");
+  const MULTI_VALUE = "plasterboard";
+  const multiMatch = duplex.filter((e) => matches(e, "Material", "eq", MULTI_VALUE));
+  // AC6: Freie Textsuche gleich <GlobalId of the reference wall #21966>: elements with any value equal to it
+  const wall = fzk.find((e) => e.stepId === 21966);
+  const anyKeys = (e) =>
+    ["Kategorie", "Name", "GlobalId", "Geschoss", "Typ", "ObjectType", "Tag", "Description", "Material"].concat(
+      Object.keys(e.props),
+    );
+  const ac6 = fzk.filter((e) => anyKeys(e).some((k) => matches(e, k, "eq", wall.GlobalId)));
+  // AC8: Geschoss = Erdgeschoss, column filter Name on two walls, Isolieren Kategorie enthaelt "wall", Ausblenden Name
+  // endet mit "ERDG-2"
+  const ground = "Erdgeschoss";
+  const names = ["Wand-Ext-ERDG-1", "Wand-Ext-ERDG-2"];
+  const suffix = "ERDG-2";
+  const ac8 = fzk.filter(
+    (e) =>
+      e.Geschoss === ground &&
+      names.includes(e.Name) &&
+      matches(e, "Kategorie", "contains", "wall") &&
+      !matches(e, "Name", "ends", suffix),
+  );
+  return {
+    file: "AC20-FZK-Haus.ifc",
+    rows: fzk.length,
+    kategorien,
+    "REQ-012-AC3": {
+      rule: { mode: "isolate", key: "Kategorie", op: "contains", value: "wall" },
+      matchingKategorien: kategorien.filter((k) => k.toLowerCase().includes("wall")),
+      count: ac3.length,
+      globalIds: guids(ac3),
+    },
+    "REQ-012-AC4": {
+      property: "Material",
+      value: MATERIAL_TEXT,
+      materials: [...new Set(withMaterialText.flatMap((e) => e.Material))].sort(),
+      matching: { count: withMaterialText.length, globalIds: guids(withMaterialText) },
+      withoutMaterial: { count: withoutMaterial.length, globalIds: guids(withoutMaterial) },
+    },
+    "REQ-012-AC5": {
+      number: {
+        property: NUM,
+        valuesShown0_3: fzk.filter((e) => texts(e, NUM)[0] === "0,3").length,
+        withoutValue: fzk.filter((e) => !texts(e, NUM).length).length,
+        cases: numCases,
+      },
+      boolean: {
+        property: BOOL,
+        ja: { count: boolJa.length, globalIds: guids(boolJa) },
+        nein: { count: boolNein.length },
+      },
+      multi: {
+        file: "Ifc2x3_Duplex_Architecture.ifc",
+        rows: duplex.length,
+        element: { stepId: 4131, GlobalId: duplex.find((e) => e.stepId === 4131).GlobalId },
+        elementMaterial: duplex.find((e) => e.stepId === 4131).Material,
+        rule: { mode: "isolate", key: "Material", op: "eq", value: MULTI_VALUE },
+        count: multiMatch.length,
+        globalIds: guids(multiMatch),
+        multiValued: multiMatch.filter((e) => e.Material.length > 1).length,
+      },
+    },
+    "REQ-012-AC6": {
+      stepId: 21966,
+      GlobalId: wall.GlobalId,
+      Name: wall.Name,
+      count: ac6.length,
+      globalIds: guids(ac6),
+    },
+    "REQ-012-AC8": {
+      Geschoss: ground,
+      names,
+      rules: [
+        { mode: "isolate", key: "Kategorie", op: "contains", value: "wall" },
+        { mode: "hide", key: "Name", op: "ends", value: suffix },
+      ],
+      count: ac8.length,
+      globalIds: guids(ac8),
+      Name: ac8.map((e) => e.Name),
+    },
+    note: "DEC-19 matching re-implemented here on the STEP text (toLocaleString de-DE, at most 3 decimals; IFC booleans Ja/Nein; lower-case comparison; multi-valued Material per value). AC6 checks every attribute, Typ, Geschoss, Material and every pset/qto value of every row for the GlobalId (Modell and Geometrie are not GlobalIds).",
+  };
+}
+
 const existing = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : {};
 const fzk = fzkSection();
 const out = {
   meta: {
     purpose:
-      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2 and NFR-001 (spec Testing -> Test data)",
+      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2, REQ-012-AC2..AC6/AC8 and NFR-001 (spec Testing -> Test data)",
     generatedBy: "node scripts/ref/derive-reference.mjs",
     method:
       "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
@@ -715,6 +854,7 @@ const out = {
   "REQ-007-selection": selectionSection(),
   "REQ-009-config": configSection(),
   "REQ-008-export": exportSection(),
+  "REQ-012-rules": ruleSection(),
   "REQ-002-AC7": castleSection() ?? existing["REQ-002-AC7"] ?? null,
   "REQ-006-AC1": mep2000Section()?.["REQ-006-AC1"] ?? existing["REQ-006-AC1"] ?? null,
   "NFR-001-name-filter": nameFilterSection() ?? existing["NFR-001-name-filter"] ?? null,

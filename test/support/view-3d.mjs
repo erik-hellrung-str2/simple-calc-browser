@@ -8,8 +8,8 @@ export function idle(page) {
 }
 
 /**
- * CalcView.state() as plain data: { mode, opaque, ghost, hidden, selected (sorted key arrays), colours ({ key -> hex }),
- * section }.
+ * CalcView.state() as plain data: { mode, opaque, ghost, hidden, toolHidden, marked, selected (sorted key arrays),
+ * colours ({ key -> hex }), section ({ point, normal } | null, spec 4.4 since CR-002) }.
  */
 export async function viewState(page) {
   await idle(page);
@@ -21,6 +21,8 @@ export async function viewState(page) {
       opaque: sorted(s.opaque),
       ghost: sorted(s.ghost),
       hidden: sorted(s.hidden),
+      toolHidden: sorted(s.toolHidden),
+      marked: sorted(s.marked),
       selected: sorted(s.selected),
       colours: Object.fromEntries(s.colours),
       section: s.section,
@@ -39,8 +41,12 @@ export async function keysOfGuids(page, guids) {
   return page.evaluate((list) => list.map((g) => window.__calc.rows.find((r) => r.guid === g)?.key ?? null), guids);
 }
 
-// the floating properties panel (CR-002) is an overlay like the view bar
-const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props { visibility: hidden !important; }" };
+// the floating properties panel, the click menu, the section handle, the toolbar, hint, title chip, panels and pills
+// (CR-002) are overlays like the view bar
+const CANVAS_ONLY = {
+  style:
+    "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props, #cv-pick, #cv-section-handle, #cv-title-chip, #cv-hint, #cv-toolbar, #cv-filter-panel, #cv-colour-panel, #cv-pills { visibility: hidden !important; }",
+};
 
 /** PNG screenshot of the 3D canvas only (controls and legend hidden), after the view is idle. */
 export async function canvasShot(page) {
@@ -122,4 +128,16 @@ export function setDots(page, key) {
     }
     return out;
   }, key);
+}
+
+/**
+ * Sets the ghost toggle in the pill `Filter entfernen` (REQ-005-AC1, CR-002; TASK-015a): ghosts on = pressed
+ * `Ausgeblendete verbergen`, off = `Ausgeblendete anzeigen`. The pill is shown only while a filter source is active.
+ */
+export async function setGhosts(page, on) {
+  const toggle = page.locator("#cv-ghost-toggle");
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute("aria-pressed")) !== String(on)) await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", String(on));
+  await expect(toggle).toHaveAccessibleName(on ? "Ausgeblendete verbergen" : "Ausgeblendete anzeigen");
 }

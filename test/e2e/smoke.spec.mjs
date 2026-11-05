@@ -8,7 +8,10 @@ const FZK = fileURLToPath(new URL("../fixtures/AC20-FZK-Haus.ifc", import.meta.u
 const BACKGROUND = [0xec, 0xee, 0xf0]; // --cv-bg-3d behind the transparent WebGL canvas
 // screenshot the canvas only, not the hint box or the 3D view controls / legend drawn over it (TASK-005)
 // the floating properties panel (CR-002) is an overlay like the view bar
-const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props { visibility: hidden !important; }" };
+const CANVAS_ONLY = {
+  style:
+    "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props, #cv-pick, #cv-section-handle, #cv-title-chip, #cv-hint, #cv-toolbar, #cv-filter-panel, #cv-colour-panel, #cv-pills { visibility: hidden !important; }",
+};
 
 /** Share of pixels in a PNG screenshot that differ clearly from the empty 3D background (decoded in the page). */
 async function nonBackgroundShare(page, png) {

@@ -16,6 +16,7 @@ import {
   pixelDifference,
   rowsByKey,
   setDots,
+  setGhosts,
   viewState,
 } from "../support/view-3d.mjs";
 
@@ -41,16 +42,19 @@ async function geometryKeys(page) {
 
 const minus = (a, b) => a.filter((k) => !b.includes(k));
 
-test("@e2e @acceptance @REQ-005-AC1 elements outside the filter are ghosts; `Ausblenden` hides them", async ({
+// CR-002 (TASK-015a): the 1.0.0 switch `Elemente ausserhalb des Filters: Geist | Ausblenden` is the ghost toggle in the
+// pill `Filter entfernen` (REQ-005-AC1 changed): pressed `Ausgeblendete verbergen` while ghosts are shown
+test("@e2e @acceptance @REQ-005-AC1 elements outside the filter are ghosts; the ghost toggle in the pill `Filter entfernen` hides them", async ({
   page,
 }) => {
   test.setTimeout(180_000);
   const errors = await openWith(page, FZK);
   const geometry = await geometryKeys(page);
   expect(geometry.length).toBeGreaterThan(50);
+  const toggle = page.locator("#cv-pill-filter").getByRole("button", { name: /^Ausgeblendete/ });
 
-  // no filter: every element with geometry opaque, default mode ghost
-  await expect(page.getByRole("radio", { name: "Geist" })).toHaveAttribute("aria-checked", "true");
+  // no filter: every element with geometry opaque, default mode ghost; no filter source, so no pill
+  await expect(page.locator("#cv-pill-filter")).toBeHidden();
   let state = await viewState(page);
   expect(state.mode).toBe("ghost");
   expect(state.opaque).toEqual(geometry);
@@ -70,10 +74,25 @@ test("@e2e @acceptance @REQ-005-AC1 elements outside the filter are ghosts; `Aus
   expect(state.opaque).toEqual(expected);
   expect(state.ghost).toEqual(minus(geometry, expected));
   expect(state.hidden).toEqual([]);
+  // the ghost toggle is in the pill, on the left of `Filter entfernen`, pressed with label `Ausgeblendete verbergen`
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAccessibleName("Ausgeblendete verbergen");
+  await expect(toggle).toHaveAttribute("title", "Ausgeblendete verbergen");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  const order = await page
+    .locator("#cv-pill-filter button")
+    .evaluateAll((buttons) =>
+      buttons.map((b) => [b.getAttribute("aria-label") || b.textContent.trim(), b.getBoundingClientRect().left]),
+    );
+  expect(order.map(([name]) => name)).toEqual(["Ausgeblendete verbergen", "Filter entfernen", "Filter anzeigen"]);
+  expect(order[0][1]).toBeLessThan(order[1][1]);
 
-  // `Ausblenden`: the others are hidden, also according to the engine (model.getVisible)
-  await page.getByRole("radio", { name: "Ausblenden" }).click();
-  await expect(page.getByRole("radio", { name: "Ausblenden" })).toHaveAttribute("aria-checked", "true");
+  // click: the others are hidden, also according to the engine (model.getVisible); the toggle reads
+  // `Ausgeblendete anzeigen`, not pressed
+  await toggle.click();
+  await expect(toggle).toHaveAccessibleName("Ausgeblendete anzeigen");
+  await expect(toggle).toHaveAttribute("title", "Ausgeblendete anzeigen");
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
   state = await viewState(page);
   expect(state.mode).toBe("hide");
   expect(state.opaque).toEqual(expected);
@@ -92,8 +111,9 @@ test("@e2e @acceptance @REQ-005-AC1 elements outside the filter are ghosts; `Aus
   expect(engine.shown.every(Boolean), "engine: filtered elements visible").toBe(true);
   expect(engine.hidden.some(Boolean), "engine: others invisible").toBe(false);
 
-  // back to `Geist`, then reset: all opaque again
-  await page.getByRole("radio", { name: "Geist" }).click();
+  // ghosts again, then reset: all opaque again
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
   state = await viewState(page);
   expect(state.ghost).toEqual(minus(geometry, expected));
   expect(state.hidden).toEqual([]);
@@ -165,7 +185,10 @@ test("@e2e @acceptance @REQ-005-AC2 `Färben nach` Kategorie: one colour per cat
   expect(errors).toEqual([]);
 });
 
-test("@e2e @acceptance @REQ-005-AC3 `Schnitt` Z at mid-height, flip and slider; the canvas changes", async ({
+// REQ-005-AC3 is retired by CR-002 (the click section of REQ-013 replaces the X / Y / Z section; spec 2). Until
+// TASK-017c removes the 1.0.0 axis controls they still drive the section, which cv-3d now keeps as a plane (TASK-014,
+// spec 4.4, DEC-20 conversion: point 0 except the axis component = offset, normal -axis, +axis when flipped).
+test("@e2e interim 1.0.0 `Schnitt` Z at mid-height, flip and slider set the equivalent section plane; the canvas changes", async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -177,7 +200,7 @@ test("@e2e @acceptance @REQ-005-AC3 `Schnitt` Z at mid-height, flip and slider; 
   expect(range.max - range.min).toBeGreaterThan(3); // a two-storey house
   const mid = (range.min + range.max) / 2;
   let state = await viewState(page);
-  expect(state.section).toEqual({ axis: "Z", offset: mid, flipped: false });
+  expect(state.section).toEqual({ point: [0, 0, mid], normal: [0, 0, -1] });
   await expect(page.getByRole("slider", { name: "Schnittposition" })).toBeVisible();
   const withSection = await canvasShot(page);
   const d1 = await pixelDifference(page, without, withSection);
@@ -185,7 +208,7 @@ test("@e2e @acceptance @REQ-005-AC3 `Schnitt` Z at mid-height, flip and slider; 
 
   await page.getByRole("button", { name: "Schnitt umkehren" }).click();
   state = await viewState(page);
-  expect(state.section).toEqual({ axis: "Z", offset: mid, flipped: true });
+  expect(state.section).toEqual({ point: [0, 0, mid], normal: [0, 0, 1] });
   const flipped = await canvasShot(page);
   expect(await pixelDifference(page, withSection, flipped), "flip shows the other part").toBeGreaterThan(0.01);
 
@@ -196,15 +219,15 @@ test("@e2e @acceptance @REQ-005-AC3 `Schnitt` Z at mid-height, flip and slider; 
     input.dispatchEvent(new Event("input", { bubbles: true }));
   }, low);
   state = await viewState(page);
-  expect(state.section.axis).toBe("Z");
-  expect(state.section.flipped).toBe(true);
-  expect(Math.abs(state.section.offset - low)).toBeLessThanOrEqual((range.max - range.min) / 1000);
+  expect(state.section.normal).toEqual([0, 0, 1]);
+  expect(state.section.point.slice(0, 2)).toEqual([0, 0]);
+  expect(Math.abs(state.section.point[2] - low)).toBeLessThanOrEqual((range.max - range.min) / 1000);
 
   // X axis: mid of the X range
   await page.getByRole("radio", { name: "Schnitt X" }).click();
   const rx = await page.evaluate(() => window.CalcView.axisRange("X"));
   state = await viewState(page);
-  expect(state.section).toEqual({ axis: "X", offset: (rx.min + rx.max) / 2, flipped: false });
+  expect(state.section).toEqual({ point: [(rx.min + rx.max) / 2, 0, 0], normal: [-1, 0, 0] });
 
   await page.getByRole("button", { name: "Schnitt entfernen" }).click();
   state = await viewState(page);
@@ -256,7 +279,7 @@ test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and 
   await addFilterSet(page, "GlobalId", "GlobalId");
   await filterSet(page, "GlobalId").getByRole("searchbox").fill(WALL);
   await toggleValue(page, "GlobalId", WALL);
-  await page.locator("#cv-fit").click();
+  await page.getByRole("toolbar", { name: "3D-Werkzeuge" }).getByRole("button", { name: "Fokus" }).click();
   let state = await viewState(page);
   expect(state.opaque).toEqual([key]);
 
@@ -386,7 +409,7 @@ test("@e2e @smoke render smoke: ghost and hide give different canvases; frames a
   const errors = await openWith(page, FZK);
   await toggleValue(page, "Kategorie", "IfcWallStandardCase");
   const ghost = await canvasShot(page);
-  await page.getByRole("radio", { name: "Ausblenden" }).click();
+  await setGhosts(page, false);
   const hidden = await canvasShot(page);
   const diff = await pixelDifference(page, ghost, hidden);
   console.log(`[render smoke] ghost vs hide: ${(diff * 100).toFixed(2)} % of the pixels differ`);
@@ -399,7 +422,7 @@ test("@e2e @smoke render smoke: ghost and hide give different canvases; frames a
   await page.waitForTimeout(1_500);
   const idleFrames = (await page.evaluate(() => window.CalcView.frames())) - before;
   expect(idleFrames, "no frames while idle").toBe(0);
-  await page.getByRole("radio", { name: "Geist" }).click();
+  await setGhosts(page, true);
   await idle(page);
   expect(await page.evaluate(() => window.CalcView.frames())).toBeGreaterThan(before);
   // orbit drag draws frames too and does not select anything
@@ -437,9 +460,9 @@ test("@e2e @acceptance @REQ-001-AC4 IfcSpace stays hidden through ghost / hide c
   await expectSpacesOff("loaded");
   await toggleValue(page, "Kategorie", "IfcWallStandardCase");
   await expectSpacesOff("filter, ghost");
-  await page.getByRole("radio", { name: "Ausblenden" }).click();
+  await setGhosts(page, false);
   await expectSpacesOff("filter, hide");
-  await page.getByRole("radio", { name: "Geist" }).click();
+  await setGhosts(page, true);
   await expectSpacesOff("filter, ghost again");
   await page.locator("#cv-reset-all").click();
   await expectSpacesOff("reset");
@@ -456,9 +479,10 @@ test("@e2e @acceptance @REQ-001-AC4 IfcSpace stays hidden through ghost / hide c
   expect(spaceRows.length).toBeGreaterThan(0);
   expect(spaceRows.every((k) => state.opaque.includes(k))).toBe(true);
   expect((await engineVisible()).filter(Boolean).length).toBeGreaterThanOrEqual(spaceRows.length);
-  // hide mode with a wall filter: spaces are hidden like every element outside the filter
-  await page.getByRole("radio", { name: "Ausblenden" }).click();
+  // hide mode with a wall filter: spaces are hidden like every element outside the filter (CR-002: the ghost toggle
+  // is in the pill `Filter entfernen`, shown once the filter is active, so the filter comes first)
   await toggleValue(page, "Kategorie", "IfcWallStandardCase");
+  await setGhosts(page, false);
   state = await viewState(page);
   expect(spaceRows.every((k) => state.hidden.includes(k))).toBe(true);
 
@@ -467,7 +491,7 @@ test("@e2e @acceptance @REQ-001-AC4 IfcSpace stays hidden through ghost / hide c
   await page.locator("#cv-opt-spaces").uncheck();
   await page.waitForFunction((n) => window.__calc.loads > n && window.__calc.phase === "ready", loads2);
   await expectSpacesOff("option off, hide");
-  await page.getByRole("radio", { name: "Geist" }).click();
+  await setGhosts(page, true);
   await expectSpacesOff("option off, ghost");
   await page.locator("#cv-reset-all").click();
   await expectSpacesOff("option off, reset");

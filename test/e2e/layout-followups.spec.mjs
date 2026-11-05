@@ -2,14 +2,18 @@
 // REQ-005 "legend under the model"):
 //   F1 filter panel content is not cut off at its right edge (long labels ellipsised with tooltip, search field visible)
 //   L1 the colour legend is under the 3D view (never over the geometry); `Ansicht einpassen` fits into the free area
+//      (CR-002, TASK-015a: `Fokus` in the 3D toolbar replaces `Ansicht einpassen`; with no filter every element is opaque,
+//      so `Fokus` fits the whole model as `Ansicht einpassen` did)
 //   L2 legend text 13-14 px
 //   L3 context geometry (IfcSite terrain) is neutral grey while `Faerben nach` is active
-//   L4 the 3D toolbar stays one row at 1280 px with colouring and section active
+//   L4 the 3D toolbar stays one row at 1280 px with colouring and section active (CR-002, TASK-015a: the interim 1.0.0
+//      bar keeps `Faerben nach` and `Schnitt` until TASK-016 / TASK-017c; the ghost switch moved into the pill
+//      `Filter entfernen` and `Ansicht einpassen` became `Fokus` in the 3D toolbar)
 // This file runs with real (classic) scrollbars: Playwright's headless default hides them, which hid F1.
 import { test, expect } from "../support/network-guard.mjs";
 import { fixture, loadFiles, openBuilder } from "../support/builder.mjs";
 import { addFilterSet, filterSet, toggleValue } from "../support/filter-area.mjs";
-import { colourBy, idle, legendEntries, viewState } from "../support/view-3d.mjs";
+import { colourBy, idle, legendEntries, setGhosts, viewState } from "../support/view-3d.mjs";
 import { LONG_NAME, longFixture } from "../support/long-fixture.mjs";
 
 test.use({ launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] } });
@@ -67,7 +71,7 @@ test("@e2e @UI F1 filter panel: sets fit the panel next to a classic scrollbar; 
   expect(errors).toEqual([]);
 });
 
-test("@e2e @UI L1 L2 the legend is under the 3D view at 13-14 px; `Ansicht einpassen` fits the model into the free area", async ({
+test("@e2e @UI L1 L2 the legend is under the 3D view at 13-14 px; `Fokus` fits the model into the free area", async ({
   page,
 }) => {
   const errors = await openBuilder(page);
@@ -102,8 +106,8 @@ test("@e2e @UI L1 L2 the legend is under the 3D view at 13-14 px; `Ansicht einpa
     expect(size).toBeLessThanOrEqual(14);
   }
   expect((await legendEntries(page)).length).toBeGreaterThan(5);
-  // `Ansicht einpassen`: every element's projected box lies inside the canvas, above the legend
-  await page.getByRole("button", { name: "Ansicht einpassen" }).click();
+  // `Fokus` (no filter: every element opaque): every element's projected box lies inside the canvas, above the legend
+  await page.getByRole("toolbar", { name: "3D-Werkzeuge" }).getByRole("button", { name: "Fokus" }).click();
   await idle(page);
   const union = await page.evaluate(async () => {
     const out = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
@@ -174,10 +178,10 @@ test("@e2e @UI L3 while `Färben nach` is active the context geometry (IfcSite t
   await toggleValue(page, "Kategorie", "IfcWallStandardCase");
   await idle(page);
   expect((await context()).paints).toEqual({ ghost: loaded.items });
-  await page.getByRole("radio", { name: "Ausblenden" }).click();
+  await setGhosts(page, false);
   await idle(page);
   expect(await context()).toEqual({ items: loaded.items, visible: 0, paints: { none: loaded.items } });
-  await page.getByRole("radio", { name: "Geist" }).click();
+  await setGhosts(page, true);
   await page.locator("#cv-reset-all").click();
   await page.getByRole("button", { name: "Färbung entfernen" }).click();
   await idle(page);
@@ -219,11 +223,12 @@ test("@e2e @UI L4 the 3D toolbar stays one row at 1280 px with colouring (long p
   expect(m.panel.right).toBeLessThanOrEqual(m.box.right);
   await expect(page.getByRole("slider", { name: "Schnittposition" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Schnitt umkehren" })).toBeVisible();
-  // texts stay available: visible mode label, names of the colour and fit buttons
-  await expect(page.locator("#cv-mode-label")).toHaveText("Elemente außerhalb des Filters:");
-  await expect(page.locator("#cv-mode-label")).toBeVisible();
+  // texts stay available: the name of the colour button; `Fokus` is in the 3D toolbar (CR-002), not in this bar
   await expect(page.locator("#cv-colour")).toHaveAccessibleName("Färben nach: BaseQuantities.NetVolume (m³)");
   await expect(page.locator("#cv-colour")).toContainText("Färben nach");
-  await expect(page.locator("#cv-fit")).toHaveAccessibleName("Ansicht einpassen");
+  await expect(page.locator("#cv-view-bar").getByRole("button", { name: "Ansicht einpassen" })).toHaveCount(0);
+  await expect(
+    page.getByRole("toolbar", { name: "3D-Werkzeuge" }).getByRole("button", { name: "Fokus" }),
+  ).toBeVisible();
   expect(errors).toEqual([]);
 });

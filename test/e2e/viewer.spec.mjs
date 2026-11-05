@@ -9,7 +9,7 @@ import { basename } from "node:path";
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, fixture, loadFiles, openBuilder, removeModel } from "../support/builder.mjs";
 import { addFilterSet, filterSet, toggleValue } from "../support/filter-area.mjs";
-import { colourBy, idle } from "../support/view-3d.mjs";
+import { colourBy, idle, setGhosts } from "../support/view-3d.mjs";
 import { addColumn, clickSort, headerKeys } from "../support/table.mjs";
 import { pickGroup, setView, toggleGroup } from "../support/grouping.mjs";
 import { chooseLogo, configuredState, openHeaderDialog } from "../support/config.mjs";
@@ -26,7 +26,10 @@ const TEXT = EXP.properties.text; // CalcTest_Export.Text
 const fzkGroups = REF["REQ-006-grouping-fzk"];
 const WALL = "IfcWallStandardCase";
 // the floating properties panel (CR-002) is an overlay like the view bar
-const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props { visibility: hidden !important; }" };
+const CANVAS_ONLY = {
+  style:
+    "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props, #cv-pick, #cv-section-handle, #cv-title-chip, #cv-hint, #cv-toolbar, #cv-filter-panel, #cv-colour-panel, #cv-pills { visibility: hidden !important; }",
+};
 const modell = (path) => basename(path).replace(/\.[^.]*$/, "");
 const deDate = (iso) => {
   const [y, m, d] = iso.split("-").map(Number);
@@ -83,7 +86,7 @@ async function configureView(page) {
   await addColumn(page, "Material", "Material");
   await addColumn(page, "CalcTest_Export", NUMBER);
   await clickSort(page, NUMBER);
-  await page.getByRole("radio", { name: "Ausblenden" }).click();
+  await setGhosts(page, false);
   await colourBy(page, "Geschoss", "Geschoss");
   await page.getByRole("radio", { name: "Schnitt Z" }).click();
   await idle(page);
@@ -198,7 +201,7 @@ test("@acceptance @e2e @REQ-010-AC2 @REQ-011-AC1 colleague changes filters, filt
         await toggleGroup(p, [WALL], true);
       },
       async display(p) {
-        await p.getByRole("radio", { name: "Ausblenden" }).click();
+        await setGhosts(p, false); // CR-002: ghost toggle in the pill `Filter entfernen` (TASK-015a)
         await colourBy(p, "Material", "Material");
         await idle(p);
       },
@@ -287,7 +290,11 @@ test("@acceptance @e2e @REQ-010-AC3 the viewer file has no controls for loading 
     await expect(v.locator("#cv-add-filterset")).toBeEnabled();
     await expect(v.locator("#cv-columns")).toBeEnabled();
     await expect(v.getByRole("radio", { name: "Gruppiert", exact: true })).toBeEnabled();
-    await expect(v.getByRole("radio", { name: "Ausblenden" })).toBeEnabled();
+    // CR-002 (TASK-015a): the model display is the 3D toolbar `Fokus` / `Filter` / `Färben` and the pill ghost toggle
+    for (const name of ["Fokus", "Filter", "Färben"])
+      await expect(
+        v.getByRole("toolbar", { name: "3D-Werkzeuge" }).getByRole("button", { name, exact: true }),
+      ).toBeEnabled();
     // selection and properties panel (REQ-007): a table row click selects the element in 3D and shows its GlobalId
     const row = v.locator(".cv-tbl-body .cv-tr[data-key]:not([hidden])").first();
     const key = await row.getAttribute("data-key");

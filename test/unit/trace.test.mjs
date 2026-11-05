@@ -21,13 +21,12 @@ const INC2_PENDING = [
   // REQ-004 Filter with filter sets (new CR-002)
   "REQ-004-AC5",
   "REQ-004-AC6",
-  // REQ-005 3D model view (new CR-002)
+  // REQ-005 3D model view (new CR-002; AC10 covered by TASK-015a)
   "REQ-005-AC5",
   "REQ-005-AC6",
   "REQ-005-AC7",
   "REQ-005-AC8",
   "REQ-005-AC9",
-  "REQ-005-AC10",
   "REQ-005-AC11",
   "REQ-005-AC12",
   // REQ-006 Table (new CR-002; AC12 covered by TASK-013)
@@ -48,18 +47,9 @@ const INC2_PENDING = [
   "REQ-009-AC8",
   // REQ-010 Viewer file (new CR-002)
   "REQ-010-AC4",
-  // REQ-012 In-viewer rule filter (new requirement, CR-002)
-  "REQ-012-AC1",
-  "REQ-012-AC2",
-  "REQ-012-AC3",
-  "REQ-012-AC4",
-  "REQ-012-AC5",
-  "REQ-012-AC6",
-  "REQ-012-AC7",
-  "REQ-012-AC8",
+  // REQ-012 In-viewer rule filter (new requirement, CR-002; AC1, AC7 covered by TASK-015a; AC2-AC6, AC8, AC10, AC11
+  // by TASK-015b)
   "REQ-012-AC9",
-  "REQ-012-AC10",
-  "REQ-012-AC11",
   "REQ-012-AC12",
   "REQ-012-AC13",
   "REQ-012-AC14",

@@ -95,8 +95,9 @@ for (const [file, flipped] of [
     expect(loaded).toMatchObject({ ok: true, notice: null });
     await idle(page);
     const view = await viewState(page);
-    // the 1.0.0 3D view still cuts along the axis: the converted plane is shown as the same axis section
-    expect(view.section).toEqual({ axis: "Z", offset: old.display.section.offset, flipped });
+    // the 1.0.0 axis section is converted (DEC-20): point 0 except Z = offset, normal -Z (not flipped, keeps <= offset)
+    // or +Z (flipped); cv-3d reports the plane (spec 4.4, TASK-014; was the axis section itself)
+    expect(view.section).toEqual({ point: [0, 0, old.display.section.offset], normal: [0, 0, flipped ? 1 : -1] });
     // Farbskala in Blau (#1F6FD1): every coloured element has a scale colour, (leer) or mehrere Werte; the smallest
     // volume the 12 % tint #e4eef9, the largest the full colour
     const blue = scaleColours("#1f6fd1");
@@ -136,8 +137,9 @@ test("@integration @robustness 1.1.0 configuration: Farbskala Gruen and the sect
   expect(loaded).toMatchObject({ ok: true, notice: null });
   await idle(page);
   const view = await viewState(page);
-  // plane { point [0, 0, z], normal [0, 0, -1] } = the 1.0.0 axis section Z at z, not flipped (keeps <= z)
-  expect(view.section).toEqual({ axis: "Z", offset: file.display.sectionPlane.point[2], flipped: false });
+  // plane { point [0, 0, z], normal [0, 0, -1] } (= the 1.0.0 axis section Z at z, not flipped, keeps <= z); cv-3d
+  // reports the plane as given (spec 4.4, TASK-014; was the axis section)
+  expect(view.section).toEqual(file.display.sectionPlane);
   const green = scaleColours("#2e9b4f");
   const colours = Object.values(view.colours).map((c) => c.toLowerCase());
   for (const c of colours) expect([...green, EMPTY, MULTI]).toContain(c);

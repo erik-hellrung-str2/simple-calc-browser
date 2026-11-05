@@ -543,7 +543,8 @@ test("@e2e @UI below 1280 px the filter area collapses to a drawer: hidden from 
   // CR-002 (TASK-013): the details column and its drawer are gone, the properties panel floats in the 3D view
   const errors = await openBuilder(page);
   await loadFiles(page, FZK);
-  const filtersToggle = page.getByRole("button", { name: "Filter", exact: true });
+  // the header drawer button (CR-002: the 3D toolbar `3D-Werkzeuge` has a button `Filter` too, DEC-21)
+  const filtersToggle = page.locator(".cv-header").getByRole("button", { name: "Filter", exact: true });
   // wide: the filter area is a column, the drawer toggle is not shown
   await expect(filtersToggle).toBeHidden();
   await expect(page.getByRole("button", { name: "Details", exact: true })).toHaveCount(0);
@@ -665,7 +666,8 @@ test("@e2e @robustness @UI below 1280 px a load error or configuration message o
   const errors = await openBuilder(page);
   await loadFiles(page, FZK);
   await page.setViewportSize({ width: 1100, height: 760 });
-  const filtersToggle = page.getByRole("button", { name: "Filter", exact: true });
+  // the header drawer button (CR-002: the 3D toolbar `3D-Werkzeuge` has a button `Filter` too, DEC-21)
+  const filtersToggle = page.locator(".cv-header").getByRole("button", { name: "Filter", exact: true });
   await expect(filtersToggle).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#cv-messages")).toBeHidden();
 
@@ -700,7 +702,8 @@ test("@e2e @robustness @UI below 1280 px a message that goes away does not reope
   // testing INC-1 cycle 2 BUG-T3: removing the no-model message (first model loaded) reopened the closed drawer
   const errors = await openBuilder(page);
   await page.setViewportSize({ width: 1100, height: 760 });
-  const filtersToggle = page.getByRole("button", { name: "Filter", exact: true });
+  // the header drawer button (CR-002: the 3D toolbar `3D-Werkzeuge` has a button `Filter` too, DEC-21)
+  const filtersToggle = page.locator(".cv-header").getByRole("button", { name: "Filter", exact: true });
   await page
     .locator("#cv-file-input")
     .setInputFiles({ name: "kaputt.ifc", mimeType: "application/octet-stream", buffer: Buffer.from("%PDF-1.4 x") });

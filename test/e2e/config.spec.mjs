@@ -9,7 +9,7 @@ import { basename } from "node:path";
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, fixture, loadFiles, openBuilder, removeModel } from "../support/builder.mjs";
 import { addFilterSet, filterSet, setTitles, toggleValue } from "../support/filter-area.mjs";
-import { colourBy, idle } from "../support/view-3d.mjs";
+import { colourBy, idle, setGhosts } from "../support/view-3d.mjs";
 import { addColumn, checkColumnValue, clickSort, header, typeBound } from "../support/table.mjs";
 import { pickGroup, setView } from "../support/grouping.mjs";
 import {
@@ -178,7 +178,7 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   await setView(page, "Gruppiert");
   await pickGroup(page, 2, "Geschoss", "Geschoss");
   // model display: hide, colour by Material, section Z flipped
-  await page.getByRole("radio", { name: "Ausblenden" }).click();
+  await setGhosts(page, false);
   await colourBy(page, "Material", "Material");
   await page.getByRole("radio", { name: "Schnitt Z" }).click();
   await page.getByRole("button", { name: "Schnitt umkehren" }).click();
@@ -241,7 +241,9 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   await expect(page.locator("#cv-date")).toHaveText(deDate("2026-08-12"));
   await expect(page.locator("#cv-logo img")).toHaveAttribute("src", dataUrl(LOGO_SVG, "image/svg+xml"));
   expect(await setTitles(page)).toEqual(["Kategorie", "Material", "Geschoss", "Typ"]);
-  await expect(page.getByRole("radio", { name: "Ausblenden" })).toHaveAttribute("aria-checked", "true");
+  // CR-002 (TASK-015a): the display mode is the ghost toggle in the pill `Filter entfernen` (REQ-005-AC1)
+  await expect(page.locator("#cv-ghost-toggle")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#cv-ghost-toggle")).toHaveAccessibleName("Ausgeblendete anzeigen");
   await expect(page.getByRole("radio", { name: "Gruppiert" })).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("#cv-colour")).toHaveAccessibleName(/^Färben nach: Material/);
   await expect(page.getByRole("radio", { name: "Schnitt Z" })).toHaveAttribute("aria-checked", "true");
