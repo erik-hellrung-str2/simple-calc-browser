@@ -1,6 +1,6 @@
 {
   "meta": {
-    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2, REQ-012-AC2..AC6/AC8 and NFR-001 (spec Testing -> Test data)",
+    "purpose": "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2, REQ-012-AC2..AC6/AC8/AC14, REQ-013-AC5, REQ-004-AC5 and NFR-001 (spec Testing -> Test data)",
     "generatedBy": "node scripts/ref/derive-reference.mjs",
     "method": "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
     "reviewedBy": "fresh-context tester (not the TASK-002 implementer)",
@@ -2735,6 +2735,226 @@
       ]
     },
     "note": "DEC-19 matching re-implemented here on the STEP text (toLocaleString de-DE, at most 3 decimals; IFC booleans Ja/Nein; lower-case comparison; multi-valued Material per value). AC6 checks every attribute, Typ, Geschoss, Material and every pset/qto value of every row for the GlobalId (Modell and Geometrie are not GlobalIds)."
+  },
+  "REQ-013-tools": {
+    "file": "AC20-FZK-Haus.ifc",
+    "rows": 99,
+    "walls": [
+      {
+        "stepId": 15042,
+        "Name": "Wand-Int-ERDG-4",
+        "GlobalId": "2XPyKWY018sA1ygZKgQPtU",
+        "Geschoss": "Erdgeschoss",
+        "volume": 2.49624
+      },
+      {
+        "stepId": 17040,
+        "Name": "Wand-Int-ERDG-2",
+        "GlobalId": "3PfS__Y_DBAfq5naM6zD2Z",
+        "Geschoss": "Erdgeschoss",
+        "volume": 2.909316
+      },
+      {
+        "stepId": 18465,
+        "Name": "Wand-Int-ERDG-1",
+        "GlobalId": "2ptk1k7qn8_Qk22vjh$0DE",
+        "Geschoss": "Erdgeschoss",
+        "volume": 2.226
+      },
+      {
+        "stepId": 18698,
+        "Name": "Wand-Int-ERDG-3",
+        "GlobalId": "3jjW3rL656ex34Gws22EfM",
+        "Geschoss": "Erdgeschoss",
+        "volume": 3.412152
+      },
+      {
+        "stepId": 20598,
+        "Name": "Wand-Int-ERDG-5",
+        "GlobalId": "1$wmdwWPjDYuku_ghVkynE",
+        "Geschoss": "Erdgeschoss",
+        "volume": 2.08896189111
+      },
+      {
+        "stepId": 21966,
+        "Name": "Wand-Ext-ERDG-1",
+        "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+        "Geschoss": "Erdgeschoss",
+        "volume": 5.80797
+      },
+      {
+        "stepId": 27421,
+        "Name": "Wand-Ext-ERDG-4",
+        "GlobalId": "16DNNqzfP2thtfaOflvsKA",
+        "Geschoss": "Erdgeschoss",
+        "volume": 6.604875
+      },
+      {
+        "stepId": 31470,
+        "Name": "Wand-Ext-ERDG-3",
+        "GlobalId": "25fsbPyk15VvuXI$yNKenK",
+        "Geschoss": "Erdgeschoss",
+        "volume": 6.417
+      },
+      {
+        "stepId": 32407,
+        "Name": "Wand-Ext-ERDG-2",
+        "GlobalId": "1bzfVsJqn8De5PukCrqylz",
+        "Geschoss": "Erdgeschoss",
+        "volume": 7.317
+      },
+      {
+        "stepId": 60012,
+        "Name": "Wand-Ext-OG-1",
+        "GlobalId": "0knNIAVBPBFvBy_m5QVHsU",
+        "Geschoss": "Dachgeschoss",
+        "volume": 5.54440602973
+      },
+      {
+        "stepId": 67536,
+        "Name": "Wand-Ext-OG-2",
+        "GlobalId": "25OWQvmXj5BPgyergP43tY",
+        "Geschoss": "Dachgeschoss",
+        "volume": 2.05637684052
+      },
+      {
+        "stepId": 67828,
+        "Name": "Wand-Ext-OG-3",
+        "GlobalId": "3VCarUKgH1buLo22Ozxe6J",
+        "Geschoss": "Dachgeschoss",
+        "volume": 5.54440602973
+      },
+      {
+        "stepId": 75347,
+        "Name": "Wand-Ext-OG-4",
+        "GlobalId": "3Ttjr$59XEWfWN1WUHjelZ",
+        "Geschoss": "Dachgeschoss",
+        "volume": 2.05637684052
+      }
+    ],
+    "toolWalls": [
+      {
+        "Name": "Wand-Ext-ERDG-1",
+        "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+        "volume": 5.80797
+      },
+      {
+        "Name": "Wand-Ext-ERDG-2",
+        "GlobalId": "1bzfVsJqn8De5PukCrqylz",
+        "volume": 7.317
+      }
+    ],
+    "REQ-013-AC5": {
+      "column": "BaseQuantities.NetVolume",
+      "unit": "m³",
+      "hidden": {
+        "count": 97,
+        "volume": 118.543539086,
+        "byKategorie": {
+          "IfcAnnotation": {
+            "count": 14,
+            "volume": null
+          },
+          "IfcBeam": {
+            "count": 4,
+            "volume": 0.195838108894
+          },
+          "IfcDoor": {
+            "count": 5,
+            "volume": null
+          },
+          "IfcMember": {
+            "count": 42,
+            "volume": null
+          },
+          "IfcRailing": {
+            "count": 2,
+            "volume": null
+          },
+          "IfcSlab": {
+            "count": 4,
+            "volume": 76.9915903455
+          },
+          "IfcStair": {
+            "count": 1,
+            "volume": null
+          },
+          "IfcVirtualElement": {
+            "count": 3,
+            "volume": null
+          },
+          "IfcWallStandardCase": {
+            "count": 11,
+            "volume": 41.3561106316
+          },
+          "IfcWindow": {
+            "count": 11,
+            "volume": null
+          }
+        }
+      },
+      "isolated": {
+        "count": 2,
+        "volume": 13.12497,
+        "byKategorie": {
+          "IfcWallStandardCase": {
+            "count": 2,
+            "volume": 13.12497
+          }
+        }
+      }
+    },
+    "REQ-004-AC5": {
+      "rule": {
+        "mode": "isolate",
+        "key": "Kategorie",
+        "op": "contains",
+        "value": "wall"
+      },
+      "kategorieCounts": {
+        "IfcWallStandardCase": 13
+      },
+      "afterHiding": {
+        "GlobalId": "3rPX_Juz59peXXY6wDJl18",
+        "kategorieCounts": {
+          "IfcWallStandardCase": 12
+        }
+      },
+      "slabs": 4
+    },
+    "REQ-012-AC14": {
+      "file": "Ifc2x3_Duplex_Architecture.ifc",
+      "rows": 218,
+      "property": "PSet_Revit_Constraints.Base Constraint",
+      "fzkHasProperty": false,
+      "rule": {
+        "mode": "isolate",
+        "key": "PSet_Revit_Constraints.Base Constraint",
+        "op": "contains",
+        "value": "Level 1"
+      },
+      "count": 17,
+      "globalIds": [
+        "0iEHWY1$XA8eQeeULq4jDb",
+        "0iEHWY1$XA8eQeeULq4jE6",
+        "0iEHWY1$XA8eQeeULq4jZ1",
+        "0iEHWY1$XA8eQeeULq4j_U",
+        "0iEHWY1$XA8eQeeULq4jpl",
+        "2O2Fr$t4X7Zf8NOew3FKGS",
+        "2O2Fr$t4X7Zf8NOew3FKIu",
+        "2O2Fr$t4X7Zf8NOew3FKRH",
+        "2O2Fr$t4X7Zf8NOew3FKRi",
+        "2O2Fr$t4X7Zf8NOew3FKST",
+        "2O2Fr$t4X7Zf8NOew3FNau",
+        "2O2Fr$t4X7Zf8NOew3FNbT",
+        "2O2Fr$t4X7Zf8NOew3FNhv",
+        "2O2Fr$t4X7Zf8NOew3FNld",
+        "2O2Fr$t4X7Zf8NOew3FNqI",
+        "2O2Fr$t4X7Zf8NOew3FNr2",
+        "2O2Fr$t4X7Zf8NOew3FNtn"
+      ]
+    },
+    "note": "DEC-18 shown sets on the STEP text: AC5 = all FZK rows minus the two toolWalls (hidden) or exactly them (isolated), grouped by Kategorie with Neumaier sums of BaseQuantities.NetVolume (null = no value). REQ-004-AC5 = Kategorie counts of the rows whose Kategorie contains 'wall' (lower case), then without afterHiding.GlobalId. REQ-012-AC14 = Duplex rows whose occurrence/type value of the property contains the value (lower case); fzkHasProperty false = the rule's property is gone once the Duplex model is removed."
   },
   "REQ-002-AC7": {
     "file": "Ifc2x3_SampleCastle.ifc",

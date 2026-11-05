@@ -4,7 +4,8 @@
 // (test/support/long-fixture.mjs); the other inputs are committed fixtures.
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
-import { toggleValue } from "../support/filter-area.mjs";
+import { shownValues, toggleValue } from "../support/filter-area.mjs";
+import { addRule } from "../support/rules.mjs";
 import { idle, viewState } from "../support/view-3d.mjs";
 import { LONG_NAME, LONG_PSET_KEY, LONG_PSET_VALUE, longFixture } from "../support/long-fixture.mjs";
 import {
@@ -16,6 +17,9 @@ import {
   openColumnFilter,
   tableState,
 } from "../support/table.mjs";
+import { setView } from "../support/grouping.mjs";
+import { clickRow } from "../support/selection.mjs";
+import { afterUpdate, panelAction, sourceEntries } from "../support/tools.mjs";
 
 const FZK = fixture("AC20-FZK-Haus.ifc");
 const fzkRef = REF["AC20-FZK-Haus"];
@@ -214,5 +218,72 @@ test("@robustness @REQ-006 200 columns: only the visible cells are rendered; hor
   await page.locator("#cv-columns").click();
   await expect(page.locator("#cv-chooser-list .cv-chooser-item")).toHaveCount(200);
   await page.getByRole("dialog", { name: "Spalten" }).getByRole("button", { name: "Schließen" }).click();
+  expect(errors).toEqual([]);
+});
+
+// TASK-017a (CR-002, spec T7): hidden / isolated elements at the edges of the table (REQ-013, DEC-18)
+test("@robustness @REQ-013 hide / isolate at the edges: an isolated wall outside a filter leaves an empty table; hiding a whole group empties it and clears the group selection; the reset restores every row", async ({
+  page,
+}) => {
+  const errors = await openBuilder(page);
+  await loadFiles(page, FZK);
+  await idle(page);
+  const kat = fzkRef.elementsInStepTextByKategorie;
+  const wall = REF["REQ-013-tools"].toolWalls[0]; // Wand-Ext-ERDG-1, ground floor
+  const [wallKey] = await page.evaluate(
+    (g) => window.__calc.rows.filter((r) => r.guid === g).map((r) => r.key),
+    wall.GlobalId,
+  );
+
+  // isolated wall + a rule that excludes it (the filter sets offer no other value then, DEC-14): empty table, a ghost
+  // in 3D, entry and pill stay
+  await panelAction(page, wallKey, "isolate");
+  const storey = REF["REQ-013-tools"].walls.find((w) => w.GlobalId === wall.GlobalId).Geschoss;
+  expect((await shownValues(page, "Geschoss")).map((v) => v.label)).toEqual([storey]);
+  await addRule(page, { mode: "hide", key: "Name", op: "eq", value: wall.Name });
+  await expect(page.locator("#cv-tbl-empty")).toHaveText("Keine Elemente im Filter.");
+  expect(await allTableRows(page)).toEqual([]);
+  await expect(page.locator("#cv-status")).toHaveText(`0 von ${de(FZK_TOTAL)} Elementen`);
+  let s = await viewState(page);
+  expect(s.opaque).toEqual([]);
+  expect(s.ghost).toEqual([wallKey]);
+  expect(await sourceEntries(page)).toEqual(["Isoliert: 1 Element", "Filterregeln: 1"]);
+  await expect(page.locator("#cv-pill-isolate")).toBeVisible();
+  await afterUpdate(page, () => page.getByRole("button", { name: "Alle Filter zurücksetzen" }).click());
+
+  // a group row selection of all windows hidden: the group is gone, the selection cleared
+  await setView(page, "Gruppiert");
+  const groupId = (label) =>
+    page.evaluate(
+      (l) => window.__calc.table.display.find((r) => r.type === "group" && r.level === 1 && r.label === l)?.id ?? null,
+      label,
+    );
+  await clickRow(page, await groupId("IfcWindow"), { group: true });
+  await expect(page.locator("#cv-props")).toBeVisible();
+  await afterUpdate(page, () => page.locator("#cv-props-hide").click());
+  expect(await groupId("IfcWindow")).toBeNull();
+  expect(await sourceEntries(page)).toEqual([`Ausgeblendet: ${de(kat.IfcWindow)} Elemente`]);
+  expect(await page.evaluate(() => window.__calc.view.selectedKeys)).toEqual([]);
+  await expect(page.locator("#cv-props")).toBeHidden();
+  await expect(page.locator("#cv-status")).toHaveText(
+    `${de(FZK_TOTAL - kat.IfcWindow)} von ${de(FZK_TOTAL)} Elementen`,
+  );
+
+  // then the slabs isolated through their group row: only they remain; hidden and isolated combine
+  await clickRow(page, await groupId("IfcSlab"), { group: true });
+  await afterUpdate(page, () => page.locator("#cv-props-isolate").click());
+  expect((await page.evaluate(() => window.__calc.table.display)).filter((r) => r.type === "group")).toHaveLength(1);
+  await expect(page.locator("#cv-status")).toHaveText(`${de(kat.IfcSlab)} von ${de(FZK_TOTAL)} Elementen`);
+  expect(await sourceEntries(page)).toEqual([
+    `Ausgeblendet: ${de(kat.IfcWindow)} Elemente`,
+    `Isoliert: ${de(kat.IfcSlab)} Elemente`,
+  ]);
+
+  // the reset restores every row
+  await afterUpdate(page, () => page.getByRole("button", { name: "Alle Filter zurücksetzen" }).click());
+  await expect(page.locator("#cv-status")).toHaveText(`${de(FZK_TOTAL)} von ${de(FZK_TOTAL)} Elementen`);
+  expect(await sourceEntries(page)).toEqual([]);
+  s = await viewState(page);
+  expect(s.toolHidden).toEqual([]);
   expect(errors).toEqual([]);
 });

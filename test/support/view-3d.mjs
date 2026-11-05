@@ -82,27 +82,54 @@ export function pixelDifference(page, a, b) {
   );
 }
 
-/** Opens `Faerben nach`, searches `query` and picks the property `key`. */
-export async function colourBy(page, query, key) {
-  await page.locator("#cv-colour").click();
-  const dialog = page.getByRole("dialog", { name: "Färben nach" });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("searchbox", { name: "Eigenschaft suchen" }).fill(query);
-  await dialog.locator(`.cv-cat-entry[data-key="${key}"]`).click();
-  await expect(dialog).toBeHidden();
-  await expect(page.locator("#cv-colour")).toHaveAccessibleName(new RegExp(`^Färben nach: ${key}`));
+export const colourPanel = (page) => page.getByRole("region", { name: "Färben", exact: true });
+export const colourTool = (page) =>
+  page.getByRole("toolbar", { name: "3D-Werkzeuge" }).getByRole("button", { name: "Färben", exact: true });
+
+/** Opens the colouring panel (toolbar `Färben`) if it is closed. */
+export async function openColourPanel(page) {
+  if (!(await colourPanel(page).isVisible())) await colourTool(page).click();
+  await expect(colourPanel(page)).toBeVisible();
 }
 
-/** Legend entries as rendered: [{ label, colour, count, kind }]. */
-export function legendEntries(page) {
-  return page.locator("#cv-legend .cv-legend-item").evaluateAll((items) =>
-    items.map((li) => ({
-      label: li.querySelector(".cv-legend-label").textContent,
-      colour: li.dataset.colour,
-      count: Number(li.querySelector(".cv-legend-count").textContent.replace(/\./g, "")),
-      kind: li.dataset.kind,
+/**
+ * Colours by property `key` through the colouring panel (REQ-005, CR-002; TASK-016): toolbar `Färben`, `Ändern` when
+ * a property is already chosen, search `Parameter suchen` for `query`, pick the entry; the panel then shows the chosen
+ * property and its legend. keepOpen: false (default) closes the panel again with `Färben`, so the 3D view is free.
+ */
+export async function colourBy(page, query, key, options) {
+  await openColourPanel(page);
+  const panel = colourPanel(page);
+  const change = panel.locator("#cv-colour-param");
+  if (await change.isVisible()) await change.click();
+  await panel.getByRole("searchbox", { name: "Parameter suchen" }).fill(query);
+  await panel.locator(`.cv-colour-item[data-key="${key}"]`).click();
+  await expect(change).toBeVisible();
+  await expect(change.locator(".cv-suggest-label")).toHaveText(new RegExp(`^${key.replace(/[.()]/g, "\\$&")}`));
+  await expect(page.locator("#cv-pill-colour")).toBeVisible();
+  if (!(options && options.keepOpen)) {
+    await colourTool(page).click();
+    await expect(panel).toBeHidden();
+  }
+}
+
+/** Legend entries of the colouring panel as rendered (the panel is opened if closed): [{ label, colour, count, kind }]. */
+export async function legendEntries(page) {
+  await openColourPanel(page);
+  return page.locator("#cv-legend .cv-legend-row").evaluateAll((items) =>
+    items.map((row) => ({
+      label: row.querySelector(".cv-legend-value").textContent,
+      colour: row.dataset.colour,
+      count: Number(row.querySelector(".cv-legend-count").textContent.replace(/\./g, "")),
+      kind: row.dataset.kind,
     })),
   );
+}
+
+/** Removes the colouring with the pill `Einfärbung entfernen` (REQ-005-AC9); the pill disappears. */
+export async function clearColouring(page) {
+  await page.locator("#cv-pill-colour").getByRole("button", { name: "Einfärbung entfernen", exact: true }).click();
+  await expect(page.locator("#cv-pill-colour")).toBeHidden();
 }
 
 /** Colour dots of the rendered value rows of a filter set: { label -> colour ('' if none) } (CSS rgb -> hex). */

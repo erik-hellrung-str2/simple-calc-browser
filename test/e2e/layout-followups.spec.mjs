@@ -3,17 +3,19 @@
 //   F1 filter panel content is not cut off at its right edge (long labels ellipsised with tooltip, search field visible)
 //   L1 the colour legend is under the 3D view (never over the geometry); `Ansicht einpassen` fits into the free area
 //      (CR-002, TASK-015a: `Fokus` in the 3D toolbar replaces `Ansicht einpassen`; with no filter every element is opaque,
-//      so `Fokus` fits the whole model as `Ansicht einpassen` did)
+//      so `Fokus` fits the whole model as `Ansicht einpassen` did. CR-002, TASK-016: the legend is in the colouring
+//      panel `Faerben` inside the 3D view as the reference (REQ-005, DEC-15: "the legend under the model" superseded),
+//      so the canvas fills the whole model area and the panel can be closed to free the view)
 //   L2 legend text 13-14 px
-//   L3 context geometry (IfcSite terrain) is neutral grey while `Faerben nach` is active
+//   L3 context geometry (IfcSite terrain) is neutral grey while colouring is active
 //   L4 the 3D toolbar stays one row at 1280 px with colouring and section active (CR-002, TASK-015a: the interim 1.0.0
-//      bar keeps `Faerben nach` and `Schnitt` until TASK-016 / TASK-017c; the ghost switch moved into the pill
-//      `Filter entfernen` and `Ansicht einpassen` became `Fokus` in the 3D toolbar)
+//      bar keeps `Schnitt` until TASK-017c; the ghost switch moved into the pill `Filter entfernen`, `Ansicht
+//      einpassen` became `Fokus` in the 3D toolbar; TASK-016: `Faerben nach` became the toolbar button `Faerben`)
 // This file runs with real (classic) scrollbars: Playwright's headless default hides them, which hid F1.
 import { test, expect } from "../support/network-guard.mjs";
 import { fixture, loadFiles, openBuilder } from "../support/builder.mjs";
 import { addFilterSet, filterSet, toggleValue } from "../support/filter-area.mjs";
-import { colourBy, idle, legendEntries, setGhosts, viewState } from "../support/view-3d.mjs";
+import { clearColouring, colourBy, idle, legendEntries, setGhosts, viewState } from "../support/view-3d.mjs";
 import { LONG_NAME, longFixture } from "../support/long-fixture.mjs";
 
 test.use({ launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] } });
@@ -71,13 +73,13 @@ test("@e2e @UI F1 filter panel: sets fit the panel next to a classic scrollbar; 
   expect(errors).toEqual([]);
 });
 
-test("@e2e @UI L1 L2 the legend is under the 3D view at 13-14 px; `Fokus` fits the model into the free area", async ({
+test("@e2e @UI L1 L2 the legend is in the colouring panel inside the 3D view at 13-14 px; the canvas fills the model area; `Fokus` fits the model into it", async ({
   page,
 }) => {
   const errors = await openBuilder(page);
   await loadFiles(page, FZK);
   await idle(page);
-  await colourBy(page, "Kategorie", "Kategorie");
+  await colourBy(page, "Kategorie", "Kategorie", { keepOpen: true });
   await idle(page);
   const boxes = await page.evaluate(() => {
     const rect = (sel) => {
@@ -91,22 +93,26 @@ test("@e2e @UI L1 L2 the legend is under the 3D view at 13-14 px; `Fokus` fits t
       legend: rect("#cv-legend"),
     };
   });
-  // the legend is a strip under the canvas, inside the model area; the canvas fills the rest
-  expect(boxes.legend.top).toBeGreaterThanOrEqual(boxes.canvas.bottom - 0.5);
-  expect(boxes.legend.bottom).toBeLessThanOrEqual(boxes.viewport.bottom + 0.5);
-  expect(Math.abs(boxes.canvas.height + boxes.legend.height - boxes.viewport.height)).toBeLessThanOrEqual(1);
+  // the legend is part of the colouring panel inside the 3D view; no strip under the canvas, which fills the model area
+  expect(await page.evaluate(() => document.querySelector("#cv-canvas-box #cv-colour-panel #cv-legend") !== null)).toBe(
+    true,
+  );
+  expect(boxes.legend.top).toBeGreaterThanOrEqual(boxes.canvas.top);
+  expect(boxes.legend.bottom).toBeLessThanOrEqual(boxes.canvas.bottom);
+  expect(Math.abs(boxes.canvas.height - boxes.viewport.height)).toBeLessThanOrEqual(1);
   expect(Math.abs(boxes.canvas.height - boxes.canvasBox.height)).toBeLessThanOrEqual(1);
-  expect(await page.evaluate(() => document.querySelector("#cv-legend").closest("#cv-canvas-box"))).toBeNull();
-  // L2: legend title, labels and counts 13-14 px
+  await expect(page.locator(".cv-legend-strip")).toHaveCount(0);
+  // L2: legend values and counts 13-14 px
   const sizes = await page
-    .locator("#cv-legend .cv-legend-title, #cv-legend .cv-legend-label, #cv-legend .cv-legend-count")
+    .locator("#cv-legend .cv-legend-value, #cv-legend .cv-legend-count")
     .evaluateAll((nodes) => [...new Set(nodes.map((n) => parseFloat(getComputedStyle(n).fontSize)))]);
+  expect(sizes.length).toBeGreaterThan(0);
   for (const size of sizes) {
     expect(size).toBeGreaterThanOrEqual(13);
     expect(size).toBeLessThanOrEqual(14);
   }
   expect((await legendEntries(page)).length).toBeGreaterThan(5);
-  // `Fokus` (no filter: every element opaque): every element's projected box lies inside the canvas, above the legend
+  // `Fokus` (no filter: every element opaque): every element's projected box lies inside the canvas
   await page.getByRole("toolbar", { name: "3D-Werkzeuge" }).getByRole("button", { name: "Fokus" }).click();
   await idle(page);
   const union = await page.evaluate(async () => {
@@ -124,7 +130,6 @@ test("@e2e @UI L1 L2 the legend is under the 3D view at 13-14 px; `Fokus` fits t
   });
   expect(union.top).toBeGreaterThanOrEqual(boxes.canvas.top - 1);
   expect(union.bottom).toBeLessThanOrEqual(boxes.canvas.bottom + 1);
-  expect(union.bottom).toBeLessThan(boxes.legend.top);
   expect(union.left).toBeGreaterThanOrEqual(boxes.canvas.left - 1);
   expect(union.right).toBeLessThanOrEqual(boxes.canvas.right + 1);
   // a filter that shortens the legend does not resize the canvas (a resize redraws the whole view; NFR-001)
@@ -136,16 +141,15 @@ test("@e2e @UI L1 L2 the legend is under the 3D view at 13-14 px; `Fokus` fits t
   expect((await legendEntries(page)).length).toBe(1);
   expect(await canvasHeight()).toBe(before);
   await toggleValue(page, "Kategorie", "IfcSlab");
-  // without colouring the strip is empty and the canvas takes the whole model area again
-  await page.getByRole("button", { name: "Färbung entfernen" }).click();
+  // removing the colouring does not resize the canvas either; the legend is gone
+  await clearColouring(page);
   await expect(page.locator("#cv-legend")).toBeHidden();
-  await expect
-    .poll(() => page.evaluate(() => document.querySelector("#cv-viewport canvas").getBoundingClientRect().height))
-    .toBeGreaterThan(boxes.viewport.height - 1);
+  expect(await canvasHeight()).toBe(before);
+  expect(Math.abs(before - boxes.viewport.height)).toBeLessThanOrEqual(1);
   expect(errors).toEqual([]);
 });
 
-test("@e2e @UI L3 while `Färben nach` is active the context geometry (IfcSite terrain) is neutral grey, not a legend colour", async ({
+test("@e2e @UI L3 while colouring is active the context geometry (IfcSite terrain) is neutral grey, not a legend colour", async ({
   page,
 }) => {
   const errors = await openBuilder(page);
@@ -183,7 +187,7 @@ test("@e2e @UI L3 while `Färben nach` is active the context geometry (IfcSite t
   expect(await context()).toEqual({ items: loaded.items, visible: 0, paints: { none: loaded.items } });
   await setGhosts(page, true);
   await page.locator("#cv-reset-all").click();
-  await page.getByRole("button", { name: "Färbung entfernen" }).click();
+  await clearColouring(page);
   await idle(page);
   expect(await context()).toEqual(loaded);
   expect(errors).toEqual([]);
@@ -223,9 +227,10 @@ test("@e2e @UI L4 the 3D toolbar stays one row at 1280 px with colouring (long p
   expect(m.panel.right).toBeLessThanOrEqual(m.box.right);
   await expect(page.getByRole("slider", { name: "Schnittposition" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Schnitt umkehren" })).toBeVisible();
-  // texts stay available: the name of the colour button; `Fokus` is in the 3D toolbar (CR-002), not in this bar
-  await expect(page.locator("#cv-colour")).toHaveAccessibleName("Färben nach: BaseQuantities.NetVolume (m³)");
-  await expect(page.locator("#cv-colour")).toContainText("Färben nach");
+  // the colouring is not in this bar: it is shown by the pill `Einfärbung entfernen` and the colouring panel (CR-002,
+  // TASK-016); `Fokus` is in the 3D toolbar (CR-002), not in this bar
+  await expect(page.locator("#cv-view-bar #cv-colour")).toHaveCount(0);
+  await expect(page.locator("#cv-pill-colour")).toBeVisible();
   await expect(page.locator("#cv-view-bar").getByRole("button", { name: "Ansicht einpassen" })).toHaveCount(0);
   await expect(
     page.getByRole("toolbar", { name: "3D-Werkzeuge" }).getByRole("button", { name: "Fokus" }),

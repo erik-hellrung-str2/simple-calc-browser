@@ -4,7 +4,9 @@
 // test/fixtures/reference-values.json (sections REQ-006-grouping-fzk / -duplex, STEP-text derivation).
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, expectClose, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
-import { toggleValue } from "../support/filter-area.mjs";
+import { shownCounts, toggleValue } from "../support/filter-area.mjs";
+import { csvNumber, exportFile, readExport } from "../support/export.mjs";
+import { isolateTogether, panelAction } from "../support/tools.mjs";
 import { idle, keysOfGuids, viewState } from "../support/view-3d.mjs";
 import { addColumn, allTableRows, clickSort, de3, header, headerKeys, tableState } from "../support/table.mjs";
 import {
@@ -485,5 +487,85 @@ test("@e2e @UI grouping view at 1280 x 800: `Gruppe` and `Anzahl` stay pinned at
   // the single-element view has no pinned columns
   await setView(page, "Einzelelemente");
   expect(await page.locator(".cv-pinned").count()).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+// TASK-017a (CR-002): hidden and isolated elements are filter sources for groups, sums, the total row, the filter-set
+// counts and the exports (REQ-013-AC5, DEC-18). Expected counts and sums: reference-values.json REQ-013-tools (the two
+// walls Wand-Ext-ERDG-1 / -2; STEP-text derivation), exports read back by the independent reader (csv / openpyxl).
+test("@e2e @acceptance @REQ-013-AC5 hidden walls leave the IfcWallStandardCase group's count and sum, the total row, the Kategorie count and the CSV / XLSX export; isolated walls are all that remain", async ({
+  page,
+}, testInfo) => {
+  const errors = await openWith(page, FZK);
+  const tools = REF["REQ-013-tools"];
+  const ac5 = tools["REQ-013-AC5"];
+  expect(ac5.column).toBe(VOLUME);
+  const guids = tools.toolWalls.map((w) => w.GlobalId);
+  const keys = await keysOfGuids(page, guids);
+  await addColumn(page, "NetVolume", VOLUME);
+
+  /** Groups (collapsed, by Kategorie), total row, Kategorie counts and both exports against one expected case. */
+  async function check(expected, name) {
+    const kats = valueOrder(Object.keys(expected.byKategorie));
+    const rows = await allDisplayRows(page);
+    expect(
+      rows.map((r) => r.cells[GROUP_COLUMN]),
+      name,
+    ).toEqual(kats);
+    const raw = await hookGroups(page);
+    for (const row of rows) {
+      const ref = expected.byKategorie[row.cells[GROUP_COLUMN]];
+      expect(row.cells[COUNT_COLUMN], `${name} ${row.cells[GROUP_COLUMN]}`).toBe(deCount(ref.count));
+      expect(row.cells[VOLUME], `${name} ${row.cells[GROUP_COLUMN]}`).toBe(sumText(ref.volume));
+      const hookRow = raw.find((r) => r.label === row.cells[GROUP_COLUMN]);
+      if (ref.volume === null) expect(hookRow.cells[VOLUME]).toBeNull();
+      else expectClose(hookRow.cells[VOLUME], ref.volume, `${name} ${row.cells[GROUP_COLUMN]} volume`);
+    }
+    expect(await totalRow(page)).toMatchObject({
+      [COUNT_COLUMN]: deCount(expected.count),
+      [VOLUME]: sumText(expected.volume),
+    });
+    const total = await page.evaluate(() => window.__calc.table.total);
+    expect(total.count).toBe(expected.count);
+    expectClose(total.cells[VOLUME], expected.volume, `${name} total volume`);
+    expect(await shownCounts(page, "Kategorie")).toEqual(
+      Object.fromEntries(Object.entries(expected.byKategorie).map(([k, g]) => [k, g.count])),
+    );
+    // CSV: header, one level-1 row per group in table order, `Summe` last
+    const csv = readExport("csv", (await exportFile(page, "csv", testInfo.outputPath(`${name}.csv`))).path);
+    const body = csv.records.slice(1);
+    expect(body.map((r) => r[0])).toEqual([...kats.map(() => "1"), "Summe"]);
+    kats.forEach((kat, i) => {
+      const ref = expected.byKategorie[kat];
+      expect(body[i].slice(1, 3), `${name} CSV ${kat}`).toEqual([kat, String(ref.count)]);
+      if (ref.volume === null) expect(body[i][7]).toBe("");
+      else expectClose(csvNumber(body[i][7]), ref.volume, `${name} CSV ${kat} volume`);
+    });
+    expect(body[kats.length][2]).toBe(String(expected.count));
+    expectClose(csvNumber(body[kats.length][7]), expected.volume, `${name} CSV total volume`);
+    // XLSX: the same rows, counts and sums as numeric cells
+    const x = readExport("xlsx", (await exportFile(page, "xlsx", testInfo.outputPath(`${name}.xlsx`))).path);
+    expect(x.rows).toHaveLength(csv.records.length);
+    x.rows.slice(1).forEach((row, j) => {
+      expect(row[0].v, `${name} XLSX row ${j}`).toBe(body[j][0]);
+      expect(row[2]).toMatchObject({ v: Number(body[j][2]), t: "n" });
+      if (body[j][7] === "") expect(row[7].v).toBeNull();
+      else expectClose(row[7].v, csvNumber(body[j][7]), `${name} XLSX row ${j} volume`);
+    });
+  }
+
+  // two hidden walls (properties panel `Ausblenden` on their table rows)
+  for (const key of keys) await panelAction(page, key, "hide");
+  await setView(page, "Gruppiert");
+  expect(await groupingState(page)).toEqual({ view: "grouped", groupBy: ["Kategorie"] });
+  await check(ac5.hidden, "hidden");
+  expect(ac5.hidden.byKategorie.IfcWallStandardCase.count).toBe(11);
+
+  // the same two walls isolated instead
+  await page.locator("#cv-pill-hidden-reset").click();
+  await isolateTogether(page, guids);
+  await setView(page, "Gruppiert");
+  await pickGroup(page, 1, "Kategorie", "Kategorie");
+  await check(ac5.isolated, "isolated");
   expect(errors).toEqual([]);
 });

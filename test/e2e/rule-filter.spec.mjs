@@ -3,12 +3,14 @@
 // `Filter entfernen` with rules. Expected key sets come from test/fixtures/reference-values.json section
 // `REQ-012-rules` (derived from the IFC STEP text by scripts/ref/derive-reference.mjs with the DEC-19 matching written
 // there independently of the product), never from the code under test.
+import { readFileSync } from "node:fs";
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
 import { toggleValue } from "../support/filter-area.mjs";
 import { checkColumnValue, tableGuids } from "../support/table.mjs";
 import { idle, viewState } from "../support/view-3d.mjs";
 import { XSS_NAMES, xssFixture } from "../support/xss-fixture.mjs";
+import { afterUpdate, sourceEntries } from "../support/tools.mjs";
 import {
   addRule,
   addRuleLink,
@@ -522,5 +524,77 @@ test("@e2e @robustness rule values and `Wert` suggestions with HTML are rendered
   expect(await imgs()).toBe(img0);
   expect(await scripts()).toBe(script0);
   expect(await page.evaluate(() => window.__xss)).toBeUndefined();
+  expect(errors).toEqual([]);
+});
+
+/**
+ * A copy of AC20-FZK-Haus.ifc (in memory) whose wall Wand-Int-ERDG-4 is named `Wärme-Wand` (STEP \X2\ encoding as the
+ * model's own umlauts); no other value of the original text contains `wärme` in any letter case, so exactly this wall
+ * matches.
+ */
+function umlautFixture() {
+  const text = readFileSync(FZK, "latin1");
+  // the model's own `Wärme...` strings are property names with an empty IfcLabel value: DEC-19 searches values only
+  // and never matches an empty value, so they match nothing
+  const values = text.replace(/IFCPROPERTYSINGLEVALUE\('W\\X2\\00E4\\X0\\rme[^']*',\$,IFCLABEL\(''\),\$\)/g, "");
+  expect(/\\X2\\00E4\\X0\\rme|\\X2\\00C4\\X0\\RME|waerme/i.test(values)).toBe(false);
+  const re = new RegExp(`(IFCWALLSTANDARDCASE\\('${UMLAUT_WALL}',#\\d+,)'[^']*'`);
+  expect(re.test(text)).toBe(true);
+  const out = text.replace(re, (_, head) => `${head}'W\\X2\\00E4\\X0\\rme-Wand'`);
+  return { name: "fzk-waerme.ifc", mimeType: "application/octet-stream", buffer: Buffer.from(out, "latin1") };
+}
+const UMLAUT_WALL = "2XPyKWY018sA1ygZKgQPtU"; // Wand-Int-ERDG-4
+
+// TASK-017a completes REQ-012-AC13 (the literal rendering of rule rows and suggestions is also tested above without the
+// AC ID): the filter-area entries `Filterregeln` / `Suche` and umlauts.
+test("@e2e @robustness @acceptance @REQ-012-AC13 HTML / script rule values and search texts are shown literally in rule rows, entries and the dialog; nothing is added to the DOM, no script runs; `Wärme` matches `wärme` and `WÄRME`", async ({
+  page,
+}) => {
+  const errors = await openBuilder(page);
+  const dialogs = [];
+  page.on("dialog", (d) => {
+    dialogs.push(d.message());
+    d.dismiss().catch(() => {});
+  });
+  await loadFiles(page, umlautFixture());
+  await idle(page);
+  const count = (sel) => page.evaluate((s) => document.querySelectorAll(s).length, sel);
+  const [img0, script0] = [await count("img"), await count("script")];
+  const imgValue = "<img src=x onerror=alert(1)>";
+  const scriptText = "<script>window.__xss=5</script>";
+
+  await addRule(page, { mode: "hide", key: "Name", op: "contains", value: imgValue });
+  expect(await ruleTexts(page)).toEqual([`Ausblenden: Name enthält „${imgValue}“`]);
+  await afterUpdate(page, () =>
+    filterPanel(page).getByRole("searchbox", { name: "Suchen nach Objekten" }).fill(scriptText),
+  );
+  expect(await sourceEntries(page)).toEqual(["Filterregeln: 1", `Suche: „${scriptText}“`]);
+  // the dialog shows the rule's value as it was typed
+  await ruleRows(page).first().locator(".cv-rule-text").click();
+  await expect(dialogFields(page).value).toHaveValue(imgValue);
+  await dialogFields(page).cancel.click();
+  expect(await count("img")).toBe(img0);
+  expect(await count("script")).toBe(script0);
+  expect(await count("#cv-fa-sources *:not(li):not(span):not(button):not(svg):not(path):not(rect):not(g)")).toBe(0);
+  expect(await page.evaluate(() => window.__xss)).toBeUndefined();
+  expect(dialogs).toEqual([]);
+
+  // umlauts: `Wärme` matches case-insensitively
+  await afterUpdate(page, () => page.getByRole("button", { name: "Alle Filter zurücksetzen" }).click());
+  const [wall] = await keysOf(page, [UMLAUT_WALL]);
+  expect(await page.evaluate((k) => window.__calc.rows.find((r) => r.key === k).values.Name, wall)).toBe("Wärme-Wand");
+  for (const text of ["wärme", "WÄRME"]) {
+    await afterUpdate(page, () =>
+      filterPanel(page).getByRole("searchbox", { name: "Suchen nach Objekten" }).fill(text),
+    );
+    expect(await filterKeys(page), `search ${text}`).toEqual([wall]);
+    expect(await sourceEntries(page)).toEqual([`Suche: „${text}“`]);
+  }
+  await afterUpdate(page, () => filterPanel(page).getByRole("searchbox", { name: "Suchen nach Objekten" }).fill(""));
+  await addRule(page, { mode: "isolate", key: "Name", op: "contains", value: "WÄRME" });
+  expect(await filterKeys(page)).toEqual([wall]);
+  await editRule(page, 0, { value: "wärme-wand", op: "eq" });
+  expect(await filterKeys(page)).toEqual([wall]);
+  expect(await ruleTexts(page)).toEqual(["Isolieren: Name gleich „wärme-wand“"]);
   expect(errors).toEqual([]);
 });

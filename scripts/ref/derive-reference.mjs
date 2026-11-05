@@ -831,12 +831,107 @@ function ruleSection() {
   };
 }
 
+/**
+ * REQ-013 / REQ-004-AC5 / REQ-012-AC14 (TASK-017a): expected element sets, counts and sums of the element tools
+ * `Ausblenden` / `Isolieren` (DEC-18: shown = passes the other filter sources and not hidden and, while isolating,
+ * isolated). Rows as ruleSection (no IfcOpeningElement, no IfcSpace). AC5: grouping by Kategorie with the column
+ * BaseQuantities.NetVolume; two named ground-floor walls hidden, or the same two isolated. REQ-004-AC5: the Kategorie
+ * values of the rows matching `Isolieren` Kategorie enthaelt "wall", before and after hiding one of them.
+ * REQ-012-AC14: a text property of the Duplex model that no FZK element has, one of its values, and the Duplex rows
+ * matching `Isolieren` <property> enthaelt <value> (lower-case substring of the value as written).
+ */
+function toolSection() {
+  const NOT_ROWS = ["IfcOpeningElement", "IfcSpace"];
+  const rowsOf = (file) => {
+    const m = read(FIX + file);
+    return m.elements.map((id) => m.element(id)).filter((e) => !NOT_ROWS.includes(e.Kategorie));
+  };
+  const fzk = rowsOf("AC20-FZK-Haus.ifc");
+  const VOLUME = "BaseQuantities.NetVolume";
+  const volume = (e) => (typeof e.props[VOLUME]?.value === "number" ? e.props[VOLUME].value : null);
+  const guids = (list) => list.map((e) => e.GlobalId).sort();
+  const walls = fzk.filter((e) => e.Kategorie === "IfcWallStandardCase");
+  const TOOL_WALLS = ["Wand-Ext-ERDG-1", "Wand-Ext-ERDG-2"];
+  const chosen = TOOL_WALLS.map((name) => walls.find((e) => e.Name === name));
+  const isChosen = (e) => chosen.includes(e);
+  const groupCase = (shown) => {
+    const byKat = {};
+    for (const e of shown) (byKat[e.Kategorie] ??= []).push(e);
+    return {
+      count: shown.length,
+      volume: refSum(shown.map(volume)),
+      byKategorie: Object.fromEntries(
+        Object.keys(byKat)
+          .sort()
+          .map((k) => [k, { count: byKat[k].length, volume: refSum(byKat[k].map(volume)) }]),
+      ),
+    };
+  };
+  const kategorieCounts = (list) => {
+    const out = {};
+    for (const e of list) out[e.Kategorie] = (out[e.Kategorie] ?? 0) + 1;
+    return out;
+  };
+  const wallRule = fzk.filter((e) => e.Kategorie.toLowerCase().includes("wall"));
+  const firstWall = chosen[0];
+
+  // REQ-012-AC14: Duplex-only text property (occurrence pset) and one of its values
+  const duplex = rowsOf("Ifc2x3_Duplex_Architecture.ifc");
+  const fzkKeys = new Set(fzk.flatMap((e) => Object.keys(e.props)));
+  const PROPERTY = "PSet_Revit_Constraints.Base Constraint";
+  const VALUE = "Level 1";
+  const ruleMatch = duplex.filter(
+    (e) =>
+      typeof e.props[PROPERTY]?.value === "string" &&
+      e.props[PROPERTY].value.toLowerCase().includes(VALUE.toLowerCase()),
+  );
+  return {
+    file: "AC20-FZK-Haus.ifc",
+    rows: fzk.length,
+    walls: walls
+      .map((e) => ({
+        stepId: e.stepId,
+        Name: e.Name,
+        GlobalId: e.GlobalId,
+        Geschoss: e.Geschoss,
+        volume: round(volume(e)),
+      }))
+      .sort((a, b) => a.stepId - b.stepId),
+    toolWalls: chosen.map((e) => ({ Name: e.Name, GlobalId: e.GlobalId, volume: round(volume(e)) })),
+    "REQ-013-AC5": {
+      column: VOLUME,
+      unit: "m\u00b3",
+      hidden: groupCase(fzk.filter((e) => !isChosen(e))),
+      isolated: groupCase(fzk.filter(isChosen)),
+    },
+    "REQ-004-AC5": {
+      rule: { mode: "isolate", key: "Kategorie", op: "contains", value: "wall" },
+      kategorieCounts: kategorieCounts(wallRule),
+      afterHiding: {
+        GlobalId: firstWall.GlobalId,
+        kategorieCounts: kategorieCounts(wallRule.filter((e) => e !== firstWall)),
+      },
+      slabs: fzk.filter((e) => e.Kategorie === "IfcSlab").length,
+    },
+    "REQ-012-AC14": {
+      file: "Ifc2x3_Duplex_Architecture.ifc",
+      rows: duplex.length,
+      property: PROPERTY,
+      fzkHasProperty: fzkKeys.has(PROPERTY),
+      rule: { mode: "isolate", key: PROPERTY, op: "contains", value: VALUE },
+      count: ruleMatch.length,
+      globalIds: guids(ruleMatch),
+    },
+    note: "DEC-18 shown sets on the STEP text: AC5 = all FZK rows minus the two toolWalls (hidden) or exactly them (isolated), grouped by Kategorie with Neumaier sums of BaseQuantities.NetVolume (null = no value). REQ-004-AC5 = Kategorie counts of the rows whose Kategorie contains 'wall' (lower case), then without afterHiding.GlobalId. REQ-012-AC14 = Duplex rows whose occurrence/type value of the property contains the value (lower case); fzkHasProperty false = the rule's property is gone once the Duplex model is removed.",
+  };
+}
+
 const existing = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : {};
 const fzk = fzkSection();
 const out = {
   meta: {
     purpose:
-      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2, REQ-012-AC2..AC6/AC8 and NFR-001 (spec Testing -> Test data)",
+      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2, REQ-012-AC2..AC6/AC8/AC14, REQ-013-AC5, REQ-004-AC5 and NFR-001 (spec Testing -> Test data)",
     generatedBy: "node scripts/ref/derive-reference.mjs",
     method:
       "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
@@ -855,6 +950,7 @@ const out = {
   "REQ-009-config": configSection(),
   "REQ-008-export": exportSection(),
   "REQ-012-rules": ruleSection(),
+  "REQ-013-tools": toolSection(),
   "REQ-002-AC7": castleSection() ?? existing["REQ-002-AC7"] ?? null,
   "REQ-006-AC1": mep2000Section()?.["REQ-006-AC1"] ?? existing["REQ-006-AC1"] ?? null,
   "NFR-001-name-filter": nameFilterSection() ?? existing["NFR-001-name-filter"] ?? null,

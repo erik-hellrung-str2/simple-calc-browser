@@ -7,7 +7,7 @@
 // Runs in the `file` project only (fetched fixtures, the user's path), never at the same time as a perf spec.
 import { test, expect } from "../support/perf-lock.mjs";
 import { fetched, loadFiles, openBuilder } from "../support/builder.mjs";
-import { colourBy, idle } from "../support/view-3d.mjs";
+import { clearColouring, colourBy, idle } from "../support/view-3d.mjs";
 
 const MEP = fetched("Ifc4_Revit_MEP.ifc");
 const CASTLE = fetched("Ifc2x3_SampleCastle.ifc");
@@ -93,8 +93,7 @@ test("@robustness @REQ-004 @REQ-006 thousands of properties (volume set): the co
     const s = window.CalcTable.state();
     window.CalcTable.setState({ ...s, sort: null, columnFilters: [] });
   });
-  await page.getByRole("button", { name: "Färbung entfernen" }).click();
-  await expect(page.locator("#cv-colour")).toHaveAccessibleName(/^Färben nach/);
+  await clearColouring(page); // CR-002 (TASK-016): pill `Einfärbung entfernen` (was: `Färbung entfernen`)
   await idle(page);
   const final = await store();
   expect(final, "sort, filter, grouping and colouring keys dropped").toEqual(DEFAULT_SETS);

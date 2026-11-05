@@ -283,12 +283,6 @@
         min-height: 0;
         overflow: hidden;
       }
-      .cv-legend-strip {
-        flex: none;
-        max-height: 40%;
-        overflow: auto;
-        background: #fff;
-      }
       .cv-viewport canvas {
         display: block;
         width: 100%;
@@ -851,7 +845,7 @@
         font-size: 12px;
       }
 
-      /* 3D view controls (REQ-005): top right of the model; legend at the bottom */
+      /* interim 1.0.0 3D view control `Schnitt` (REQ-005; top right of the model) until TASK-017c */
       .cv-view-bar {
         position: absolute;
         top: 10px;
@@ -865,8 +859,7 @@
         pointer-events: none;
         z-index: 2;
       }
-      .cv-view-group,
-      .cv-view-btn {
+      .cv-view-group {
         flex: none;
         pointer-events: auto;
         display: inline-flex;
@@ -882,32 +875,9 @@
         font: inherit;
         font-size: 13px;
       }
-      .cv-view-btn {
-        cursor: pointer;
-      }
-      .cv-view-btn:hover {
-        border-color: var(--cv-muted);
-      }
-      .cv-colour-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 0;
-        border: 0;
-        background: none;
-        color: inherit;
-        font: inherit;
-        cursor: pointer;
-      }
-      .cv-colour-btn .cv-icon {
-        width: 16px;
-        height: 16px;
-        color: var(--cv-muted);
-      }
       .cv-view-group.cv-on {
         border-color: var(--cv-accent);
       }
-      .cv-view-btn .cv-icon,
       .cv-view-label .cv-icon {
         width: 16px;
         height: 16px;
@@ -920,28 +890,6 @@
         color: var(--cv-muted);
         font-size: 12px;
         white-space: nowrap;
-      }
-      .cv-colour-text {
-        display: flex;
-        flex-direction: column;
-        max-width: 110px;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        line-height: 1.15;
-        text-align: left;
-        font-feature-settings:
-          "calt" 0,
-          "liga" 0;
-        font-variant-ligatures: none;
-      }
-      .cv-colour-kicker {
-        color: var(--cv-muted);
-        font-size: 11px;
-      }
-      .cv-colour-value {
-        overflow: hidden;
-        text-overflow: ellipsis;
       }
       .cv-view-group .cv-icon-btn {
         width: 24px;
@@ -1003,51 +951,6 @@
       .cv-section-flip.cv-on {
         color: var(--cv-accent);
       }
-      /* legend under the model (REQ-005), 13 px text (UI-02, TASK-005 L2) */
-      .cv-legend {
-        padding: 8px 14px 10px;
-        border-top: 1px solid var(--cv-line);
-        background: #fff;
-        font-size: 13px;
-      }
-      .cv-legend-title {
-        margin-bottom: 4px;
-        color: var(--cv-ink-2);
-        font-weight: 600;
-        font-feature-settings:
-          "calt" 0,
-          "liga" 0;
-        font-variant-ligatures: none;
-      }
-      .cv-legend-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 2px 14px;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-      .cv-legend-item {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        max-width: 280px;
-        min-width: 0;
-      }
-      .cv-legend-label {
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        font-feature-settings:
-          "calt" 0,
-          "liga" 0;
-        font-variant-ligatures: none;
-      }
-      .cv-legend-count {
-        flex: none;
-        color: var(--cv-muted);
-      }
-
       /* Table (REQ-006 single-element view): toolbar, sticky header, virtualised rows, column filter popup */
       .cv-table-head {
         display: flex;
@@ -1554,7 +1457,7 @@
         --cv-pills-h: 0px;
         --cv-props-top: 16px;
       }
-      /* interim: below the 1.0.0 view bar (`Faerben nach`, `Schnitt`) while it exists (removed by TASK-016 / TASK-017c) */
+      /* interim: below the 1.0.0 view bar (`Schnitt`) while it exists (removed by TASK-017c) */
       .cv-canvas-box:has(> .cv-view-bar:not([hidden])) {
         --cv-props-top: 52px;
       }
@@ -2427,6 +2330,268 @@
         .cv-rule-form {
           grid-template-columns: 1fr 1fr;
         }
+      }
+
+      /*
+       * TASK-017a entries of the non-set filter sources in the filter area (REQ-004, DEC-21, CR-002): one grey rounded
+       * row per source (as the rule rows), text (a button for rules and search) and a remove button x.
+       */
+      .cv-fa-sources {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+        margin: 0 0 8px;
+        padding: 0;
+        list-style: none;
+      }
+      .cv-fa-sources[hidden] {
+        display: none;
+      }
+      .cv-fa-source {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+        padding: 2px 2px 2px 10px;
+        border-radius: 8px;
+        background: rgba(23, 24, 26, 0.05);
+        font-size: 13px;
+      }
+      .cv-fa-source-text {
+        flex: 1;
+        min-width: 0;
+        padding: 5px 0;
+        border: 0;
+        background: none;
+        color: var(--cv-ink);
+        font: inherit;
+        text-align: left;
+        overflow-wrap: anywhere;
+      }
+      button.cv-fa-source-text {
+        cursor: pointer;
+      }
+      button.cv-fa-source-text:hover {
+        color: var(--cv-accent);
+      }
+      .cv-fa-source-text:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: 2px;
+      }
+      .cv-fa-source .cv-fa-source-remove {
+        flex: none;
+        width: 28px;
+        height: 28px;
+      }
+
+      /*
+       * TASK-016 colouring panel `Faerben` (REQ-005, DEC-15, CR-002), copied from the reference (CSS ref L1824-1846;
+       * screenshots ref-08, ref-09): property list, chosen property with `Aendern`, modes, swatches, gradient, legend.
+       * The body is a column: the property list and the legend take the height left and scroll inside.
+       */
+      .cv-colour-panel .cv-float-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+      }
+      .cv-colour-step {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        gap: 10px;
+        min-height: 0;
+      }
+      .cv-colour-step > * {
+        flex: none;
+      }
+      .cv-colour-step > .cv-colour-list {
+        flex: 0 1 auto;
+        height: min(340px, 45vh);
+        min-height: 92px;
+        margin: 0 -16px;
+      }
+      .cv-colour-item {
+        justify-content: center;
+        gap: 1px;
+        border: 0;
+        background: none;
+        font: inherit;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .cv-colour-item > span {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .cv-colour-item:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: -2px;
+      }
+      .cv-colour-list .cv-colour-item.cv-on {
+        background: rgba(215, 38, 34, 0.08);
+        color: var(--cv-accent);
+      }
+      .cv-colour-param {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--cv-line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--cv-ink);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .cv-colour-param:hover {
+        border-color: var(--cv-faint);
+      }
+      .cv-colour-param:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: 1px;
+      }
+      .cv-colour-param-text {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .cv-colour-change {
+        flex: none;
+        color: var(--cv-accent);
+        font-weight: 600;
+      }
+      .cv-colour-modes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3px;
+        padding: 3px;
+        border-radius: 10px;
+        background: rgba(23, 24, 26, 0.06);
+      }
+      .cv-colour-mode {
+        min-height: 32px;
+        padding: 4px 8px;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--cv-muted);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .cv-colour-mode:hover {
+        color: var(--cv-accent);
+      }
+      .cv-colour-mode.cv-on {
+        background: #fff;
+        color: var(--cv-accent);
+        box-shadow: 0 1px 3px rgba(23, 24, 26, 0.15);
+      }
+      .cv-colour-mode:focus-visible,
+      .cv-swatch:focus-visible,
+      .cv-swatch-custom:focus-within {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: 2px;
+      }
+      .cv-colour-scale {
+        display: grid;
+        gap: 10px;
+      }
+      .cv-swatches {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .cv-swatch {
+        position: relative;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px var(--cv-line);
+        cursor: pointer;
+      }
+      .cv-swatch.cv-on {
+        box-shadow: 0 0 0 2px var(--cv-ink);
+      }
+      .cv-swatch-custom {
+        overflow: hidden;
+        background: conic-gradient(#d72622, #e8890c, #2e9b4f, #1f6fd1, #7b3fb5, #d72622);
+      }
+      .cv-swatch-custom input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        border: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .cv-gradient {
+        height: 10px;
+        border-radius: 999px;
+        box-shadow: inset 0 0 0 1px var(--cv-line);
+      }
+      .cv-gradient-labels {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: -6px;
+        color: var(--cv-muted);
+        font-size: 11px;
+      }
+      /* legend in the panel: 13 px value and count (UI-02, TASK-005 L2), 14 px swatch (REQ-005) */
+      .cv-colour-step > .cv-legend {
+        flex: 0 1 auto;
+        min-height: 60px;
+        overflow: auto;
+        border: 1px solid var(--cv-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.6);
+        font-size: 13px;
+      }
+      .cv-legend-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--cv-line);
+      }
+      .cv-legend-row:last-child {
+        border-bottom: 0;
+      }
+      .cv-legend-swatch {
+        flex: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        box-shadow: inset 0 0 0 1px rgba(23, 24, 26, 0.12);
+      }
+      .cv-legend-value {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .cv-legend-value.cv-empty-value {
+        color: var(--cv-muted);
+        font-style: italic;
+      }
+      .cv-legend-count {
+        flex: none;
+        color: var(--cv-muted);
+        font-size: 13px;
+      }
+      .cv-colour-note {
+        color: var(--cv-muted);
+        font-size: 12px;
       }
 
       /*
@@ -5823,8 +5988,11 @@
     <!-- DOM: layout, model list, messages, progress and status (builder and viewer file). ASCII only. -->
     <script type="text/plain" id="cv-ui-src">
       import {
+        COLOUR_MODES,
+        COLOUR_REPEAT_NOTE,
         EMPTY_LABEL,
         RULE_MODES,
+        SCALE_COLOURS,
         RULE_OPS,
         coreInfo,
         findRuleProperty,
@@ -6136,9 +6304,10 @@
       }
 
       /**
-       * Filter area (REQ-003, REQ-004): "+ Filtersatz", "Alle Filter zuruecksetzen" and the filter sets in order.
+       * Filter area (REQ-003, REQ-004): "+ Filtersatz", "Alle Filter zuruecksetzen", the entries of the active non-set
+       * filter sources (TASK-017a, see setSources) and the filter sets in order.
        * handlers: { add(), toggle(id, value, checked), resetSet(id), resetAll(), move(id, toIndex), step(id, delta),
-       * remove(id), collapse(id, collapsed) }.
+       * remove(id), collapse(id, collapsed), removeSource(id) and openSource(id) (optional, TASK-017a) }.
        */
       function createFilterArea(container, handlers) {
         const head = el("div", "cv-fa-head");
@@ -6155,9 +6324,14 @@
         resetAll.type = "button";
         resetAll.id = "cv-reset-all";
         resetAll.disabled = true;
+        // entries of the active non-set filter sources (REQ-004, TASK-017a): hidden / isolated elements, rules, search
+        const sources = el("ul", "cv-fa-sources");
+        sources.id = "cv-fa-sources";
+        sources.setAttribute("aria-label", "Weitere aktive Filter");
+        sources.hidden = true;
         const list = el("div", "cv-fa-sets");
         list.id = "cv-filtersets";
-        container.append(head, resetAll, list);
+        container.append(head, resetAll, sources, list);
         add.addEventListener("click", () => handlers.add());
         resetAll.addEventListener("click", () => handlers.resetAll());
 
@@ -6284,6 +6458,47 @@
           update(facets, anyActive) {
             for (const [id, set] of sets) set.update(facets.get(id));
             resetAll.disabled = !anyActive;
+          },
+          /**
+           * Entries of the active non-set filter sources above the filter sets (REQ-004, DEC-21; TASK-017a): items [{ id
+           * ('hidden' | 'isolated' | 'rules' | 'search'), text, opens (the text is a button that calls
+           * handlers.openSource(id), e.g. to open the in-viewer filter panel) }] in this order; each entry has a remove
+           * button x that calls handlers.removeSource(id). Texts are set as text only. An entry that keeps its id keeps
+           * its nodes (and the focus).
+           */
+          setSources(items) {
+            const old = new Map([...sources.children].map((node) => [node.dataset.source, node]));
+            const focusedAt = [...sources.children].findIndex((node) => node.contains(document.activeElement));
+            const nodes = items.map((item) => {
+              let node = old.get(item.id);
+              if (!node || node.dataset.opens !== String(Boolean(item.opens))) {
+                node = el("li", "cv-fa-source");
+                node.dataset.source = item.id;
+                node.dataset.opens = String(Boolean(item.opens));
+                const text = item.opens ? el("button", "cv-fa-source-text") : el("span", "cv-fa-source-text");
+                if (item.opens) {
+                  text.type = "button";
+                  text.title = "Filter anzeigen";
+                  text.addEventListener("click", () => handlers.openSource && handlers.openSource(item.id));
+                }
+                const remove = iconButton("close", "", "cv-fa-source-remove");
+                remove.addEventListener("click", () => handlers.removeSource && handlers.removeSource(item.id));
+                node.append(text, remove);
+              }
+              node.firstChild.textContent = item.text;
+              const remove = node.lastChild;
+              remove.title = item.text + " entfernen";
+              remove.setAttribute("aria-label", item.text + " entfernen");
+              return node;
+            });
+            sources.replaceChildren(...nodes);
+            sources.hidden = nodes.length === 0;
+            // a removed entry took the focus with it: keep it in the list (next entry) or on `Alle Filter zuruecksetzen`
+            if (focusedAt !== -1 && !sources.contains(document.activeElement)) {
+              const next = nodes[Math.min(focusedAt, nodes.length - 1)];
+              if (next) next.lastChild.focus();
+              else if (!resetAll.disabled) resetAll.focus();
+            }
           },
         };
       }
@@ -6436,29 +6651,17 @@
       }
 
       /**
-       * Interim 1.0.0 3D view controls (REQ-005; top right of the model) until TASK-016 / TASK-017c: `Faerben nach`
-       * and `Schnitt` (axis X / Y / Z; while a section is active a panel under it holds slider, flip and remove, so the
-       * bar stays one row at 1280 px, TASK-005 L4). The legend is placed in legendHost under the canvas (1.0.0 "legend
-       * under the model"; it never covers geometry, TASK-005 L1). CR-002 (TASK-015a): `Elemente ausserhalb des
-       * Filters: Geist | Ausblenden` moved into the pill `Filter entfernen` (ghost toggle) and `Ansicht einpassen` is
-       * replaced by `Fokus` in the 3D toolbar (createViewTools).
-       * handlers: { pickColour(), clearColour(), section(axis | null), sectionOffset(value), flip() }.
+       * Interim 1.0.0 3D view control (REQ-005; top right of the model) until TASK-017c: `Schnitt` (axis X / Y / Z;
+       * while a section is active a panel under it holds slider, flip and remove, so the bar stays one row at 1280 px,
+       * TASK-005 L4). CR-002: `Elemente ausserhalb des Filters: Geist | Ausblenden` moved into the pill `Filter
+       * entfernen` (ghost toggle) and `Ansicht einpassen` is replaced by `Fokus` in the 3D toolbar (TASK-015a);
+       * `Faerben nach` and the legend under the model are replaced by the colouring panel `Faerben` (TASK-016,
+       * createViewTools).
+       * handlers: { section(axis | null), sectionOffset(value), flip() }.
        */
-      function createViewControls(viewport, legendHost, handlers) {
+      function createViewControls(viewport, handlers) {
         const bar = el("div", "cv-view-bar");
         bar.id = "cv-view-bar";
-
-        const colourBox = el("div", "cv-view-group");
-        const colourButton = el("button", "cv-colour-btn");
-        colourButton.type = "button";
-        colourButton.id = "cv-colour";
-        const colourText = el("span", "cv-colour-text");
-        colourButton.append(icon("palette"), colourText);
-        colourButton.addEventListener("click", () => handlers.pickColour());
-        const colourClear = iconButton("close", "F\u00e4rbung entfernen", "cv-colour-clear");
-        colourClear.id = "cv-colour-clear";
-        colourClear.addEventListener("click", () => handlers.clearColour());
-        colourBox.append(colourButton, colourClear);
 
         const sectionBox = el("div", "cv-view-group cv-section");
         const sectionLabel = el("span", "cv-view-label cv-section-label", "Schnitt");
@@ -6493,31 +6696,11 @@
         sectionPanel.append(slider, flip, sectionOff);
         sectionBox.append(sectionLabel, axisSeg, sectionPanel);
 
-        bar.append(colourBox, sectionBox);
-
-        const legend = el("div", "cv-legend");
-        legend.id = "cv-legend";
-        legend.hidden = true;
-        const legendTitle = el("div", "cv-legend-title");
-        const legendList = el("ul", "cv-legend-list");
-        legend.append(legendTitle, legendList);
-        let legendKey = null; // title of the colouring the legend's kept height belongs to
+        bar.append(sectionBox);
         viewport.append(bar);
-        legendHost.append(legend);
 
         return {
           element: bar,
-          /** Label of the colouring property, or null (no colouring). */
-          setColouring(label) {
-            const text = label ? "F\u00e4rben nach: " + label : "F\u00e4rben nach";
-            // active: small `Faerben nach` over the property (two short lines keep the bar one row, L4)
-            if (label) colourText.replaceChildren(el("span", "cv-colour-kicker", "F\u00e4rben nach"), el("span", "cv-colour-value", label));
-            else colourText.replaceChildren(document.createTextNode(text));
-            colourButton.title = text;
-            colourButton.setAttribute("aria-label", text);
-            colourBox.classList.toggle("cv-on", Boolean(label));
-            colourClear.hidden = !label;
-          },
           /** Section { axis, offset, flipped } | null with the slider range { min, max } of the axis. */
           setSection(section, range) {
             for (const [axis, button] of Object.entries(axisButtons)) {
@@ -6536,46 +6719,11 @@
               flip.classList.toggle("cv-on", section.flipped);
             }
           },
-          /**
-           * Legend under the model: { title, entries [{ label, colour, count, kind }], more } or null. Values are text
-           * (labels from the model are set with textContent).
-           */
-          setLegend(data) {
-            legend.hidden = !data;
-            legendList.replaceChildren();
-            if (!data || data.title !== legendKey) {
-              // a new colouring starts with its own height
-              legend.style.minHeight = "";
-              legendKey = data ? data.title : null;
-            }
-            if (!data) return;
-            legendTitle.textContent = data.title;
-            for (const entry of data.entries) {
-              const item = el("li", "cv-legend-item");
-              item.dataset.colour = entry.colour;
-              item.dataset.kind = entry.kind;
-              const dot = el("span", "cv-dot cv-dot-on");
-              dot.style.background = entry.colour;
-              dot.setAttribute("aria-hidden", "true");
-              const label = el("span", "cv-legend-label", entry.label);
-              label.title = entry.label;
-              label.classList.toggle("cv-empty-value", entry.kind === "empty" || entry.kind === "multi");
-              item.append(dot, label, el("span", "cv-legend-count", formatCount(entry.count)));
-              legendList.append(item);
-            }
-            if (!data.entries.length) legendList.append(el("li", "cv-hint", "Keine Elemente im Filter."));
-            // at most COLOUR_LEGEND_LIMIT rows (TASK-012: one row per value since DEC-15 changed)
-            if (data.more) legendList.append(el("li", "cv-hint", "+" + formatCount(data.more) + " weitere Werte"));
-            /*
-             * The legend strip is part of the model area: a shorter legend would resize the 3D canvas, and a canvas
-             * resize redraws the whole view (about 280 ms in software WebGL) on every filter click. So during one
-             * colouring the legend keeps the largest height it had (NFR-001).
-             */
-            const height = legend.offsetHeight;
-            if (height > (parseFloat(legend.style.minHeight) || 0)) legend.style.minHeight = height + "px";
-          },
         };
       }
+
+      /** Row height of the colouring panel's property list (label over group, as the reference's suggestion items). */
+      const COLOUR_LIST_ROW_HEIGHT = 46;
 
       /** Debounce of the search field `Suchen nach Objekten` (REQ-012, ref SEARCH_DEBOUNCE_MS). */
       export const SEARCH_DEBOUNCE_MS = 250;
@@ -6590,13 +6738,16 @@
        * L1306-1376, L1394-1430, CSS L1739-1766, L1796-1861): title chip (top left), navigation hint, the round glass
        * toolbar `3D-Werkzeuge` (bottom centre) with `Fokus`, `Filter`, `Faerben`, the filter panel (kicker, panel
        * `Zuruecksetzen`, search `Suchen nach Objekten`, rule list, `+ Filter hinzufuegen`, status `X von Y Objekten
-       * sichtbar`), the colouring panel (empty until TASK-016) and the pill stack (bottom right) with the pill `Filter
-       * entfernen` (ghost toggle on its left, chevron `Filter anzeigen` on its right). `Filter` and `Faerben` panels
-       * exclude each other. Texts from the model (title, search) are set as text only.
+       * sichtbar`), the colouring panel (TASK-016, see setColouring) and the pill stack (bottom right) with the pill
+       * `Filter entfernen` (ghost toggle on its left, chevron `Filter anzeigen` on its right) and the pill `Einfaerbung
+       * entfernen` (chevron `Faerben anzeigen`). `Filter` and `Faerben` panels exclude each other. Texts from the model
+       * (title, search, property labels, values) are set as text only.
        * handlers: { focus(), mode('ghost' | 'hide'), search(text) (after the debounce), resetPanel() (panel
        * `Zuruecksetzen`), resetAll() (pill `Filter entfernen`), addRule(opener) (`+ Filter hinzufuegen`), editRule(index,
-       * opener) and removeRule(index) (rule rows, TASK-015b), panel(name | null) (optional: a panel was opened or
-       * closed) }.
+       * opener) and removeRule(index) (rule rows, TASK-015b), colour(key) (a property of the colouring list),
+       * colourMode('distinct' | 'scale'), scaleColour('#rrggbb') (a swatch or `Eigene Farbe`), clearColour() (`Entfernen`
+       * and the pill `Einfaerbung entfernen`; TASK-016), panel(name | null) (optional: a panel was opened or closed),
+       * clearIsolation() and clearHidden() (pills `Isolierung entfernen` / `Ausblendung entfernen`, TASK-017a) }.
        */
       function createViewTools(box, handlers) {
         const titleChip = el("div", "cv-title-chip");
@@ -6681,10 +6832,207 @@
           searchTimer = setTimeout(() => handlers.search(searchInput.value), SEARCH_DEBOUNCE_MS);
         });
 
-        // colouring panel (REQ-005 `Faerben`; content in TASK-016)
+        /*
+         * colouring panel (REQ-005 `Faerben`, DEC-15; TASK-016) as the reference (ref L1509-1631, CSS L1824-1846;
+         * screenshots ref-08, ref-09): kicker `Faerben` with the red link `Entfernen` while colouring is active; step 1
+         * the property list with the search `Parameter suchen` (label and group per entry, virtualised: catalogues
+         * reach thousands of properties); step 2 the chosen property with `Aendern`, the modes `Unterschiedliche
+         * Farben` | `Farbskala`, for `Farbskala` the swatches, `Eigene Farbe` and the gradient labelled with the first
+         * and last value, and the legend of the shown elements (14 px swatch, value, count; at most COLOUR_LEGEND_LIMIT
+         * rows, then `+<n> weitere Werte`; none: `Keine Werte vorhanden`) with the repeat note of DEC-15.
+         */
         const colour = floatPanel("cv-colour-panel", "F\u00e4rben", "F\u00e4rben");
+        colour.panel.classList.add("cv-colour-panel");
         colour.reset.textContent = "Entfernen";
         colour.reset.id = "cv-colour-reset";
+        colour.reset.addEventListener("click", () => handlers.clearColour());
+        // step 1: property list
+        const colourChoose = el("div", "cv-colour-step cv-colour-choose");
+        const colourSearchBox = el("label", "cv-float-search");
+        colourSearchBox.append(icon("search"));
+        const colourSearch = el("input");
+        colourSearch.type = "search";
+        colourSearch.id = "cv-colour-search";
+        colourSearch.placeholder = "Parameter suchen";
+        colourSearch.setAttribute("aria-label", "Parameter suchen");
+        colourSearch.autocomplete = "off";
+        colourSearch.spellcheck = false;
+        colourSearchBox.append(colourSearch);
+        const colourList = createVirtualList({
+          className: "cv-colour-list",
+          rowHeight: COLOUR_LIST_ROW_HEIGHT,
+          maxRows: 0,
+          createRow() {
+            const row = el("button", "cv-suggest-item cv-colour-item");
+            row.type = "button";
+            row.append(el("span", "cv-suggest-label"), el("span", "cv-suggest-group"));
+            return row;
+          },
+          updateRow(row, entry) {
+            const [label, group] = row.children;
+            row.dataset.key = entry.key;
+            const on = Boolean(colourData && colourData.current && colourData.current.key === entry.key);
+            row.classList.toggle("cv-on", on);
+            row.setAttribute("aria-pressed", String(on));
+            row.title = entry.header + (entry.group ? " (" + entry.group + ")" : "");
+            label.textContent = entry.header;
+            group.textContent = entry.group || "";
+          },
+        });
+        colourList.element.id = "cv-colour-list";
+        colourList.element.setAttribute("role", "group");
+        colourList.element.setAttribute("aria-label", "Parameter");
+        const colourNone = el("div", "cv-suggest-more", "Kein Parameter gefunden");
+        colourNone.hidden = true;
+        colourChoose.append(colourSearchBox, colourList.element, colourNone);
+        // step 2: chosen property, modes, scale colours, gradient, legend
+        const colourShow = el("div", "cv-colour-step cv-colour-show");
+        const param = el("button", "cv-colour-param");
+        param.type = "button";
+        param.id = "cv-colour-param";
+        param.title = "Anderen Parameter w\u00e4hlen";
+        const paramText = el("span", "cv-colour-param-text");
+        const paramLabel = el("span", "cv-suggest-label");
+        const paramGroup = el("span", "cv-suggest-group");
+        paramText.append(paramLabel, paramGroup);
+        param.append(paramText, el("span", "cv-colour-change", "\u00c4ndern"));
+        const modes = el("div", "cv-colour-modes");
+        modes.setAttribute("role", "group");
+        modes.setAttribute("aria-label", "Farbmodus");
+        const modeButtons = COLOUR_MODES.map(([mode, label]) => {
+          const button = el("button", "cv-colour-mode", label);
+          button.type = "button";
+          button.dataset.mode = mode;
+          button.addEventListener("click", () => handlers.colourMode(mode));
+          modes.append(button);
+          return button;
+        });
+        const scaleBox = el("div", "cv-colour-scale");
+        const swatches = el("div", "cv-swatches");
+        swatches.setAttribute("role", "group");
+        swatches.setAttribute("aria-label", "Skalenfarbe");
+        const swatchButtons = SCALE_COLOURS.map(([hex, name]) => {
+          const swatch = el("button", "cv-swatch");
+          swatch.type = "button";
+          swatch.dataset.colour = hex;
+          swatch.title = name;
+          swatch.setAttribute("aria-label", name);
+          swatch.style.background = hex;
+          swatch.addEventListener("click", () => handlers.scaleColour(hex));
+          swatches.append(swatch);
+          return swatch;
+        });
+        const custom = el("label", "cv-swatch cv-swatch-custom");
+        custom.title = "Eigene Farbe";
+        const picker = el("input");
+        picker.type = "color";
+        picker.id = "cv-colour-custom";
+        picker.setAttribute("aria-label", "Eigene Farbe");
+        // "change" fires when the picker closes; re-rendering on "input" would close it while dragging (as ref L1602)
+        picker.addEventListener("change", () => handlers.scaleColour(picker.value));
+        custom.append(picker);
+        swatches.append(custom);
+        const gradient = el("div", "cv-gradient");
+        gradient.id = "cv-colour-gradient";
+        const gradientLabels = el("div", "cv-gradient-labels");
+        const gradientFirst = el("span", "cv-gradient-first");
+        const gradientLast = el("span", "cv-gradient-last");
+        gradientLabels.append(gradientFirst, gradientLast);
+        scaleBox.append(swatches, gradient, gradientLabels);
+        const legend = el("div", "cv-legend");
+        legend.id = "cv-legend";
+        legend.setAttribute("role", "list");
+        legend.setAttribute("aria-label", "Legende");
+        const repeatNote = el("div", "cv-colour-note", COLOUR_REPEAT_NOTE);
+        repeatNote.id = "cv-colour-note";
+        colourShow.append(param, modes, scaleBox, legend, repeatNote);
+        colour.body.append(colourChoose, colourShow);
+
+        /*
+         * Colouring as the app reports it (setColouring): { entries (catalogue entries in catalogue order), current
+         * ({ key, label, group } | null), mode, colour (last chosen; also while nothing is coloured), gradient
+         * ({ from, to, first, last } | null), repeats, legend() -> { rows [{ kind, label, colour, count }], more } }.
+         * The panel shows the property list (step 1) while nothing is coloured or after `Aendern`, else the legend
+         * (step 2). It renders only while it is open (the legend is computed then, NFR-001).
+         */
+        let colourData = null;
+        let choosing = true;
+        let listEntries = null; // entries and query the property list shows
+        let listQuery = null;
+        function renderColourList(resetScroll) {
+          const entries = colourData ? colourData.entries : [];
+          const query = colourSearch.value;
+          if (entries !== listEntries || query !== listQuery) {
+            listEntries = entries;
+            listQuery = query;
+            const found = ruleProperties(entries, query, Infinity).items;
+            colourList.setItems(found, resetScroll);
+            colourNone.hidden = found.length > 0;
+          } else colourList.render();
+        }
+        function renderLegendView() {
+          const data = colourData;
+          paramLabel.textContent = data.current.label;
+          paramGroup.textContent = data.current.group || "";
+          paramGroup.hidden = !data.current.group;
+          for (const button of modeButtons) {
+            const on = button.dataset.mode === data.mode;
+            button.classList.toggle("cv-on", on);
+            button.setAttribute("aria-pressed", String(on));
+          }
+          scaleBox.hidden = data.mode !== "scale";
+          let known = false;
+          for (const swatch of swatchButtons) {
+            const on = swatch.dataset.colour === data.colour;
+            known = known || on;
+            swatch.classList.toggle("cv-on", on);
+            swatch.setAttribute("aria-pressed", String(on));
+          }
+          custom.classList.toggle("cv-on", !known);
+          if (document.activeElement !== picker) picker.value = data.colour;
+          const g = data.gradient;
+          gradient.style.background = g ? "linear-gradient(to right, " + g.from + ", " + g.to + ")" : "";
+          gradientFirst.textContent = g ? g.first : "";
+          gradientLast.textContent = g ? g.last : "";
+          const { rows, more } = data.legend();
+          const nodes = rows.map((entry) => {
+            const row = el("div", "cv-legend-row");
+            row.setAttribute("role", "listitem");
+            row.dataset.colour = entry.colour;
+            row.dataset.kind = entry.kind;
+            const swatch = el("span", "cv-legend-swatch");
+            swatch.style.background = entry.colour;
+            swatch.setAttribute("aria-hidden", "true");
+            const value = el("span", "cv-legend-value", entry.label);
+            value.classList.toggle("cv-empty-value", entry.kind !== "value");
+            row.append(swatch, value, el("span", "cv-legend-count", formatCount(entry.count)));
+            return row;
+          });
+          if (more) nodes.push(el("div", "cv-suggest-more cv-legend-more", "+" + formatCount(more) + " weitere Werte"));
+          if (!rows.length) nodes.push(el("div", "cv-suggest-more cv-legend-more", "Keine Werte vorhanden"));
+          legend.replaceChildren(...nodes);
+          repeatNote.hidden = !data.repeats;
+        }
+        function renderColour() {
+          if (open !== "colour" || !colourData) return;
+          const list = choosing || colourData.current === null;
+          colourChoose.hidden = !list;
+          colourShow.hidden = list;
+          if (list) renderColourList(false);
+          else renderLegendView();
+        }
+        colourSearch.addEventListener("input", () => renderColourList(true));
+        colourList.element.addEventListener("click", (event) => {
+          const entry = colourList.itemOf(event.target);
+          if (!entry) return;
+          choosing = false;
+          handlers.colour(entry.key);
+        });
+        param.addEventListener("click", () => {
+          choosing = true;
+          renderColour();
+          colourSearch.focus();
+        });
 
         // pill stack bottom right (spec 2 User interface order); TASK-015a adds `Filter entfernen`
         const pills = el("div", "cv-pills");
@@ -6709,7 +7057,52 @@
         pillShow.id = "cv-pill-filter-show";
         pillShow.addEventListener("click", () => openPanel("filter"));
         filterPill.append(ghostToggle, pillMain, pillShow);
-        pills.append(filterPill);
+        // pill `Einfaerbung entfernen` (REQ-005, TASK-016; ref L1524-1531): below `Filter entfernen` while colouring is
+        // active; its chevron `Faerben anzeigen` opens the colouring panel at the legend
+        const colourPill = el("div", "cv-pill");
+        colourPill.id = "cv-pill-colour";
+        colourPill.hidden = true;
+        const colourPillMain = el("button", "cv-pill-main");
+        colourPillMain.type = "button";
+        colourPillMain.id = "cv-pill-colour-reset";
+        colourPillMain.title = "Einf\u00e4rbung entfernen";
+        colourPillMain.append(icon("palette"), el("span", "cv-pill-label", "Einf\u00e4rbung entfernen"));
+        colourPillMain.addEventListener("click", () => handlers.clearColour());
+        const colourPillShow = iconButton("chevronDown", "F\u00e4rben anzeigen", "cv-pill-toggle");
+        colourPillShow.classList.remove("cv-icon-btn");
+        colourPillShow.id = "cv-pill-colour-show";
+        colourPillShow.addEventListener("click", () => showColourLegend());
+        colourPill.append(colourPillMain, colourPillShow);
+        // pills of the element tools (REQ-013, DEC-18; TASK-017a; ref L1016-1036, L1125-1135): `Isolierung entfernen`
+        // while isolation is active, `Ausblendung entfernen` while elements are hidden; below `Einfaerbung entfernen`
+        function toolPill(id, name, label, title, action) {
+          const pill = el("div", "cv-pill");
+          pill.id = id;
+          pill.hidden = true;
+          const main = el("button", "cv-pill-main");
+          main.type = "button";
+          main.id = id + "-reset";
+          main.title = title;
+          main.append(icon(name), el("span", "cv-pill-label", label));
+          main.addEventListener("click", () => handlers[action]());
+          pill.append(main);
+          return pill;
+        }
+        const isolatePill = toolPill(
+          "cv-pill-isolate",
+          "isolate",
+          "Isolierung entfernen",
+          "Alle Elemente wieder anzeigen",
+          "clearIsolation",
+        );
+        const hiddenPill = toolPill(
+          "cv-pill-hidden",
+          "hide",
+          "Ausblendung entfernen",
+          "Ausgeblendete Elemente wieder anzeigen",
+          "clearHidden",
+        );
+        pills.append(filterPill, colourPill, isolatePill, hiddenPill);
 
         box.append(titleChip, hint, filter.panel, colour.panel, pills, bar);
 
@@ -6729,7 +7122,14 @@
             button.classList.toggle("cv-on", key === open);
             button.setAttribute("aria-pressed", String(key === open));
           }
+          if (open === "colour") renderColour();
           if (handlers.panel) handlers.panel(open);
+        }
+        /** Opens the colouring panel at the legend of the current colouring (`Farbe nach Wert`, pill chevron). */
+        function showColourLegend() {
+          choosing = false;
+          if (open === "colour") renderColour();
+          else openPanel("colour");
         }
         filterButton.addEventListener("click", () => openPanel(open === "filter" ? null : "filter"));
         colourButton.addEventListener("click", () => openPanel(open === "colour" ? null : "colour"));
@@ -6800,6 +7200,19 @@
             }
           },
           /**
+           * Element tools (REQ-013, DEC-18; TASK-017a): pill `Isolierung entfernen` shown while state.isolating, pill
+           * `Ausblendung entfernen` while state.hidden (number of hidden elements) > 0.
+           */
+          setToolState(state) {
+            const isolating = Boolean(state.isolating);
+            const hiding = state.hidden > 0;
+            if (isolatePill.hidden === isolating || hiddenPill.hidden === hiding) {
+              isolatePill.hidden = !isolating;
+              hiddenPill.hidden = !hiding;
+              layoutPills();
+            }
+          },
+          /**
            * Rule rows (REQ-012, TASK-015b; ref L1394-1410): one row per rule `<Aktion>: <Eigenschaft> <vergleich>
            * \u201e<Wert>\u201c` (items: { mode, text } of describeRule, missing: property not loaded) with the action in red;
            * the row text (title `Filter bearbeiten`) calls handlers.editRule(index, button), its x (`Filter entfernen`)
@@ -6830,6 +7243,28 @@
               (next ? next.querySelector(".cv-rule-remove") : addRule).focus();
             }
           },
+          /**
+           * Colouring (REQ-005, DEC-15; TASK-016): data as described at colourData. Sets the `Faerben` dot, the link
+           * `Entfernen` and the pill `Einfaerbung entfernen` (shown exactly while colouring is active) and renders the
+           * open panel.
+           */
+          setColouring(data) {
+            const before = colourData && colourData.current ? colourData.current.key : null;
+            colourData = data;
+            const active = data.current !== null;
+            // no colouring: the list; a new colouring (list pick, `Farbe nach Wert`, configuration): its legend (as
+            // ref setColoring L1537-1539)
+            if (!active) choosing = true;
+            else if (data.current.key !== before) choosing = false;
+            colourButton.classList.toggle("cv-has-dot", active);
+            colour.reset.hidden = !active;
+            if (colourPill.hidden !== !active) {
+              colourPill.hidden = !active;
+              layoutPills();
+            }
+            renderColour();
+          },
+          showColourLegend,
           /** Sets the search field (reset, configuration) without a search event; a pending debounce is dropped. */
           setSearch(text) {
             clearTimeout(searchTimer);
@@ -7860,7 +8295,7 @@
        * (REQ-003) and `Farbe nach Wert` (REQ-005), shown on hover and keyboard focus. A group selection shows
        * `<n> Elemente ausgewaehlt` (and `Davon ohne 3D-Geometrie: <n>`) with the same buttons.
        * handlers: { clear(), hide(), isolate(), filterByValue(key, value), colourByValue(key) }; all but clear may be
-       * absent (the control is then inert; wired by TASK-016 / TASK-017b).
+       * absent (the control is then inert; `colourByValue` wired by TASK-016, the others by TASK-017b).
        */
       function createDetails(panel, handlers) {
         const collapsed = new Set();
@@ -8531,13 +8966,13 @@
 
         const center = el("div", "cv-center");
         center.id = "cv-center";
-        // model area: the canvas box (3D view, toolbar and overlay on top) and the legend strip under it (TASK-005 L1)
+        // model area: the canvas box (3D view with toolbar, panels and overlay on top). CR-002 (TASK-016): the legend is
+        // in the colouring panel, so the 1.0.0 legend strip under the canvas (TASK-005 L1) is gone
         const viewport = el("div", "cv-viewport");
         viewport.id = "cv-viewport";
         const canvasBox = el("div", "cv-canvas-box");
         canvasBox.id = "cv-canvas-box";
-        const legendStrip = el("div", "cv-legend-strip");
-        viewport.append(canvasBox, legendStrip);
+        viewport.append(canvasBox);
         const overlay = el("div", "cv-overlay");
         overlay.id = "cv-overlay";
         const overlayBox = el("div", "cv-overlay-box");
@@ -8550,7 +8985,7 @@
         overlayBox.append(overlayText, progressBar);
         overlay.append(overlayBox);
         canvasBox.append(overlay);
-        const viewControls = createViewControls(canvasBox, legendStrip, options.viewHandlers);
+        const viewControls = createViewControls(canvasBox, options.viewHandlers);
         // toolbar `Fokus` / `Filter` / `Faerben`, hint, title chip, filter panel and pills (REQ-005, REQ-012, CR-002)
         const viewTools = createViewTools(canvasBox, options.toolHandlers);
         // properties panel at the top right inside the 3D view (REQ-007, CR-002)
@@ -8736,6 +9171,8 @@
         }
 
         return {
+          /** Closes the filter drawer (below 1280 px; no effect above). */
+          closeDrawer: () => setDrawer(null),
           fileInput,
           loadButton,
           configInput,
@@ -10213,6 +10650,8 @@
         createColumnStore,
         defaultColumnWidth,
         legendRows,
+        markRows,
+        normaliseHexColour,
         evaluateFilters,
         exportSheet,
         facetCounts,
@@ -10281,6 +10720,8 @@
        * `HTML exportieren` actions), last ({ ok, fileName, bytes (file size), models, rows, ms } | { ok: false,
        * fileName, message, ms }) }; phase is "exporting" while it runs. viewer (viewer file only): { startMs (bootstrap
        * start -> ready, from performance.timeOrigin) }.
+       * tools (TASK-017a, REQ-013, DEC-18): { hidden (row keys of the hidden set), isolated (row keys of the isolated
+       * set, or null while no isolation is active) }.
        */
       const hook = {
         phase: "starting",
@@ -10313,6 +10754,7 @@
         },
         layout: null,
         view: null,
+        tools: { hidden: [], isolated: null },
         header: null,
         config: { loads: 0, saves: 0, last: null, lastSaved: null },
         export: { count: 0, last: null },
@@ -10368,9 +10810,13 @@
         // rules of the in-viewer filter panel (REQ-012, TASK-015b): [{ mode, key, op, value }] in list order (spec 4.3
         // { type: 'rule' }); `Markieren` rules are listed but no filter source (DEC-19)
         let rules = [];
+        // element tools (REQ-013, DEC-18; TASK-017a): hidden set and isolated set of row keys (session only); the
+        // isolated set is null while no isolation is active. Both are filter sources (spec 4.3 { type: 'keys' }).
+        let hiddenKeys = new Set();
+        let isolatedKeys = null;
         let colourKey = null;
-        // colouring mode and scale colour (DEC-15 start values; set by a configuration, DEC-20). The 1.0.0 control
-        // `Faerben nach` keeps them until the colouring panel of TASK-016 lets the user choose them.
+        // colouring mode and scale colour (DEC-15 start values): the last ones chosen in the colouring panel (TASK-016)
+        // or set by a configuration (DEC-20); a newly chosen property uses them
         let colourMode = DEFAULT_COLOUR_MODE;
         let scaleColourHex = DEFAULT_SCALE_COLOUR;
         let scheme = null; // currentScheme() for the current row set
@@ -10412,7 +10858,13 @@
                 .map((rule, i) => ({ id: "rule:" + i, type: "rule", ...rule }))
                 // a rule whose property is not loaded (model removed) is left out of evaluation (REQ-012, DEC-21)
                 .filter((rule) => !ruleMissing(rule)),
-            );
+            )
+            // hidden / isolated elements (DEC-18): shown = not hidden and (no isolation or isolated)
+            .concat(hiddenKeys.size ? [{ id: "keys:hide", type: "keys", mode: "exclude", keys: hiddenKeys }] : [])
+            .concat(isolatedKeys ? [{ id: "keys:isolate", type: "keys", mode: "include", keys: isolatedKeys }] : []);
+
+        /** Any filter source active (REQ-004) or any rule (also `Markieren` or not loaded): reset and pill offered. */
+        const anySource = (evaluation) => evaluation.filters.length > 0 || rules.length > 0;
 
         /** True for a rule whose property is not in the catalogue of the loaded models (REQ-012, DEC-21). */
         const ruleMissing = (rule) => rule.mode !== "text" && !catalog.has(rule.key);
@@ -10457,7 +10909,8 @@
               for (const item of facets.get(set.id).values) item.colour = scheme.valueColour(item.value) || "";
             }
           }
-          ui.filters.update(facets, evaluation.filters.length > 0);
+          ui.filters.update(facets, anySource(evaluation));
+          publishSources();
           sync3d();
           ui.status(indices.length, store.size, hook.modelCount);
           // in-viewer filter panel and pill (REQ-012): same X / Y as the status line; `Filter` dot and panel
@@ -10465,8 +10918,9 @@
           if (!indexing) ui.tools.setStatus(indices.length, store.size);
           ui.tools.setFilterState({
             textActive: searchText.trim() !== "" || rules.length > 0,
-            pill: evaluation.filters.length > 0 || rules.length > 0,
+            pill: anySource(evaluation),
           });
+          ui.tools.setToolState({ hidden: hiddenKeys.size, isolating: isolatedKeys !== null });
           ui.tools.setRules(rules.map((rule) => ({ ...describeRule(rule, catalog), missing: ruleMissing(rule) })));
           hook.filter.search = searchText;
           hook.filter.rules = rules.map((rule) => ({ ...rule }));
@@ -10475,7 +10929,12 @@
           const rows = store.rows;
           let keys = null;
           let plainFacets = null;
-          hook.filter.active = evaluation.filters.map((f) => ({ ...f, values: f.values ? f.values.slice() : undefined }));
+          hook.filter.active = evaluation.filters.map((f) => ({
+            ...f,
+            values: f.values ? f.values.slice() : undefined,
+            ...(f.keys ? { keys: [...f.keys] } : {}),
+          }));
+          hook.tools = { hidden: [...hiddenKeys], isolated: isolatedKeys ? [...isolatedKeys] : null };
           hook.filter.count = indices.length;
           hook.filter.total = store.size;
           // keys and facets are built only when read (tests, later tasks), not on every click
@@ -10508,6 +10967,79 @@
         function changed() {
           publishSets();
           refresh();
+        }
+
+        const elementCount = (n) => n.toLocaleString("de-DE") + (n === 1 ? " Element" : " Elemente");
+
+        /**
+         * Entries of the active non-set filter sources above the filter sets (REQ-004, DEC-21; TASK-017a), in this
+         * order: `Ausgeblendet: <n> Element(e)`, `Isoliert: <n> Element(e)`, `Filterregeln: <n>` (every rule, also
+         * `Markieren` and rules whose property is not loaded) and `Suche: \u201e<text>\u201c`.
+         */
+        function publishSources() {
+          const items = [];
+          if (hiddenKeys.size) items.push({ id: "hidden", text: "Ausgeblendet: " + elementCount(hiddenKeys.size) });
+          if (isolatedKeys) items.push({ id: "isolated", text: "Isoliert: " + elementCount(isolatedKeys.size) });
+          if (rules.length)
+            items.push({ id: "rules", text: "Filterregeln: " + rules.length.toLocaleString("de-DE"), opens: true });
+          if (searchText.trim())
+            items.push({ id: "search", text: "Suche: \u201e" + searchText.trim() + "\u201c", opens: true });
+          ui.filters.setSources(items);
+        }
+
+        /**
+         * `Ausblenden` (REQ-013, DEC-18): adds the elements (row keys of the current row set) to the hidden set. A
+         * selected element that stops being shown is deselected (sync3d).
+         */
+        function hideElements(keys) {
+          const known = keys.filter((key) => rowIndex.has(key));
+          if (!known.length) return;
+          hiddenKeys = new Set([...hiddenKeys, ...known]);
+          refresh();
+        }
+
+        /** `Isolieren` (REQ-013, DEC-18): the first starts the isolated set, each further one adds to it. */
+        function isolateElements(keys) {
+          const known = keys.filter((key) => rowIndex.has(key));
+          if (!known.length) return;
+          isolatedKeys = new Set([...(isolatedKeys || []), ...known]);
+          refresh();
+        }
+
+        /** Pills and filter-area entries: clears the hidden set and / or ends the isolation (DEC-18). */
+        function clearTools(hidden, isolated) {
+          const before = hiddenKeys.size > 0 || isolatedKeys !== null;
+          if (hidden) hiddenKeys = new Set();
+          if (isolated) isolatedKeys = null;
+          if (before) refresh();
+        }
+
+        /** Row keys of the current selection (element or group), for the properties panel buttons. */
+        const selectionKeys = () =>
+          selectedGroup ? selectedGroup.keys.slice() : selectedKey !== null ? [selectedKey] : [];
+
+        /**
+         * Drops keys that left the row set (model removed, IfcSpace switched off) from the hidden and isolated sets; an
+         * isolated set that becomes empty ends the isolation (DEC-18).
+         */
+        function pruneToolKeys() {
+          if (hiddenKeys.size) hiddenKeys = new Set([...hiddenKeys].filter((key) => rowIndex.has(key)));
+          if (isolatedKeys) {
+            const kept = [...isolatedKeys].filter((key) => rowIndex.has(key));
+            isolatedKeys = kept.length ? new Set(kept) : null;
+          }
+        }
+
+        /** 1 for every row removed by the element tools (hidden, or not isolated while isolating), or null. */
+        function toolMask() {
+          if (!hiddenKeys.size && !isolatedKeys) return null;
+          const rows = store.rows;
+          const out = new Uint8Array(rows.length);
+          for (let i = 0; i < rows.length; i++) {
+            const key = rows[i].key;
+            if (hiddenKeys.has(key) || (isolatedKeys !== null && !isolatedKeys.has(key))) out[i] = 1;
+          }
+          return out;
         }
 
         /** Keys of the cached columns still in use: filter sets, colouring, column filters, sort key and grouping. */
@@ -10958,16 +11490,16 @@
           engine.display({
             rows: store.rows,
             inside,
+            toolRemoved: toolMask(),
+            isolating: isolatedKeys !== null,
+            marked: markMask(),
             mode: viewMode,
             colourOf: scheme ? (i) => scheme.rowColour(i) : null,
             context: models.map((m) => ({ model: m.id, ids: m.contextIds })),
-            filterActive: view.evaluation !== null && view.evaluation.filters.length > 0,
+            // the context geometry follows the other filter sources; `Ausblenden` does not change it (REQ-013)
+            filterActive: view.evaluation !== null && view.evaluation.filters.some((f) => f.type !== "keys"),
           });
-          const entry = colourKey ? catalog.get(colourKey) : null;
-          const legend = scheme ? legendRows(colourLegend(scheme, view.indices)) : null;
-          ui.view.setLegend(
-            legend ? { title: entry ? entry.header : colourKey, entries: legend.rows, more: legend.more } : null,
-          );
+          publishColouring();
           if (selectedKey !== null) {
             const at = rowIndex.get(selectedKey);
             if (at === undefined || !inside[at]) select(null);
@@ -10982,6 +11514,39 @@
             else if (keys.length !== selectedGroup.keys.length) applyGroupSelection({ ...selectedGroup, keys });
           }
           publishView();
+        }
+
+        /**
+         * `Markieren` (REQ-012-AC9, DEC-19; TASK-016): 1 for the rows matching any `Markieren` rule whose property is
+         * loaded (a mark is no filter source; cv-3d paints only shown rows, selection > mark > colour), or null.
+         */
+        function markMask() {
+          const marks = rules.filter((rule) => rule.mode === "mark" && !ruleMissing(rule));
+          if (!marks.length) return null;
+          const bits = markRows(store, marks);
+          const out = new Uint8Array(store.size);
+          for (let i = 0; i < out.length; i++) out[i] = (bits[i >>> 5] >>> (i & 31)) & 1;
+          return out;
+        }
+
+        /**
+         * Colouring panel and pill (REQ-005, DEC-15; TASK-016): property list (catalogue order), current property, the
+         * last chosen mode and scale colour, gradient, repeat note and the legend of the shown elements (computed only
+         * when the open panel renders it).
+         */
+        function publishColouring() {
+          const entry = scheme ? catalog.get(colourKey) : null;
+          const current = scheme;
+          const indices = view.indices;
+          ui.tools.setColouring({
+            entries: hook.catalog,
+            current: entry ? { key: entry.key, label: entry.header, group: entry.group } : null,
+            mode: colourMode,
+            colour: scaleColourHex,
+            gradient: current ? current.gradient : null,
+            repeats: current ? current.repeats : false,
+            legend: () => (current ? legendRows(colourLegend(current, indices)) : { rows: [], more: 0 }),
+          });
         }
 
         function publishView() {
@@ -11096,12 +11661,19 @@
           return colourKey ? colourScheme(store, colourKey, { mode: colourMode, colour: scaleColourHex }) : null;
         }
 
+        /** Colours by property key in the last chosen mode and scale colour (DEC-15), or removes colouring (null). */
         function setColouring(key) {
           colourKey = key && catalog.has(key) ? key : null;
           scheme = currentScheme();
-          const entry = colourKey ? catalog.get(colourKey) : null;
-          ui.view.setColouring(entry ? entry.header : null);
           store.retain(keysInUse());
+          refresh();
+        }
+
+        /** Mode or scale colour of the colouring panel (DEC-15): kept for the next property, applied at once. */
+        function setColourOptions(mode, colour) {
+          if (mode !== undefined) colourMode = mode === "scale" ? "scale" : DEFAULT_COLOUR_MODE;
+          if (colour !== undefined) scaleColourHex = normaliseHexColour(colour) || scaleColourHex;
+          scheme = currentScheme();
           refresh();
         }
 
@@ -11171,6 +11743,9 @@
             hasGeometry: () => Boolean(engine.axisRange("Z")),
           });
           closePopup();
+          // loading any configuration clears hidden and isolated elements (session state of the previous view, DEC-20)
+          hiddenKeys = new Set();
+          isolatedKeys = null;
           if (apply.header) setHeader(apply.header);
           if (apply.filterSets) {
             const sets = apply.filterSets.map((s) => ({
@@ -11217,11 +11792,7 @@
           }
           if (d.colourMode !== undefined) colourMode = d.colourMode;
           if (d.scaleColour !== undefined) scaleColourHex = d.scaleColour;
-          if (d.colourBy !== undefined) {
-            colourKey = d.colourBy;
-            const entry = colourKey ? catalog.get(colourKey) : null;
-            ui.view.setColouring(entry ? entry.header : null);
-          }
+          if (d.colourBy !== undefined) colourKey = d.colourBy;
           if (d.colourBy !== undefined || d.colourMode !== undefined || d.scaleColour !== undefined)
             scheme = currentScheme();
           if (d.sectionPlane !== undefined) {
@@ -11672,6 +12243,31 @@
           resetAll() {
             filterHandlers.resetAll();
           },
+          /** All rules (x of the filter-area entry `Filterregeln`, REQ-004); the search text stays. */
+          removeRules() {
+            if (rules.length) setRules([]);
+          },
+          /** Pills `Isolierung entfernen` / `Ausblendung entfernen` (REQ-013-AC6). */
+          clearIsolation() {
+            clearTools(false, true);
+          },
+          clearHidden() {
+            clearTools(true, false);
+          },
+          /** Colouring panel (REQ-005, DEC-15; TASK-016): a property of the list, mode, scale colour, `Entfernen`. */
+          colour(key) {
+            setColouring(key);
+          },
+          colourMode(mode) {
+            if (mode !== colourMode) setColourOptions(mode, undefined);
+          },
+          scaleColour(hex) {
+            const next = normaliseHexColour(hex);
+            if (next && next !== scaleColourHex) setColourOptions(undefined, next);
+          },
+          clearColour() {
+            if (colourKey !== null) setColouring(null);
+          },
           panel(name) {
             // the index is built when the filter panel opens (as ref L1435-1449), so the first search is fast
             if (name === "filter" && store.size && !store.hasTextIndex())
@@ -11682,12 +12278,6 @@
         };
 
         const viewHandlers = {
-          pickColour() {
-            ui.openCatalogue([...catalog.values()], new Set(), (key) => setColouring(key), "F\u00e4rben nach");
-          },
-          clearColour() {
-            setColouring(null);
-          },
           section(axis) {
             if (!axis) return setSection(null);
             const range = engine.axisRange(axis);
@@ -11730,14 +12320,17 @@
             changed();
           },
           /**
-           * Clears every filter source: filter sets, the table's column filters, the rules and the search text
-           * (REQ-004-AC4; hidden / isolated elements follow with TASK-017a).
+           * Clears every filter source (REQ-004-AC4): filter sets, the table's column filters, the rules (all actions),
+           * the search text, hidden and isolated elements (DEC-18). Colouring, section, ghost toggle, filter sets
+           * themselves and columns stay.
            */
           resetAll() {
             for (const set of filterSets) set.selected = [];
             columnFilters.clear();
             rules = [];
             searchText = "";
+            hiddenKeys = new Set();
+            isolatedKeys = null;
             ui.tools.setSearch("");
             store.retain(keysInUse());
             publishTable();
@@ -11766,6 +12359,21 @@
             set.collapsed = collapsed;
             publishSets();
           },
+          /** x of a filter-area source entry (REQ-004-AC6): clears only that source. */
+          removeSource(id) {
+            if (id === "hidden") clearTools(true, false);
+            else if (id === "isolated") clearTools(false, true);
+            else if (id === "rules") toolHandlers.removeRules();
+            else if (id === "search") {
+              ui.tools.setSearch("");
+              setSearch("");
+            }
+          },
+          /** Text of the `Filterregeln` / `Suche` entry: opens the in-viewer filter panel (REQ-004, DEC-21). */
+          openSource() {
+            ui.closeDrawer();
+            ui.tools.openPanel("filter");
+          },
         };
 
         // the viewer shows its exported header from the first paint, not the app name (verification INC-1 UX minor 3)
@@ -11787,16 +12395,31 @@
           toolHandlers,
           tableHandlers,
           headerHandlers,
-          // properties panel (REQ-007): `Schliessen` clears the selection; `Ausblenden` / `Isolieren` and the row tools
-          // are inert until TASK-017b / TASK-016 wire them (spec 5, TASK-013)
-          propsHandlers: { clear: () => select(null) },
+          // properties panel (REQ-007): `Schliessen` clears the selection; `Farbe nach Wert` colours by the property in
+          // the current mode and opens the colouring panel at its legend (REQ-005-AC9, TASK-016); `Ausblenden` /
+          // `Isolieren` and `Nach Wert filtern` are inert until TASK-017b wires them (spec 5, TASK-013)
+          propsHandlers: {
+            clear: () => select(null),
+            // `Ausblenden` / `Isolieren` act on the selected element or on all elements of a selected group (REQ-013,
+            // DEC-18; TASK-017a wires them, TASK-017b tests the group and no-geometry cases)
+            hide: () => hideElements(selectionKeys()),
+            isolate: () => isolateElements(selectionKeys()),
+            colourByValue(key) {
+              if (!catalog.has(key)) return;
+              if (key !== colourKey) setColouring(key);
+              ui.tools.showColourLegend();
+            },
+          },
         });
         hook.layout = ui.layout;
         ui.overlay("3D-Ansicht wird gestartet ...");
         // a 3D pick selects the element and shows its table row (REQ-007-AC1/AC2); empty space clears (AC5)
-        const engine = createEngine(ui.viewport, options.workerUrl, { onPick: (key) => select(key, true) });
+        // the click menu's `Ausblenden` / `Isolieren` act on the clicked element (REQ-013-AC2, AC3)
+        const engine = createEngine(ui.viewport, options.workerUrl, {
+          onPick: (key) => select(key, true),
+          onMenu: (action, key) => (action === "isolate" ? isolateElements([key]) : hideElements([key])),
+        });
         ui.tools.setMode(viewMode);
-        ui.view.setColouring(null);
         ui.view.setSection(null, null);
         // Esc clears the selection (REQ-007-AC5); with nothing selected it closes an open toolbar panel and returns the
         // focus to its button (REQ-005 `Esc` order, completed in TASK-017c / TASK-019). An Escape handled by a dialog
@@ -11899,6 +12522,7 @@
           catalogOrder = new Map(hook.catalog.map((entry, i) => [entry.key, i]));
           store = createColumnStore(rows); // new row set: new column store (TASK-003)
           rowIndex = new Map(rows.map((row, i) => [row.key, i]));
+          pruneToolKeys(); // REQ-013-AC8: elements of a removed model (or IfcSpace switched off) leave both sets
           // REQ-001-AC3: filters on remaining values stay active; checked values no element has any more are dropped
           for (const set of filterSets) if (set.selected.length) set.selected = pruneSelection(store, set.key, set.selected);
           for (const [key, f] of [...columnFilters]) {
@@ -11909,10 +12533,7 @@
           }
           store.retain(keysInUse());
           // colouring follows the new row set (dropped if its property is gone)
-          if (colourKey && !catalog.has(colourKey)) {
-            colourKey = null;
-            ui.view.setColouring(null);
-          }
+          if (colourKey && !catalog.has(colourKey)) colourKey = null;
           scheme = currentScheme();
           // grouping follows the new row set: properties no element has any more are dropped (level 2 moves up)
           if (catalog.size && groupBy.some((key) => !catalog.has(key))) {

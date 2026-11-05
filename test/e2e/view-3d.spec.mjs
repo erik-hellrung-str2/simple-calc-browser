@@ -4,12 +4,15 @@
 // the engine itself (model.getVisible) or the drawn canvas. Expected key sets and counts come from
 // test/fixtures/reference-values.json (STEP-text derivation), not from the product.
 import { test, expect } from "../support/network-guard.mjs";
-import { REF, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
+import { REF, fixture, loadFiles, openBuilder, removeModel } from "../support/builder.mjs";
 import { addFilterSet, filterSet, toggleValue } from "../support/filter-area.mjs";
 import { clickRow } from "../support/selection.mjs";
 import {
   canvasShot,
+  clearColouring,
   colourBy,
+  colourPanel,
+  openColourPanel,
   idle,
   keysOfGuids,
   legendEntries,
@@ -124,7 +127,9 @@ test("@e2e @acceptance @REQ-005-AC1 elements outside the filter are ghosts; the 
   expect(errors).toEqual([]);
 });
 
-test("@e2e @acceptance @REQ-005-AC2 `Färben nach` Kategorie: one colour per category in state, legend and filter-set dots", async ({
+// CR-002 (TASK-016): colouring is chosen in the colouring panel `Färben` (property list, modes) and its legend is in the
+// panel; the 1.0.0 control `Färben nach` with the legend under the model is gone (REQ-005-AC2 changed CR-002)
+test("@e2e @acceptance @REQ-005-AC2 `Färben` → `Kategorie` → `Unterschiedliche Farben`: one colour per category in state, the panel legend and the filter-set dots", async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -132,7 +137,13 @@ test("@e2e @acceptance @REQ-005-AC2 `Färben nach` Kategorie: one colour per cat
   const rows = await rowsByKey(page);
   const ac = FZK_REF.filters["REQ-004-AC2"];
   await toggleValue(page, "Geschoss", ac.groundFloorStorey.Name);
-  await colourBy(page, "Kategorie", "Kategorie");
+  await colourBy(page, "Kategorie", "Kategorie", { keepOpen: true });
+  // the panel shows the chosen property and the start mode `Unterschiedliche Farben` (DEC-15)
+  await expect(colourPanel(page).locator("#cv-colour-param .cv-suggest-label")).toHaveText("Kategorie");
+  await expect(colourPanel(page).getByRole("button", { name: "Unterschiedliche Farben" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 
   const state = await viewState(page);
   // only elements inside the filter are coloured, and all of them
@@ -146,9 +157,8 @@ test("@e2e @acceptance @REQ-005-AC2 `Färben nach` Kategorie: one colour per cat
   }
   expect(new Set(Object.values(byKategorie)).size).toBe(Object.keys(byKategorie).length);
 
-  // legend: every category in the filter with its reference count and the colour of its elements
-  await expect(page.locator("#cv-legend")).toBeVisible();
-  await expect(page.locator("#cv-legend .cv-legend-title")).toHaveText("Kategorie");
+  // legend in the colouring panel: every category in the filter with its reference count and the colour of its elements
+  await expect(colourPanel(page).locator("#cv-legend")).toBeVisible();
   const legend = await legendEntries(page);
   const expected = { ...ac.kategorieCountsOnGroundFloor };
   const present = new Set([...rows.values()].map((r) => r.values.Kategorie));
@@ -176,8 +186,8 @@ test("@e2e @acceptance @REQ-005-AC2 `Färben nach` Kategorie: one colour per cat
   expect(after.selected).toEqual([]);
   expect(after.colours).toEqual(state.colours);
 
-  // remove the colouring: no colours, no legend, no dots
-  await page.getByRole("button", { name: "Färbung entfernen" }).click();
+  // remove the colouring (pill `Einfärbung entfernen`): no colours, no legend, no dots
+  await clearColouring(page);
   after = await viewState(page);
   expect(after.colours).toEqual({});
   await expect(page.locator("#cv-legend")).toBeHidden();
@@ -238,11 +248,17 @@ test("@e2e interim 1.0.0 `Schnitt` Z at mid-height, flip and slider set the equi
   expect(errors).toEqual([]);
 });
 
-test("@e2e @acceptance @REQ-005-AC4 `Färben nach` Material: an element with two materials gets `mehrere Werte`", async ({
+// REQ-005-AC4 (changed CR-002): in either mode of the colouring panel; `mehrere Werte` #6e6259 and `(leer)` #c4c7ca are
+// the DEC-15 colours (spec), the elements come from reference-values.json (Duplex two-material wall, FZK elements
+// without material)
+test("@e2e @acceptance @REQ-005-AC4 colouring by `Material` in both modes: an element with two materials gets the `mehrere Werte` colour, one without material the `(leer)` colour, and the panel legend lists both", async ({
   page,
 }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   const ac = REF["REQ-005-AC4"];
+  const without = REF["REQ-012-rules"]["REQ-012-AC4"].withoutMaterial;
+  const MULTI = "#6e6259";
+  const EMPTY = "#c4c7ca";
   const errors = await openWith(page, DUPLEX);
   const [key] = await keysOfGuids(page, [ac.element.GlobalId]);
   expect(key).not.toBeNull();
@@ -250,20 +266,52 @@ test("@e2e @acceptance @REQ-005-AC4 `Färben nach` Material: an element with two
   expect([...row.values.Material].sort()).toEqual(ac.element.Material);
   await colourBy(page, "Material", "Material");
 
-  const legend = await legendEntries(page);
-  const multi = legend.find((e) => e.label === "mehrere Werte");
-  expect(multi, "legend lists `mehrere Werte`").toBeTruthy();
-  expect(multi.kind).toBe("multi");
-  expect(multi.count, "every element with several materials").toBe(ac.elementsWithSeveralMaterials);
-  const state = await viewState(page);
-  expect(state.colours[key]).toBe(multi.colour);
-  const valueColours = legend.filter((e) => e.kind === "value").map((e) => e.colour);
-  expect(valueColours).not.toContain(multi.colour);
-  // dots of a Material filter set match the legend colours
-  const dots = await setDots(page, "Material");
-  for (const [label, colour] of Object.entries(dots)) {
-    const entry = legend.find((e) => e.label === label);
-    if (entry) expect(colour, label).toBe(entry.colour);
+  for (const mode of ["Unterschiedliche Farben", "Farbskala"]) {
+    await openColourPanel(page);
+    await colourPanel(page).getByRole("button", { name: mode, exact: true }).click();
+    await expect(colourPanel(page).getByRole("button", { name: mode, exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    const legend = await legendEntries(page);
+    const multi = legend.find((e) => e.label === "mehrere Werte");
+    expect(multi, `${mode}: legend lists \`mehrere Werte\``).toBeTruthy();
+    expect(multi.kind).toBe("multi");
+    expect(multi.colour).toBe(MULTI);
+    expect(multi.count, "every element with several materials").toBe(ac.elementsWithSeveralMaterials);
+    const state = await viewState(page);
+    expect(state.colours[key], mode).toBe(MULTI);
+    const valueColours = legend.filter((e) => e.kind === "value").map((e) => e.colour);
+    expect(valueColours).not.toContain(MULTI);
+    // dots of a Material filter set match the legend colours
+    const dots = await setDots(page, "Material");
+    for (const [label, colour] of Object.entries(dots)) {
+      const entry = legend.find((e) => e.label === label);
+      if (entry) expect(colour, label).toBe(entry.colour);
+    }
+  }
+
+  // an element without material (AC20-FZK-Haus; the colouring stays on Material while the models change)
+  await loadFiles(page, FZK);
+  await removeModel(page, "Ifc2x3_Duplex_Architecture");
+  await idle(page);
+  const emptyKeys = (await keysOfGuids(page, without.globalIds)).filter((k) => k !== null);
+  expect(emptyKeys.length).toBe(without.count);
+  const rows = await rowsByKey(page);
+  const withGeometry = emptyKeys.filter((k) => rows.get(k).geometry);
+  expect(withGeometry.length).toBeGreaterThan(0);
+  for (const mode of ["Farbskala", "Unterschiedliche Farben"]) {
+    await openColourPanel(page);
+    await colourPanel(page).getByRole("button", { name: mode, exact: true }).click();
+    const legend = await legendEntries(page);
+    const empty = legend.find((e) => e.label === "(leer)");
+    expect(empty, `${mode}: legend lists \`(leer)\``).toBeTruthy();
+    expect(empty.kind).toBe("empty");
+    expect(empty.colour).toBe(EMPTY);
+    expect(empty.count, "every element without material").toBe(without.count);
+    const state = await viewState(page);
+    for (const k of withGeometry) expect(state.colours[k], `${mode} ${k}`).toBe(EMPTY);
+    expect(legend.filter((e) => e.kind === "value").map((e) => e.colour)).not.toContain(EMPTY);
   }
   expect(errors).toEqual([]);
 });

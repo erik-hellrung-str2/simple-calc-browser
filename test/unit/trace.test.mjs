@@ -18,15 +18,12 @@ const INC2_PENDING = [
   // REQ-003 Configure filter sets (new CR-002)
   "REQ-003-AC4",
   "REQ-003-AC5",
-  // REQ-004 Filter with filter sets (new CR-002)
-  "REQ-004-AC5",
-  "REQ-004-AC6",
-  // REQ-005 3D model view (new CR-002; AC10 covered by TASK-015a)
-  "REQ-005-AC5",
+  // REQ-004 Filter with filter sets (new CR-002; AC5, AC6 covered by TASK-017a)
+  // REQ-005 3D model view (new CR-002; AC10 covered by TASK-015a; AC5, AC8, AC9 by TASK-016). AC7: TASK-016 tests it
+  // without the AC ID in the title except its `Schnitt X` part (the interim axis section bar stays until TASK-017c,
+  // which removes it and tags the AC)
   "REQ-005-AC6",
   "REQ-005-AC7",
-  "REQ-005-AC8",
-  "REQ-005-AC9",
   "REQ-005-AC11",
   "REQ-005-AC12",
   // REQ-006 Table (new CR-002; AC12 covered by TASK-013)
@@ -47,21 +44,14 @@ const INC2_PENDING = [
   "REQ-009-AC8",
   // REQ-010 Viewer file (new CR-002)
   "REQ-010-AC4",
-  // REQ-012 In-viewer rule filter (new requirement, CR-002; AC1, AC7 covered by TASK-015a; AC2-AC6, AC8, AC10, AC11
-  // by TASK-015b)
-  "REQ-012-AC9",
-  "REQ-012-AC12",
-  "REQ-012-AC13",
-  "REQ-012-AC14",
-  // REQ-013 Element tools (new requirement, CR-002)
+  // REQ-012 In-viewer rule filter (new requirement, CR-002): AC1, AC7 covered by TASK-015a; AC2-AC6, AC8, AC10, AC11
+  // by TASK-015b; AC9 by TASK-016; AC12-AC14 by TASK-017a. All covered.
+  // REQ-013 Element tools (new requirement, CR-002; AC2, AC4, AC5, AC6, AC8 covered by TASK-017a). AC3: TASK-017a tests
+  // its first part without the AC ID in the title; its second part (a second wall selected in the table while only the
+  // isolated wall is a table row) is an open question to the user (docs/tasks/TASK-017a.md, Open points)
   "REQ-013-AC1",
-  "REQ-013-AC2",
   "REQ-013-AC3",
-  "REQ-013-AC4",
-  "REQ-013-AC5",
-  "REQ-013-AC6",
   "REQ-013-AC7",
-  "REQ-013-AC8",
   "REQ-013-AC9",
   "REQ-013-AC10",
   "REQ-013-AC11",

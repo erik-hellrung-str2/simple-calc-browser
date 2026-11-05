@@ -21,6 +21,7 @@ import {
   tableUpdates,
   typeBound,
 } from "../support/table.mjs";
+import { panelAction } from "../support/tools.mjs";
 
 const FZK = fixture("AC20-FZK-Haus.ifc");
 const DUPLEX = fixture("Ifc2x3_Duplex_Architecture.ifc");
@@ -348,7 +349,9 @@ test("@e2e @acceptance @REQ-006-AC9 numeric column filter `von` 2 `bis` 5 is inc
   expect(errors).toEqual([]);
 });
 
-test("@e2e @acceptance @REQ-004-AC1 @REQ-004-AC4 filter sets and column filters drive table, 3D and filter sets together; reset clears both", async ({
+// REQ-004-AC4 (changed CR-002) is tagged on the full test in filter-area.spec.mjs (T5: a title names an AC only when the
+// test verifies all of it); this test keeps the table + 3D side of the reset, now with hidden / isolated elements.
+test("@e2e @acceptance @REQ-004-AC1 filter sets and column filters drive table, 3D and filter sets together; `Alle Filter zurücksetzen` clears them and hidden / isolated elements", async ({
   page,
 }) => {
   const errors = await openWith(page, FZK);
@@ -374,8 +377,14 @@ test("@e2e @acceptance @REQ-004-AC1 @REQ-004-AC4 filter sets and column filters 
   expect(await shownCounts(page, "Kategorie")).toEqual(kategorie);
   await expect(status(page)).toHaveText(`${de(ac2.expectedCount)} von ${de(FZK_TOTAL)} Elementen`);
   await page.keyboard.press("Escape");
+  // CR-002 (TASK-017a): one shown element hidden, another isolated (filter sources of REQ-004, DEC-18)
+  const shownKeys = await page.evaluate(() => window.__calc.filter.keys.slice());
+  await panelAction(page, shownKeys[0], "hide");
+  await panelAction(page, shownKeys[1], "isolate");
+  expect((await allTableRows(page)).map((r) => r.key)).toEqual([shownKeys[1]]);
+  expect((await viewState(page)).toolHidden).toEqual(geometry.filter((k) => k !== shownKeys[1]));
 
-  // AC4: `Alle Filter zuruecksetzen` clears filter sets and column filters
+  // AC4: `Alle Filter zuruecksetzen` clears filter sets, column filters and hidden / isolated elements
   await page.getByRole("button", { name: "Alle Filter zurücksetzen" }).click();
   await expect(status(page)).toHaveText(`${de(FZK_TOTAL)} von ${de(FZK_TOTAL)} Elementen`);
   expect((await allTableRows(page)).length).toBe(FZK_TOTAL);
@@ -387,6 +396,8 @@ test("@e2e @acceptance @REQ-004-AC1 @REQ-004-AC4 filter sets and column filters 
   state = await viewState(page);
   expect(state.opaque).toEqual(geometry);
   expect(state.ghost).toEqual([]);
+  expect(state.toolHidden).toEqual([]);
+  expect(await page.evaluate(() => window.__calc.tools)).toEqual({ hidden: [], isolated: null });
   await expect(page.getByRole("button", { name: "Alle Filter zurücksetzen" })).toBeDisabled();
   // a column filter alone also enables the reset
   await checkColumnValue(page, "Kategorie", "IfcSlab");

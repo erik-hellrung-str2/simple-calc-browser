@@ -6,7 +6,10 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
-import { viewState } from "../support/view-3d.mjs";
+import { colourBy, setGhosts, viewState } from "../support/view-3d.mjs";
+import { allTableRows, checkColumnValue } from "../support/table.mjs";
+import { addRule } from "../support/rules.mjs";
+import { afterUpdate, panelAction, sourceEntries, toolSets } from "../support/tools.mjs";
 import {
   addFilterSet,
   filterSet,
@@ -287,15 +290,57 @@ test("@e2e @acceptance @REQ-004-AC1 @REQ-004-AC2 @REQ-004-AC3 @REQ-004-AC4 check
   await expect(status(page)).toHaveText(`${de(shown.length)} von ${de(FZK_TOTAL)} Elementen`);
   await shot(page, "03-checked-zero-ac3");
 
-  // AC4: Alle Filter zuruecksetzen clears every value; every element passes again
+  // AC4 (changed CR-002, TASK-017a): besides the checked values a column filter, two rules (one `Markieren`), a search
+  // text, one hidden and one isolated element (of the three top-floor slabs shown now); colouring, a section and ghosts
+  // off must survive the reset
+  const slabs = await page.evaluate(() => window.__calc.filter.keys.slice());
+  expect(slabs.length).toBe(slabsOnTop);
+  await panelAction(page, slabs[0], "hide");
+  await panelAction(page, slabs[1], "isolate");
+  await checkColumnValue(page, "Kategorie", "IfcSlab");
+  await page.keyboard.press("Escape");
+  await addRule(page, { mode: "mark", key: "Kategorie", op: "eq", value: "IfcSlab" });
+  await addRule(page, { mode: "hide", key: "Kategorie", op: "eq", value: "IfcWindow" });
+  await afterUpdate(page, () => page.getByRole("searchbox", { name: "Suchen nach Objekten" }).fill("ifcslab"));
+  await page.getByRole("button", { name: "Filter", exact: true }).first().click(); // close the filter panel
+  await colourBy(page, "Kategorie", "Kategorie");
+  await page.getByRole("radio", { name: "Schnitt Z" }).click(); // interim section control (until TASK-017c)
+  await setGhosts(page, false);
+  expect(await sourceEntries(page)).toEqual([
+    "Ausgeblendet: 1 Element",
+    "Isoliert: 1 Element",
+    "Filterregeln: 2",
+    "Suche: \u201eifcslab\u201c",
+  ]);
+  await expect(status(page)).toHaveText(`1 von ${de(FZK_TOTAL)} Elementen`);
+  const kept = async () => {
+    const s = await viewState(page);
+    const v = await page.evaluate(() => window.__calc.view);
+    return { section: s.section, mode: s.mode, colourKey: v.colourKey, colourMode: v.colourMode };
+  };
+  const before = await kept();
+  expect(before.section).not.toBeNull();
+
+  // AC4: Alle Filter zuruecksetzen clears every filter source; every element passes again
   await page.getByRole("button", { name: "Alle Filter zurücksetzen" }).click();
   for (const key of ["Kategorie", "Geschoss", "Material"])
     expect((await shownValues(page, key)).filter((v) => v.checked)).toEqual([]);
   expect(await page.evaluate(() => window.__calc.filter.active)).toEqual([]);
+  expect(await page.evaluate(() => window.CalcTable.state().columnFilters)).toEqual([]);
+  expect(await page.evaluate(() => window.__calc.filter.rules)).toEqual([]);
+  expect(await page.evaluate(() => window.__calc.filter.search)).toBe("");
+  await expect(page.locator("#cv-object-search")).toHaveValue(""); // the field in the (closed) filter panel
+  expect(await toolSets(page)).toEqual({ hidden: [], isolated: null });
+  expect(await sourceEntries(page)).toEqual([]);
   expect(await page.evaluate(() => window.__calc.filter.keys.length)).toBe(FZK_TOTAL);
+  expect((await allTableRows(page)).length).toBe(FZK_TOTAL);
   expect(await shownCounts(page, "Kategorie")).toEqual(FZK_ROWS_BY_KATEGORIE);
   await expect(status(page)).toHaveText(`${de(FZK_TOTAL)} von ${de(FZK_TOTAL)} Elementen`);
   await expect(page.getByRole("button", { name: "Alle Filter zurücksetzen" })).toBeDisabled();
+  // colouring, section and ghost toggle unchanged
+  expect(await kept()).toEqual(before);
+  await expect(page.locator("#cv-pill-colour")).toBeVisible();
+  await expect(page.locator("#cv-ghost-toggle")).toHaveAttribute("aria-pressed", "false");
 });
 
 test("@e2e @acceptance @REQ-001-AC1 two models: a filter set `Modell` lists both names with their element counts", async ({
@@ -461,7 +506,7 @@ test("@e2e @UI data text keeps its characters (no calt/liga); search clear butto
     "#cv-table",
     "#cv-props",
     // verification INC-1 SYNC F4: the header title (default = Modell value, e.g. Ifc2x3_...), the legend and the
-    // grouping pickers that show property names (the colour picker text has its own rule)
+    // grouping pickers that show property names (CR-002, TASK-016: the legend is in the colouring panel)
     "#cv-title",
     "#cv-legend",
     ".cv-group-pick-text",

@@ -1,7 +1,8 @@
 // TASK-014 (CR-002, INC-2): the 3D side of the element tools and `Fokus`, through the cv-3d test hook
 // window.CalcView3D and real clicks on the canvas (spec REQ-013, REQ-005 `Fokus`, §4.4 CalcView.state(), DEC-18).
-// The menu actions `Ausblenden` / `Isolieren`, the pills and the toolbar are wired in TASK-015a / TASK-017a / TASK-017c,
-// so these tests cite the acceptance criteria in comments only (spec T5): REQ-013-AC1 (menu placement and following),
+// The menu actions `Ausblenden` / `Isolieren` (TASK-017a, tested in hide-isolate.spec.mjs), the pills and the toolbar
+// are wired in TASK-015a / TASK-017a / TASK-017c, so these tests cite the acceptance criteria in comments only (spec
+// T5): REQ-013-AC1 (menu placement and following),
 // REQ-013-AC9 (plane from the face normal, offset in `point`, replace), REQ-013-AC10 (handle drag and keys),
 // REQ-013-AC13 (menu below the point near the top), REQ-005-AC6 (`Fokus`). TASK-017c tags the end-to-end tests.
 // Expected values: GlobalIds and storeys from test/fixtures/reference-values.json (STEP-text derivation); planes,
@@ -153,10 +154,16 @@ test("@e2e a click on a wall opens the click menu at the clicked point; it follo
   state = await viewState(page);
   expect(state.selected).toEqual([key]);
   await expect(page.locator("#cv-props")).toBeVisible();
-  // the menu stubs: `Ausblenden` closes the menu and changes nothing in 3D until TASK-017a wires it
+  // `Ausblenden` closes the menu and hides the wall (wired by TASK-017a, REQ-013-AC2; was a stub that changed nothing);
+  // `Ausblendung entfernen` shows it again
   await clickElement(page, key);
   await menu.getByRole("menuitem", { name: "Ausblenden" }).click();
   await expect(menu).toBeHidden();
+  state = await viewState(page);
+  expect(state.opaque).toEqual([]);
+  expect(state.toolHidden).toContain(key);
+  await page.locator("#cv-pill-hidden-reset").click();
+  await idle(page);
   expect((await viewState(page)).opaque).toEqual([key]);
   // a click on empty space closes the menu (and clears the selection, REQ-007-AC5)
   await clickElement(page, key);
