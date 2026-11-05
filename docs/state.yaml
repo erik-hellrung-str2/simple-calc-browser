@@ -7,15 +7,15 @@ autonomy: autonomous
 modifiers: [ui, brownfield]
 cycle: 2
 
-current_phase: implementation
+current_phase: verification
 current_increment: INC-2
 resume_after: null
 
 phases:
   - {id: intake,         status: done, gate: human, approval: {by: human, date: 2026-11-04, note: "cycle 2 scoped intake = CR-002 with 8 user answers; CR-002 approved (Freigeben)"}}
   - {id: spec,           status: done, gate: agent, approval: {by: agent, date: 2026-11-04, note: "cycle-2 delta: 3 independent lenses, 2 fix passes, recheck PASS; user answer Q9"}}
-  - {id: implementation, status: in_progress, gate: agent}
-  - {id: verification,   status: todo, gate: agent}
+  - {id: implementation, status: done, gate: agent, approval: {by: agent, date: 2026-11-05, note: "INC-2: 15 tasks, each independently verified PASS; Q-004 answered by user"}}
+  - {id: verification,   status: in_progress, gate: agent}
   - {id: testing,        status: todo, gate: agent}
   - {id: release,        status: todo, gate: human}
 
@@ -26,7 +26,7 @@ blocking_questions: []
 active_changes: [CR-002]
 pending_release: []
 reserved_ids: {}
-next_action: "INC-2 implementation in waves (sequential, one HTML file): A 011a/011/012, B 013/014, C 015a/015b/016, D 017a/017b/017c, E 018/019/020; each task developer -> independent verifier -> fix/recheck; orchestrator commits per wave."
+next_action: "verification INC-2: three independent review lenses (SYNC, CODE, UX) -> resolution with regression tests -> independent recheck; then testing cycle 2. (was: INC-2 implementation in waves (sequential, one HTML file): A 011a/011/012, B 013/014, C 015a/015b/016, D 017a/017b/017c, E 018/019/020; each task developer -> independent verifier -> fix/recheck; orchestrator commits per wave.)"
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
@@ -52,3 +52,4 @@ history:
   - {date: 2026-11-04, event: "earlier cycle-1 phase approvals are in the history above (intake 2026-11-02, release 2026-11-03)"}
   - {date: 2026-11-04, event: "CR-002 approved by human (Freigeben); tag pre-CR-002; cycle 2 started (scoped intake = CR-002), spec delta in progress"}
   - {date: 2026-11-04, event: "cycle-2 spec delta approved at agent gate (independent review, recheck PASS); user answer Q9 (Filter entfernen resets everything); implementation INC-2 started"}
+  - {date: 2026-11-05, event: "INC-2 implementation done: TASK-011a..020 each independently verified PASS; Q-004 answered by user (Über Gruppe, REQ-013-AC3 corrected); NFR-001/003/005 re-measured and met; INC2_PENDING empty; verification INC-2 started"}
