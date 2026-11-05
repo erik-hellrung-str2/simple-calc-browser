@@ -8,15 +8,17 @@
 //      so the canvas fills the whole model area and the panel can be closed to free the view)
 //   L2 legend text 13-14 px
 //   L3 context geometry (IfcSite terrain) is neutral grey while colouring is active
-//   L4 the 3D toolbar stays one row at 1280 px with colouring and section active (CR-002, TASK-015a: the interim 1.0.0
-//      bar keeps `Schnitt` until TASK-017c; the ghost switch moved into the pill `Filter entfernen`, `Ansicht
-//      einpassen` became `Fokus` in the 3D toolbar; TASK-016: `Faerben nach` became the toolbar button `Faerben`)
+//   L4 the 3D toolbar stays one row at 1280 px with colouring and section active (CR-002, TASK-015a: the ghost switch
+//      moved into the pill `Filter entfernen`, `Ansicht einpassen` became `Fokus` in the 3D toolbar; TASK-016:
+//      `Faerben nach` became the toolbar button `Faerben`; TASK-017c: the 1.0.0 view bar with `Schnitt` X / Y / Z is
+//      gone, the section is the click section with the pill `Schnitt entfernen`, so L4 measures the 3D toolbar)
 // This file runs with real (classic) scrollbars: Playwright's headless default hides them, which hid F1.
 import { test, expect } from "../support/network-guard.mjs";
 import { fixture, loadFiles, openBuilder } from "../support/builder.mjs";
 import { addFilterSet, filterSet, toggleValue } from "../support/filter-area.mjs";
 import { clearColouring, colourBy, idle, legendEntries, setGhosts, viewState } from "../support/view-3d.mjs";
 import { LONG_NAME, longFixture } from "../support/long-fixture.mjs";
+import { anyPickable, cutAt } from "../support/tools.mjs";
 
 test.use({ launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] } });
 test.describe.configure({ timeout: 180_000 });
@@ -201,10 +203,12 @@ test("@e2e @UI L4 the 3D toolbar stays one row at 1280 px with colouring (long p
   await loadFiles(page, FZK);
   await idle(page);
   await colourBy(page, "NetVolume", "BaseQuantities.NetVolume");
-  await page.getByRole("radio", { name: "Schnitt Z" }).click();
+  // section: `Schneiden` in the click menu (TASK-017c; was the interim 1.0.0 `Schnitt Z` of the removed view bar)
+  await cutAt(page, await anyPickable(page));
+  await page.keyboard.press("Escape");
   await idle(page);
   const m = await page.evaluate(() => {
-    const bar = document.getElementById("cv-view-bar");
+    const bar = document.getElementById("cv-toolbar");
     const box = document.getElementById("cv-canvas-box").getBoundingClientRect();
     const kids = [...bar.children].map((c) => c.getBoundingClientRect());
     return {
@@ -212,26 +216,25 @@ test("@e2e @UI L4 the 3D toolbar stays one row at 1280 px with colouring (long p
       tops: kids.map((r) => Math.round(r.top)),
       lefts: kids.map((r) => r.left),
       rights: kids.map((r) => r.right),
-      box: { left: box.left, right: box.right },
-      panel: document.getElementById("cv-section-panel").getBoundingClientRect().toJSON(),
-      barBottom: bar.getBoundingClientRect().bottom,
+      bar: bar.getBoundingClientRect().toJSON(),
+      box: { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
     };
   });
+  expect(m.tops.length).toBe(3);
   expect(new Set(m.tops).size, "one row").toBe(1);
-  expect(m.barHeight).toBeLessThanOrEqual(34);
-  expect(Math.min(...m.lefts)).toBeGreaterThanOrEqual(m.box.left);
-  expect(Math.max(...m.rights)).toBeLessThanOrEqual(m.box.right);
+  expect(m.barHeight).toBeLessThanOrEqual(56);
+  expect(m.bar.left).toBeGreaterThanOrEqual(m.box.left);
+  expect(m.bar.right).toBeLessThanOrEqual(m.box.right);
+  expect(m.bar.bottom).toBeLessThanOrEqual(m.box.bottom);
   for (let i = 1; i < m.lefts.length; i++) expect(m.lefts[i]).toBeGreaterThan(m.rights[i - 1]); // no overlap
-  // the section panel (slider, flip, remove) sits under the bar, inside the 3D view
-  expect(m.panel.top).toBeGreaterThanOrEqual(m.barBottom);
-  expect(m.panel.right).toBeLessThanOrEqual(m.box.right);
-  await expect(page.getByRole("slider", { name: "Schnittposition" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Schnitt umkehren" })).toBeVisible();
-  // the colouring is not in this bar: it is shown by the pill `Einfärbung entfernen` and the colouring panel (CR-002,
-  // TASK-016); `Fokus` is in the 3D toolbar (CR-002), not in this bar
-  await expect(page.locator("#cv-view-bar #cv-colour")).toHaveCount(0);
+  // the 1.0.0 view bar with `Schnitt` X / Y / Z, slider and flip is gone (CR-002); colouring and section are shown by
+  // the pills `Einfärbung entfernen` and `Schnitt entfernen`, `Fokus` is in the 3D toolbar
+  await expect(page.locator("#cv-view-bar")).toHaveCount(0);
+  await expect(page.getByRole("slider", { name: "Schnittposition" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Schnitt umkehren" })).toHaveCount(0);
   await expect(page.locator("#cv-pill-colour")).toBeVisible();
-  await expect(page.locator("#cv-view-bar").getByRole("button", { name: "Ansicht einpassen" })).toHaveCount(0);
+  await expect(page.locator("#cv-pill-section")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ansicht einpassen" })).toHaveCount(0);
   await expect(
     page.getByRole("toolbar", { name: "3D-Werkzeuge" }).getByRole("button", { name: "Fokus" }),
   ).toBeVisible();

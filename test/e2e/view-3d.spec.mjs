@@ -195,62 +195,10 @@ test("@e2e @acceptance @REQ-005-AC2 `Färben` → `Kategorie` → `Unterschiedli
   expect(errors).toEqual([]);
 });
 
-// REQ-005-AC3 is retired by CR-002 (the click section of REQ-013 replaces the X / Y / Z section; spec 2). Until
-// TASK-017c removes the 1.0.0 axis controls they still drive the section, which cv-3d now keeps as a plane (TASK-014,
-// spec 4.4, DEC-20 conversion: point 0 except the axis component = offset, normal -axis, +axis when flipped).
-test("@e2e interim 1.0.0 `Schnitt` Z at mid-height, flip and slider set the equivalent section plane; the canvas changes", async ({
-  page,
-}) => {
-  test.setTimeout(180_000);
-  const errors = await openWith(page, FZK);
-  const without = await canvasShot(page);
+// REQ-005-AC3 is retired by CR-002 (the click section of REQ-013 replaces the X / Y / Z section; spec 2). TASK-017c
+// removed the interim 1.0.0 axis controls and their test (`Schnitt` X / Y / Z, slider, flip); the click section is
+// tested in element-tools-3d.spec.mjs (REQ-013-AC9, AC10) and grouping.spec.mjs (REQ-013-AC11).
 
-  await page.getByRole("radio", { name: "Schnitt Z" }).click();
-  const range = await page.evaluate(() => window.CalcView.axisRange("Z"));
-  expect(range.max - range.min).toBeGreaterThan(3); // a two-storey house
-  const mid = (range.min + range.max) / 2;
-  let state = await viewState(page);
-  expect(state.section).toEqual({ point: [0, 0, mid], normal: [0, 0, -1] });
-  await expect(page.getByRole("slider", { name: "Schnittposition" })).toBeVisible();
-  const withSection = await canvasShot(page);
-  const d1 = await pixelDifference(page, without, withSection);
-  expect(d1, "section changes the canvas").toBeGreaterThan(0.01);
-
-  await page.getByRole("button", { name: "Schnitt umkehren" }).click();
-  state = await viewState(page);
-  expect(state.section).toEqual({ point: [0, 0, mid], normal: [0, 0, 1] });
-  const flipped = await canvasShot(page);
-  expect(await pixelDifference(page, withSection, flipped), "flip shows the other part").toBeGreaterThan(0.01);
-
-  // slider: offset follows
-  const low = range.min + (range.max - range.min) * 0.25;
-  await page.getByRole("slider", { name: "Schnittposition" }).evaluate((input, v) => {
-    input.value = String(v);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  }, low);
-  state = await viewState(page);
-  expect(state.section.normal).toEqual([0, 0, 1]);
-  expect(state.section.point.slice(0, 2)).toEqual([0, 0]);
-  expect(Math.abs(state.section.point[2] - low)).toBeLessThanOrEqual((range.max - range.min) / 1000);
-
-  // X axis: mid of the X range
-  await page.getByRole("radio", { name: "Schnitt X" }).click();
-  const rx = await page.evaluate(() => window.CalcView.axisRange("X"));
-  state = await viewState(page);
-  expect(state.section).toEqual({ point: [(rx.min + rx.max) / 2, 0, 0], normal: [-1, 0, 0] });
-
-  await page.getByRole("button", { name: "Schnitt entfernen" }).click();
-  state = await viewState(page);
-  expect(state.section).toBeNull();
-  await expect(page.getByRole("slider", { name: "Schnittposition" })).toBeHidden();
-  const back = await canvasShot(page);
-  expect(await pixelDifference(page, without, back), "back to the uncut view").toBeLessThan(0.005);
-  expect(errors).toEqual([]);
-});
-
-// REQ-005-AC4 (changed CR-002): in either mode of the colouring panel; `mehrere Werte` #6e6259 and `(leer)` #c4c7ca are
-// the DEC-15 colours (spec), the elements come from reference-values.json (Duplex two-material wall, FZK elements
-// without material)
 test("@e2e @acceptance @REQ-005-AC4 colouring by `Material` in both modes: an element with two materials gets the `mehrere Werte` colour, one without material the `(leer)` colour, and the panel legend lists both", async ({
   page,
 }) => {
@@ -395,7 +343,8 @@ test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and 
   expect(state.selected).toEqual([]);
   await expect(details).toBeHidden();
 
-  // ... and so does Esc (but not an Escape that closes a dialog)
+  // ... and so does Esc (but not an Escape that closes a dialog); since CR-002 (REQ-007-AC5 changed, TASK-017c) the
+  // 3D click also opens the click menu, which the first Esc closes alone, the second clears the selection
   await page.mouse.click(...hit);
   expect((await viewState(page)).selected).toEqual([key]);
   await page.locator("#cv-add-filterset").click();
@@ -403,6 +352,10 @@ test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and 
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect((await viewState(page)).selected, "Escape in a dialog keeps the selection").toEqual([key]);
+  await expect(page.locator('#cv-pick [role="menu"]')).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator('#cv-pick [role="menu"]')).toBeHidden();
+  expect((await viewState(page)).selected, "the first Esc closes only the click menu").toEqual([key]);
   await page.keyboard.press("Escape");
   expect((await viewState(page)).selected).toEqual([]);
   await expect(details).toBeHidden();
@@ -417,8 +370,8 @@ test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and 
   expect(errors).toEqual([]);
 });
 
-// REQ-007-AC4, panel part (TASK-013): the buttons `Ausblenden` / `Isolieren` of that AC are verified and tagged in
-// TASK-017b (spec T5: a title names an AC only when the test verifies the whole AC)
+// REQ-007-AC4, panel part (TASK-013): the whole AC incl. the buttons `Ausblenden` / `Isolieren` is verified and tagged
+// in test/e2e/panel-actions.spec.mjs (TASK-017b; spec T5: a title names an AC only when the test verifies the whole AC)
 test("@e2e @REQ-007 an element without geometry, clicked in the table, shows its properties panel with the no-geometry hint", async ({
   page,
 }) => {

@@ -9,14 +9,17 @@ import { REF, fixture, loadFiles, openBuilder, removeModel } from "../support/bu
 import { shownCounts, shownValues, toggleValue } from "../support/filter-area.mjs";
 import { colourBy, idle, keysOfGuids, rowsByKey, setGhosts, viewState } from "../support/view-3d.mjs";
 import { allTableRows, checkColumnValue } from "../support/table.mjs";
+import { setView } from "../support/grouping.mjs";
 import { addRule, filterPanel, openFilterPanel, ruleTexts, toolbar } from "../support/rules.mjs";
 import {
   afterUpdate,
   clickMenu,
+  cutAt,
   firstPickable,
   isolateTogether,
   menuAction,
   panelAction,
+  selectGroupOf,
   shownPills,
   sourceEntries,
   sourceEntry,
@@ -101,11 +104,11 @@ test("@e2e @acceptance @REQ-013-AC2 `Ausblenden` in the click menu removes the w
   expect(errors).toEqual([]);
 });
 
-// REQ-013-AC3 (first part; the AC stays in INC2_PENDING, see docs/tasks/TASK-017a.md "Open points": its second part
-// selects a second wall in the table while only the isolated wall is a table row): `Isolieren` in the click menu.
-// The later `Isolieren` that adds to the set is driven here through the selection seam CalcView.select, which can select
-// an element the table no longer shows.
-test("@e2e `Isolieren` in the click menu: only that wall is opaque, every other element with geometry tool-hidden, context hidden, one table row, entry `Isoliert: 1 Element`, pill shown, selection and panel stay; a further `Isolieren` adds", async ({
+// REQ-013-AC3 (corrected 2026-11-05, Q-004 `Über Gruppe`): `Isolieren` in the click menu of a wall; then, with no
+// isolation active, a group row with two walls and `Isolieren` in the properties panel. The DEC-18 adding semantics
+// (a further `Isolieren` adds) is checked in between through the selection seam CalcView.select, which can select an
+// element the table no longer shows (no UI path, see docs/tasks/TASK-017a.md).
+test("@e2e @acceptance @REQ-013-AC3 `Isolieren` in the click menu: only that wall is opaque, every other element with geometry tool-hidden, context hidden, one table row, entry `Isoliert: 1 Element`, pill shown, selection and panel stay; with no isolation active, a group row with two walls and `Isolieren` in the panel show both walls, entry `Isoliert: 2 Elemente`", async ({
   page,
 }) => {
   const errors = await openWith(page, FZK);
@@ -148,6 +151,39 @@ test("@e2e `Isolieren` in the click menu: only that wall is opaque, every other 
   await panelAction(page, second, "isolate");
   expect((await viewState(page)).opaque).toEqual([second]);
   expect(await sourceEntries(page)).toEqual(["Isoliert: 1 Element"]);
+
+  // AC3 second part: no isolation active, a group row with two walls selected, `Isolieren` in the properties panel
+  await afterUpdate(page, () => page.locator("#cv-pill-isolate-reset").click());
+  expect((await toolSets(page)).isolated).toBeNull();
+  expect(await sourceEntries(page)).toEqual([]);
+  const pair = WALLS.map((w, i) => ({ guid: w.GlobalId, key: wallKeys[i] }))
+    .filter((w) => w.key !== first.key && w.key !== second)
+    .slice(0, 2);
+  const pairKeys = sorted(pair.map((w) => w.key));
+  const group = await selectGroupOf(
+    page,
+    pair.map((w) => w.guid),
+  );
+  const groupRow = await page.evaluate((id) => window.__calc.table.display.find((r) => r.id === id), group);
+  expect(groupRow.type).toBe("group");
+  expect(groupRow.count).toBe(2);
+  expect((await viewState(page)).selected).toEqual(pairKeys);
+  expect((await toolSets(page)).isolated).toBeNull();
+  await afterUpdate(page, () => page.locator("#cv-props-isolate").click());
+  expect((await toolSets(page)).isolated).toEqual(pairKeys);
+  expect(await sourceEntries(page)).toEqual(["Isoliert: 2 Elemente"]);
+  await expect(page.locator("#cv-pill-isolate")).toBeVisible();
+  // both walls shown, independent of the GlobalId ticks used to form the group: clear them, back to single elements
+  await afterUpdate(page, () => page.getByRole("button", { name: "Auswahl zurücksetzen: GlobalId" }).click());
+  await setView(page, "Einzelelemente");
+  await idle(page);
+  s = await viewState(page);
+  expect(s.opaque).toEqual(pairKeys);
+  expect(s.ghost).toEqual([]);
+  expect(s.toolHidden).toEqual(geometry.filter((k) => !pairKeys.includes(k)));
+  expect(sorted((await allTableRows(page)).map((r) => r.key))).toEqual(pairKeys);
+  await expect(status(page)).toHaveText(`2 von ${de(Y)} Elementen`);
+  expect(await sourceEntries(page)).toEqual(["Isoliert: 2 Elemente"]);
   expect(errors).toEqual([]);
 });
 
@@ -482,7 +518,17 @@ test("@e2e @acceptance @REQ-012-AC12 pill `Filter entfernen`: hidden without fil
   await afterUpdate(page, () => page.getByRole("button", { name: "Alle Filter zurücksetzen" }).click());
 
   // the state of REQ-004-AC4, reset once by `Alle Filter zurücksetzen` and once by the pill: the same result
-  await page.getByRole("radio", { name: "Schnitt Z" }).click(); // interim section control (until TASK-017c)
+  // a section: `Schneiden` in the click menu of a wall (TASK-017c; was the interim `Schnitt Z`)
+  await cutAt(
+    page,
+    await firstPickable(
+      page,
+      await keysOfGuids(
+        page,
+        TOOLS.walls.map((w) => w.GlobalId),
+      ),
+    ),
+  );
   await ac4State(page);
   await setGhosts(page, false);
   await afterUpdate(page, () => page.getByRole("button", { name: "Alle Filter zurücksetzen" }).click());

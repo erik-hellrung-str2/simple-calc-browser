@@ -845,56 +845,6 @@
         font-size: 12px;
       }
 
-      /* interim 1.0.0 3D view control `Schnitt` (REQ-005; top right of the model) until TASK-017c */
-      .cv-view-bar {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        left: 10px;
-        display: flex;
-        flex-wrap: nowrap;
-        justify-content: flex-end;
-        align-items: center;
-        gap: 6px;
-        pointer-events: none;
-        z-index: 2;
-      }
-      .cv-view-group {
-        flex: none;
-        pointer-events: auto;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 32px;
-        padding: 0 8px;
-        border: 1px solid var(--cv-line);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.94);
-        box-shadow: 0 1px 3px rgba(23, 24, 26, 0.08);
-        color: var(--cv-ink);
-        font: inherit;
-        font-size: 13px;
-      }
-      .cv-view-group.cv-on {
-        border-color: var(--cv-accent);
-      }
-      .cv-view-label .cv-icon {
-        width: 16px;
-        height: 16px;
-        color: var(--cv-muted);
-      }
-      .cv-view-label {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        color: var(--cv-muted);
-        font-size: 12px;
-        white-space: nowrap;
-      }
-      .cv-view-group .cv-icon-btn {
-        width: 24px;
-        height: 24px;
-      }
       .cv-seg {
         display: inline-flex;
         border: 1px solid var(--cv-line);
@@ -925,31 +875,6 @@
       .cv-seg-btn:focus-visible {
         outline: 2px solid var(--cv-accent);
         outline-offset: -2px;
-      }
-      .cv-section {
-        position: relative;
-      }
-      /* slider, flip and remove of an active section: a panel under the `Schnitt` group (bar stays one row, L4) */
-      .cv-section-panel {
-        position: absolute;
-        top: calc(100% + 6px);
-        right: -1px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        height: 32px;
-        padding: 0 6px 0 10px;
-        border: 1px solid var(--cv-line);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 1px 3px rgba(23, 24, 26, 0.08);
-      }
-      .cv-section-slider {
-        width: 160px;
-        accent-color: var(--cv-accent);
-      }
-      .cv-section-flip.cv-on {
-        color: var(--cv-accent);
       }
       /* Table (REQ-006 single-element view): toolbar, sticky header, virtualised rows, column filter popup */
       .cv-table-head {
@@ -1456,10 +1381,6 @@
       .cv-canvas-box {
         --cv-pills-h: 0px;
         --cv-props-top: 16px;
-      }
-      /* interim: below the 1.0.0 view bar (`Schnitt`) while it exists (removed by TASK-017c) */
-      .cv-canvas-box:has(> .cv-view-bar:not([hidden])) {
-        --cv-props-top: 52px;
       }
       .cv-props-panel {
         position: absolute;
@@ -6338,6 +6259,22 @@
         const sets = new Map(); // id -> component
         let order = [];
         let dragId = null;
+        let pendingReveal = null; // set id to scroll into view once the filter area is shown (reveal)
+
+        /** Scrolls the pending set into view if the filter area is shown now (not hidden as a closed drawer). */
+        function flushReveal() {
+          const set = pendingReveal === null ? null : sets.get(pendingReveal);
+          if (!set) return;
+          if (getComputedStyle(container).visibility !== "visible" || !container.getClientRects().length) return;
+          pendingReveal = null;
+          const scroller = scrollerOf(set.root);
+          if (!scroller) return;
+          const box = set.root.getBoundingClientRect();
+          const view = scroller.getBoundingClientRect();
+          if (box.top < view.top) scroller.scrollTop += box.top - view.top;
+          else if (box.bottom > view.bottom)
+            scroller.scrollTop += Math.min(box.bottom - view.bottom, box.top - view.top);
+        }
         const DRAG_TYPE = "application/x-cv-filterset";
 
         function clearDropMarks() {
@@ -6459,6 +6396,16 @@
             for (const [id, set] of sets) set.update(facets.get(id));
             resetAll.disabled = !anyActive;
           },
+          /**
+           * Scrolls the set with this id into view (`Nach Wert filtern`, REQ-003, DEC-21; TASK-017b): at once while the
+           * filter area is shown (>= 1280 px or the drawer open), else when it is shown next (flushReveal, called by
+           * the drawer). Its head is brought into view; the whole set when it fits.
+           */
+          reveal(id) {
+            pendingReveal = id;
+            flushReveal();
+          },
+          flushReveal,
           /**
            * Entries of the active non-set filter sources above the filter sets (REQ-004, DEC-21; TASK-017a): items [{ id
            * ('hidden' | 'isolated' | 'rules' | 'search'), text, opens (the text is a button that calls
@@ -6650,78 +6597,6 @@
         return { close: finish, element: dialog, refresh: build };
       }
 
-      /**
-       * Interim 1.0.0 3D view control (REQ-005; top right of the model) until TASK-017c: `Schnitt` (axis X / Y / Z;
-       * while a section is active a panel under it holds slider, flip and remove, so the bar stays one row at 1280 px,
-       * TASK-005 L4). CR-002: `Elemente ausserhalb des Filters: Geist | Ausblenden` moved into the pill `Filter
-       * entfernen` (ghost toggle) and `Ansicht einpassen` is replaced by `Fokus` in the 3D toolbar (TASK-015a);
-       * `Faerben nach` and the legend under the model are replaced by the colouring panel `Faerben` (TASK-016,
-       * createViewTools).
-       * handlers: { section(axis | null), sectionOffset(value), flip() }.
-       */
-      function createViewControls(viewport, handlers) {
-        const bar = el("div", "cv-view-bar");
-        bar.id = "cv-view-bar";
-
-        const sectionBox = el("div", "cv-view-group cv-section");
-        const sectionLabel = el("span", "cv-view-label cv-section-label", "Schnitt");
-        sectionLabel.id = "cv-section-label";
-        sectionLabel.prepend(icon("scissors"));
-        const axisSeg = el("div", "cv-seg");
-        axisSeg.setAttribute("role", "radiogroup");
-        axisSeg.setAttribute("aria-labelledby", "cv-section-label");
-        const axisButtons = {};
-        for (const axis of ["X", "Y", "Z"]) {
-          const button = el("button", "cv-seg-btn", axis);
-          button.type = "button";
-          button.setAttribute("role", "radio");
-          button.setAttribute("aria-label", "Schnitt " + axis);
-          button.addEventListener("click", () => handlers.section(axis));
-          axisButtons[axis] = button;
-          axisSeg.append(button);
-        }
-        const slider = el("input", "cv-section-slider");
-        slider.type = "range";
-        slider.id = "cv-section-slider";
-        slider.setAttribute("aria-label", "Schnittposition");
-        slider.addEventListener("input", () => handlers.sectionOffset(Number(slider.value)));
-        const flip = iconButton("flip", "Schnitt umkehren", "cv-section-flip");
-        flip.id = "cv-section-flip";
-        flip.addEventListener("click", () => handlers.flip());
-        const sectionOff = iconButton("close", "Schnitt entfernen", "cv-section-off");
-        sectionOff.id = "cv-section-off";
-        sectionOff.addEventListener("click", () => handlers.section(null));
-        const sectionPanel = el("div", "cv-section-panel");
-        sectionPanel.id = "cv-section-panel";
-        sectionPanel.append(slider, flip, sectionOff);
-        sectionBox.append(sectionLabel, axisSeg, sectionPanel);
-
-        bar.append(sectionBox);
-        viewport.append(bar);
-
-        return {
-          element: bar,
-          /** Section { axis, offset, flipped } | null with the slider range { min, max } of the axis. */
-          setSection(section, range) {
-            for (const [axis, button] of Object.entries(axisButtons)) {
-              const on = Boolean(section) && section.axis === axis;
-              button.setAttribute("aria-checked", String(on));
-              button.classList.toggle("cv-on", on);
-            }
-            sectionBox.classList.toggle("cv-on", Boolean(section));
-            sectionPanel.hidden = !section;
-            if (section && range) {
-              slider.min = String(range.min);
-              slider.max = String(range.max);
-              slider.step = String((range.max - range.min) / 1000 || 0.001);
-              slider.value = String(section.offset);
-              flip.setAttribute("aria-pressed", String(section.flipped));
-              flip.classList.toggle("cv-on", section.flipped);
-            }
-          },
-        };
-      }
-
       /** Row height of the colouring panel's property list (label over group, as the reference's suggestion items). */
       const COLOUR_LIST_ROW_HEIGHT = 46;
 
@@ -6747,7 +6622,8 @@
        * opener) and removeRule(index) (rule rows, TASK-015b), colour(key) (a property of the colouring list),
        * colourMode('distinct' | 'scale'), scaleColour('#rrggbb') (a swatch or `Eigene Farbe`), clearColour() (`Entfernen`
        * and the pill `Einfaerbung entfernen`; TASK-016), panel(name | null) (optional: a panel was opened or closed),
-       * clearIsolation() and clearHidden() (pills `Isolierung entfernen` / `Ausblendung entfernen`, TASK-017a) }.
+       * clearIsolation() and clearHidden() (pills `Isolierung entfernen` / `Ausblendung entfernen`, TASK-017a),
+       * clearSection() (pill `Schnitt entfernen`, TASK-017c) }.
        */
       function createViewTools(box, handlers) {
         const titleChip = el("div", "cv-title-chip");
@@ -7102,7 +6978,9 @@
           "Ausgeblendete Elemente wieder anzeigen",
           "clearHidden",
         );
-        pills.append(filterPill, colourPill, isolatePill, hiddenPill);
+        // pill `Schnitt entfernen` (REQ-013, TASK-017c; ref L1031): last in the stack while a section is active
+        const sectionPill = toolPill("cv-pill-section", "scissors", "Schnitt entfernen", "Schnitt aufheben", "clearSection");
+        pills.append(filterPill, colourPill, isolatePill, hiddenPill, sectionPill);
 
         box.append(titleChip, hint, filter.panel, colour.panel, pills, bar);
 
@@ -7209,6 +7087,13 @@
             if (isolatePill.hidden === isolating || hiddenPill.hidden === hiding) {
               isolatePill.hidden = !isolating;
               hiddenPill.hidden = !hiding;
+              layoutPills();
+            }
+          },
+          /** Section (REQ-013, TASK-017c): pill `Schnitt entfernen` shown while active. */
+          setSectionState(active) {
+            if (sectionPill.hidden === Boolean(active)) {
+              sectionPill.hidden = !active;
               layoutPills();
             }
           },
@@ -8295,7 +8180,8 @@
        * (REQ-003) and `Farbe nach Wert` (REQ-005), shown on hover and keyboard focus. A group selection shows
        * `<n> Elemente ausgewaehlt` (and `Davon ohne 3D-Geometrie: <n>`) with the same buttons.
        * handlers: { clear(), hide(), isolate(), filterByValue(key, value), colourByValue(key) }; all but clear may be
-       * absent (the control is then inert; `colourByValue` wired by TASK-016, the others by TASK-017b).
+       * absent (the control is then inert; `colourByValue` wired by TASK-016, `hide` / `isolate` by TASK-017a,
+       * `filterByValue` by TASK-017b).
        */
       function createDetails(panel, handlers) {
         const collapsed = new Set();
@@ -8985,7 +8871,6 @@
         overlayBox.append(overlayText, progressBar);
         overlay.append(overlayBox);
         canvasBox.append(overlay);
-        const viewControls = createViewControls(canvasBox, options.viewHandlers);
         // toolbar `Fokus` / `Filter` / `Faerben`, hint, title chip, filter panel and pills (REQ-005, REQ-012, CR-002)
         const viewTools = createViewTools(canvasBox, options.toolHandlers);
         // properties panel at the top right inside the 3D view (REQ-007, CR-002)
@@ -8996,7 +8881,7 @@
         canvasBox.append(propsPanel);
         const detailsPanel = createDetails(
           propsPanel,
-          options.propsHandlers || { clear: () => options.viewHandlers.clearSelection() },
+          options.propsHandlers || { clear() {} },
         );
         const splitter = el("div", "cv-splitter");
         splitter.id = "cv-splitter";
@@ -9130,6 +9015,8 @@
             main.classList.toggle("cv-show-" + key, open);
             button.setAttribute("aria-expanded", String(open));
           }
+          // a set added or ticked by `Nach Wert filtern` while the drawer was closed is scrolled into view now (DEC-21)
+          if (name === "filters") filterArea.flushReveal();
         }
         for (const [name, button] of Object.entries(panelToggles))
           button.addEventListener("click", () => setDrawer(button.getAttribute("aria-expanded") === "true" ? null : name));
@@ -9189,7 +9076,6 @@
           layout,
           filters: filterArea,
           table: tableView,
-          view: viewControls,
           tools: viewTools,
           details: detailsPanel,
           /** Opens the property catalogue dialog (title default `Filtersatz hinzufuegen`); onPick(key). */
@@ -10652,6 +10538,7 @@
         legendRows,
         markRows,
         normaliseHexColour,
+        normaliseSectionPlane,
         evaluateFilters,
         exportSheet,
         facetCounts,
@@ -10823,7 +10710,9 @@
         let selectedKey = null;
         // group selection (TASK-006c, REQ-007): { id, keys (row keys inside the filter), kicker, title } or null
         let selectedGroup = null;
-        let section = null; // { axis, offset, flipped }
+        // section plane of `Schneiden` (REQ-013, DEC-20): { point, normal } in the frame of spec 4.4 (offset in point,
+        // unit normal into the kept half), as cv-3d reports it through onSection, or null; 3D only, never a filter
+        let section = null;
         let rowIndex = new Map(); // row key -> index in store.rows
         let catalogOrder = new Map(); // property key -> catalogue position (details order)
         let inside = new Uint8Array(0); // 1 = row passes all filters
@@ -11677,10 +11566,20 @@
           refresh();
         }
 
+        /**
+         * Section plane set by the app (configuration load; pill `Schnitt entfernen`): a plane { point, normal } or null.
+         * cv-3d applies it after any queued display plan; changes cv-3d makes itself (`Schneiden`, handle drag and
+         * keys, removal of the last model with geometry) arrive through sectionChanged.
+         */
         function setSection(next) {
-          section = next;
-          ui.view.setSection(section, section ? engine.axisRange(section.axis) : null);
+          sectionChanged(next ? normaliseSectionPlane(next) : null);
           engine.setSection(section);
+        }
+
+        /** The section plane changed (or was set): app state, pill `Schnitt entfernen` (REQ-013) and the test hook. */
+        function sectionChanged(plane) {
+          section = plane ? { point: plane.point.slice(), normal: plane.normal.slice() } : null;
+          ui.tools.setSectionState(section !== null);
           publishView();
         }
 
@@ -11795,14 +11694,9 @@
           if (d.colourBy !== undefined) colourKey = d.colourBy;
           if (d.colourBy !== undefined || d.colourMode !== undefined || d.scaleColour !== undefined)
             scheme = currentScheme();
-          if (d.sectionPlane !== undefined) {
-            // Interim (TASK-012 until TASK-014/018): the 1.0.0 3D view cuts along X / Y / Z only, so a plane is shown
-            // as the axis section it equals; another plane is not applied and named `Schnitt`
-            const axisSection = d.sectionPlane ? axisSectionOfPlane(d.sectionPlane) : null;
-            if (d.sectionPlane && (!axisSection || !engine.axisRange(axisSection.axis))) {
-              if (!skipped.invalid.includes("Schnitt")) skipped.invalid.push("Schnitt");
-            } else setSection(axisSection);
-          }
+          // the plane as given (applyConfig converted a 1.0.0 axis section and skipped it while no model with geometry
+          // is loaded, DEC-20); null removes the section
+          if (d.sectionPlane !== undefined) setSection(d.sectionPlane);
           store.retain(keysInUse());
           publishSets();
           publishTable();
@@ -11814,16 +11708,6 @@
             return entry ? entry.label : key;
           });
           return { notice, skipped };
-        }
-
-        /**
-         * The 1.0.0 axis section { axis, offset, flipped } a section plane equals (normal +-X, +-Y or +-Z in the scene
-         * frame of spec 4.4; inverse of planeFromAxisSection), else null. Interim for the 1.0.0 3D view (TASK-012).
-         */
-        function axisSectionOfPlane(plane) {
-          const i = plane.normal.findIndex((x) => Math.abs(Math.abs(x) - 1) <= 1e-9);
-          if (i < 0 || plane.normal.some((x, j) => j !== i && Math.abs(x) > 1e-9)) return null;
-          return { axis: "XYZ"[i], offset: plane.point[i], flipped: plane.normal[i] > 0 };
         }
 
         /** Offers text, bytes or a Blob as a file download (works from file:// as well). */
@@ -12254,6 +12138,10 @@
           clearHidden() {
             clearTools(true, false);
           },
+          /** Pill `Schnitt entfernen` (REQ-013-AC10). */
+          clearSection() {
+            if (section) setSection(null);
+          },
           /** Colouring panel (REQ-005, DEC-15; TASK-016): a property of the list, mode, scale colour, `Entfernen`. */
           colour(key) {
             setColouring(key);
@@ -12274,24 +12162,6 @@
               ensureTextIndex().then((current) => {
                 if (current) refresh();
               });
-          },
-        };
-
-        const viewHandlers = {
-          section(axis) {
-            if (!axis) return setSection(null);
-            const range = engine.axisRange(axis);
-            if (!range) return;
-            setSection({ axis, offset: (range.min + range.max) / 2, flipped: false });
-          },
-          sectionOffset(offset) {
-            if (section) setSection({ ...section, offset });
-          },
-          flip() {
-            if (section) setSection({ ...section, flipped: !section.flipped });
-          },
-          clearSelection() {
-            select(null);
           },
         };
 
@@ -12391,19 +12261,38 @@
           mode: options.mode,
           title: options.title || (viewerHeader && viewerHeader.title) || undefined,
           filterHandlers,
-          viewHandlers,
           toolHandlers,
           tableHandlers,
           headerHandlers,
           // properties panel (REQ-007): `Schliessen` clears the selection; `Farbe nach Wert` colours by the property in
-          // the current mode and opens the colouring panel at its legend (REQ-005-AC9, TASK-016); `Ausblenden` /
-          // `Isolieren` and `Nach Wert filtern` are inert until TASK-017b wires them (spec 5, TASK-013)
+          // the current mode and opens the colouring panel at its legend (REQ-005-AC9, TASK-016); `Nach Wert filtern`
+          // ticks the element's value(s) in the property's filter set (REQ-003, TASK-017b)
           propsHandlers: {
             clear: () => select(null),
             // `Ausblenden` / `Isolieren` act on the selected element or on all elements of a selected group (REQ-013,
             // DEC-18; TASK-017a wires them, TASK-017b tests the group and no-geometry cases)
             hide: () => hideElements(selectionKeys()),
             isolate: () => isolateElements(selectionKeys()),
+            /**
+             * `Nach Wert filtern` (REQ-003-AC4/AC5, [U Q8], DEC-21): ticks every value the element has for the property
+             * (a multi-valued property: all of them) in its filter set; without a set for the property one is added at
+             * the bottom first, expanded. Values already ticked stay ticked; nothing else changes. The set is scrolled
+             * into view (below 1280 px when the filter drawer is opened next; the drawer stays closed).
+             */
+            filterByValue(key, value) {
+              if (!catalog.has(key)) return;
+              const values = (Array.isArray(value) ? value : [value]).filter((v) => v !== null && v !== undefined);
+              if (!values.length) return;
+              let set = filterSets.find((s) => s.key === key);
+              if (!set) {
+                set = { id: key, key, collapsed: false, selected: [] };
+                filterSets.push(set);
+              }
+              const added = values.filter((v) => !set.selected.includes(v));
+              set.selected.push(...added);
+              if (added.length) changed();
+              ui.filters.reveal(set.id);
+            },
             colourByValue(key) {
               if (!catalog.has(key)) return;
               if (key !== colourKey) setColouring(key);
@@ -12418,14 +12307,17 @@
         const engine = createEngine(ui.viewport, options.workerUrl, {
           onPick: (key) => select(key, true),
           onMenu: (action, key) => (action === "isolate" ? isolateElements([key]) : hideElements([key])),
+          // `Schneiden`, the handle and the removal of the last model with geometry change the plane in cv-3d (REQ-013)
+          onSection: (plane) => sectionChanged(plane),
         });
         ui.tools.setMode(viewMode);
-        ui.view.setSection(null, null);
-        // Esc clears the selection (REQ-007-AC5); with nothing selected it closes an open toolbar panel and returns the
-        // focus to its button (REQ-005 `Esc` order, completed in TASK-017c / TASK-019). An Escape handled by a dialog
-        // is marked defaultPrevented.
+        // `Esc` order (REQ-007, DEC-21): it closes only the first that applies: an open dialog or popup or a filter
+        // search field's text (handled there and marked defaultPrevented); the click menu (the selection stays,
+        // REQ-007-AC5); the selection with its properties panel; an open `Filter` / `Faerben` panel, whose button gets
+        // the focus back (REQ-005-AC11; keyboard pass TASK-019).
         document.addEventListener("keydown", (event) => {
           if (event.key !== "Escape" || event.defaultPrevented) return;
+          if (engine.menuOpen()) return engine.closeMenu();
           if (selectedKey !== null || selectedGroup !== null) return select(null);
           const open = ui.tools.panel();
           if (!open) return;
@@ -12543,7 +12435,6 @@
             toggled.clear();
             store.retain(keysInUse());
           }
-          if (section) ui.view.setSection(section, engine.axisRange(section.axis));
           hook.models = models.map((m) => {
             const visible = visibleRows(m.rows, includeSpaces);
             return {

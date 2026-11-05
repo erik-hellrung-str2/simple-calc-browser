@@ -9,7 +9,7 @@ import { REF, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
 import { colourBy, setGhosts, viewState } from "../support/view-3d.mjs";
 import { allTableRows, checkColumnValue } from "../support/table.mjs";
 import { addRule } from "../support/rules.mjs";
-import { afterUpdate, panelAction, sourceEntries, toolSets } from "../support/tools.mjs";
+import { afterUpdate, cutAt, firstPickable, panelAction, sourceEntries, toolSets } from "../support/tools.mjs";
 import {
   addFilterSet,
   filterSet,
@@ -295,6 +295,8 @@ test("@e2e @acceptance @REQ-004-AC1 @REQ-004-AC2 @REQ-004-AC3 @REQ-004-AC4 check
   // off must survive the reset
   const slabs = await page.evaluate(() => window.__calc.filter.keys.slice());
   expect(slabs.length).toBe(slabsOnTop);
+  // a section: `Schneiden` in the click menu of one of the shown slabs (TASK-017c; was the interim `Schnitt Z`)
+  await cutAt(page, await firstPickable(page, slabs));
   await panelAction(page, slabs[0], "hide");
   await panelAction(page, slabs[1], "isolate");
   await checkColumnValue(page, "Kategorie", "IfcSlab");
@@ -304,7 +306,6 @@ test("@e2e @acceptance @REQ-004-AC1 @REQ-004-AC2 @REQ-004-AC3 @REQ-004-AC4 check
   await afterUpdate(page, () => page.getByRole("searchbox", { name: "Suchen nach Objekten" }).fill("ifcslab"));
   await page.getByRole("button", { name: "Filter", exact: true }).first().click(); // close the filter panel
   await colourBy(page, "Kategorie", "Kategorie");
-  await page.getByRole("radio", { name: "Schnitt Z" }).click(); // interim section control (until TASK-017c)
   await setGhosts(page, false);
   expect(await sourceEntries(page)).toEqual([
     "Ausgeblendet: 1 Element",

@@ -4,9 +4,11 @@
 // test/fixtures/reference-values.json (sections REQ-006-grouping-fzk / -duplex, STEP-text derivation).
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, expectClose, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
-import { shownCounts, toggleValue } from "../support/filter-area.mjs";
+import { addFilterSet, filterSet, shownCounts, toggleValue } from "../support/filter-area.mjs";
 import { csvNumber, exportFile, readExport } from "../support/export.mjs";
-import { isolateTogether, panelAction } from "../support/tools.mjs";
+import { addRule, toolbar } from "../support/rules.mjs";
+import { clickRow } from "../support/selection.mjs";
+import { cutAt, isolateTogether, panelAction, pickPoint } from "../support/tools.mjs";
 import { idle, keysOfGuids, viewState } from "../support/view-3d.mjs";
 import { addColumn, allTableRows, clickSort, de3, header, headerKeys, tableState } from "../support/table.mjs";
 import {
@@ -567,5 +569,161 @@ test("@e2e @acceptance @REQ-013-AC5 hidden walls leave the IfcWallStandardCase g
   await setView(page, "Gruppiert");
   await pickGroup(page, 1, "Kategorie", "Kategorie");
   await check(ac5.isolated, "isolated");
+  expect(errors).toEqual([]);
+});
+
+// TASK-017c (CR-002): counts and sums under hidden elements and a rule, unchanged by `Schneiden` (REQ-006-AC11), and the
+// section as 3D only (REQ-013-AC11). Expected counts and sums: reference-values.json REQ-013-tools (STEP-text
+// derivation: the hidden case of REQ-013-AC5 = the two walls Wand-Ext-ERDG-1 / -2 hidden) minus the IfcSlab group of
+// that case for the rule `Ausblenden` · `Kategorie` · `Gleich` · `IfcSlab`.
+const de = (n) => n.toLocaleString("de-DE");
+const statusText = (page) => page.locator("#cv-status").textContent();
+
+/** `Schneiden` on a side face (horizontal face normal) of the element with this GlobalId, made pickable by ticking it in
+ * the filter set GlobalId (all other elements are ghosts); the tick is reset afterwards and the selection cleared. */
+async function cutSideFace(page, guid) {
+  if (!(await filterSet(page, "GlobalId").count())) await addFilterSet(page, "GlobalId", "GlobalId");
+  const search = filterSet(page, "GlobalId").getByRole("searchbox");
+  await search.fill(guid);
+  await toggleValue(page, "GlobalId", guid);
+  await search.fill("");
+  await idle(page);
+  const [key] = await keysOfGuids(page, [guid]);
+  const at = await pickPoint(page, key, (h) => h.normal && Math.abs(h.normal[2]) < 0.1);
+  expect(at, "a side face of the element that a click picks").not.toBeNull();
+  const plane = await cutAt(page, at);
+  await page.getByRole("button", { name: "Auswahl zurücksetzen: GlobalId" }).click();
+  await page.keyboard.press("Escape");
+  await idle(page);
+  return plane;
+}
+
+test("@e2e @acceptance @REQ-006-AC11 two hidden walls and the rule `Ausblenden` · `Kategorie` · `Gleich` · `IfcSlab`: status line Y − 6, IfcWallStandardCase 11 with the volume sum without the walls, no IfcSlab group, total row over the rest; `Schneiden` changes none of it", async ({
+  page,
+}) => {
+  const errors = await openWith(page, FZK);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const tools = REF["REQ-013-tools"];
+  const hiddenCase = tools["REQ-013-AC5"].hidden;
+  expect(tools["REQ-013-AC5"].column).toBe(VOLUME);
+  const Y = tools.rows;
+  // expected: the hidden case without the IfcSlab group (all 4 slabs are IfcSlab, reference)
+  const slab = hiddenCase.byKategorie.IfcSlab;
+  const expected = {
+    count: hiddenCase.count - slab.count,
+    volume: hiddenCase.volume - slab.volume,
+    byKategorie: Object.fromEntries(Object.entries(hiddenCase.byKategorie).filter(([k]) => k !== "IfcSlab")),
+  };
+  expect(Y - expected.count).toBe(6);
+  await addColumn(page, "NetVolume", VOLUME);
+  const keys = await keysOfGuids(
+    page,
+    tools.toolWalls.map((w) => w.GlobalId),
+  );
+  for (const key of keys) await panelAction(page, key, "hide");
+  await addRule(page, { mode: "hide", key: "Kategorie", op: "eq", value: "IfcSlab" });
+  await toolbar(page).getByRole("button", { name: "Filter", exact: true }).click(); // close the filter panel
+  await setView(page, "Gruppiert");
+  expect(await groupingState(page)).toEqual({ view: "grouped", groupBy: ["Kategorie"] });
+
+  /** Status line, group rows (DOM and unrounded), total row: checked against the expected case. */
+  async function check(name) {
+    expect(await statusText(page), name).toBe(`${de(Y - 6)} von ${de(Y)} Elementen`);
+    const groups = (await allDisplayRows(page)).filter((r) => r.type === "group" && r.level === 1);
+    const labels = groups.map((r) => r.cells[GROUP_COLUMN]);
+    expect(labels, `${name}: groups`).toEqual(valueOrder(Object.keys(expected.byKategorie)));
+    expect(labels, `${name}: no IfcSlab group`).not.toContain("IfcSlab");
+    const raw = await hookGroups(page);
+    for (const g of raw.filter((r) => r.level === 1)) {
+      const ref = expected.byKategorie[g.label];
+      expect(g.count, `${name} ${g.label}`).toBe(ref.count);
+      if (ref.volume === null) expect(g.cells[VOLUME]).toBeNull();
+      else expectClose(g.cells[VOLUME], ref.volume, `${name} ${g.label} volume`);
+    }
+    const walls = raw.find((g) => g.label === "IfcWallStandardCase");
+    expect(walls.count).toBe(11);
+    const wallRow = groups.find((r) => r.cells[GROUP_COLUMN] === "IfcWallStandardCase");
+    expect(wallRow.cells[COUNT_COLUMN]).toBe(deCount(11));
+    expect(wallRow.cells[VOLUME]).toBe(sumText(expected.byKategorie.IfcWallStandardCase.volume));
+    expect(await totalRow(page)).toMatchObject({
+      [COUNT_COLUMN]: deCount(expected.count),
+      [VOLUME]: sumText(expected.volume),
+    });
+    const total = await page.evaluate(() => window.__calc.table.total);
+    expect(total.count).toBe(expected.count);
+    expectClose(total.cells[VOLUME], expected.volume, `${name} total volume`);
+    return { raw, total };
+  }
+  const before = await check("hidden + rule");
+
+  // `Schneiden` (on an interior wall's side face): status line, groups and sums unchanged
+  const plane = await cutSideFace(page, tools.walls.find((w) => w.Name === "Wand-Int-ERDG-1").GlobalId);
+  expect((await viewState(page)).section).toEqual(plane);
+  const after = await check("after Schneiden");
+  expect(after).toEqual(before);
+  expect(errors).toEqual([]);
+});
+
+test("@e2e @acceptance @REQ-013-AC11 a section that removes half of the model leaves table rows, status line, filter-set counts, sums and the CSV unchanged; a clipped element can still be selected from the table", async ({
+  page,
+}, testInfo) => {
+  const errors = await openWith(page, FZK);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const tools = REF["REQ-013-tools"];
+  await addColumn(page, "NetVolume", VOLUME);
+  await addFilterSet(page, "GlobalId", "GlobalId"); // used to make the cut wall pickable (no tick remains)
+
+  /** Everything the section must not change: rows, status, filter-set counts, groups and sums, the CSV. */
+  async function snapshot(name) {
+    const single = (await allTableRows(page)).map((r) => [r.key, r.cells]);
+    const status = await statusText(page);
+    const counts = {};
+    for (const key of ["Kategorie", "Geschoss", "Material"]) counts[key] = await shownCounts(page, key);
+    await setView(page, "Gruppiert");
+    const groups = await hookGroups(page);
+    const total = await page.evaluate(() => window.__calc.table.total);
+    const csv = readExport("csv", (await exportFile(page, "csv", testInfo.outputPath(`${name}.csv`))).path);
+    await setView(page, "Einzelelemente");
+    return { single, status, counts, groups, total, csv: csv.records };
+  }
+  const without = await snapshot("without");
+  expect(without.status).toBe(`${de(tools.rows)} von ${de(tools.rows)} Elementen`);
+  expect(without.single).toHaveLength(tools.rows);
+
+  // a vertical section through the interior wall Wand-Int-ERDG-1 (side face)
+  const plane = await cutSideFace(page, tools.walls.find((w) => w.Name === "Wand-Int-ERDG-1").GlobalId);
+  expect((await viewState(page)).section).toEqual(plane);
+  // it removes about half of the model: elements entirely on the removed side (all 8 box corners behind the plane,
+  // whose normal points into the kept half; engine boxes, spec 4.4 frame) and entirely on the kept side
+  const geometry = (await page.evaluate(() => window.__calc.rows)).filter((r) => r.geometry).map((r) => r.key);
+  const side = { removed: [], kept: [] };
+  for (const key of geometry) {
+    const b = await page.evaluate((k) => window.CalcView3D.box(k), key);
+    const d = [];
+    for (const x of [b.min[0], b.max[0]])
+      for (const y of [b.min[1], b.max[1]])
+        for (const z of [b.min[2], b.max[2]])
+          d.push(
+            plane.normal[0] * (x - plane.point[0]) +
+              plane.normal[1] * (y - plane.point[1]) +
+              plane.normal[2] * (z - plane.point[2]),
+          );
+    if (d.every((v) => v < 0)) side.removed.push(key);
+    else if (d.every((v) => v > 0)) side.kept.push(key);
+  }
+  console.log(`[REQ-013-AC11] ${side.removed.length} removed, ${side.kept.length} kept of ${geometry.length}`);
+  expect(side.removed.length / geometry.length, "about half removed").toBeGreaterThanOrEqual(0.3);
+  expect(side.kept.length / geometry.length, "a part kept").toBeGreaterThanOrEqual(0.2);
+
+  const cut = await snapshot("with-section");
+  expect(cut).toEqual(without);
+
+  // a clipped element (entirely in the removed half) is selected from the table
+  const clipped = side.removed[0];
+  await clickRow(page, clipped);
+  expect((await viewState(page)).selected).toEqual([clipped]);
+  await expect(page.locator("#cv-props")).toBeVisible();
+  await expect(page.locator("#cv-props")).toHaveAttribute("data-key", clipped);
+  expect((await viewState(page)).section, "selecting does not change the section").toEqual(plane);
   expect(errors).toEqual([]);
 });

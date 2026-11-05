@@ -20,6 +20,7 @@ import {
   openHeaderDialog,
   saveConfig,
 } from "../support/config.mjs";
+import { anyPickable, cutAt } from "../support/tools.mjs";
 import { configErrorFixtures } from "../../scripts/make-config-fixtures.mjs";
 
 const FZK = fixture("AC20-FZK-Haus.ifc");
@@ -152,6 +153,10 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   page,
 }) => {
   const errors = await openWith(page, FZK);
+  // section: `Schneiden` in the click menu of an element (TASK-017c; was the 1.0.0 `Schnitt Z` flipped); Esc clears
+  // the selection the click made
+  await cutAt(page, await anyPickable(page));
+  await page.keyboard.press("Escape");
   // header
   await editHeader(page, { title: 'Mengen <Rohbau> & "Ausbau"', date: "2026-08-12", logo: LOGO_SVG });
   // filter sets: add one, move Material up, collapse Geschoss, check values (OR within, AND across)
@@ -177,11 +182,9 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   // grouping: Kategorie, then Geschoss
   await setView(page, "Gruppiert");
   await pickGroup(page, 2, "Geschoss", "Geschoss");
-  // model display: hide, colour by Material, section Z flipped
+  // model display: hide, colour by Material (the section is set above)
   await setGhosts(page, false);
   await colourBy(page, "Material", "Material");
-  await page.getByRole("radio", { name: "Schnitt Z" }).click();
-  await page.getByRole("button", { name: "Schnitt umkehren" }).click();
   await idle(page);
 
   const before = await configuredState(page);
@@ -213,11 +216,12 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   expect([c.table.view, c.table.groupBy]).toEqual(["grouped", ["Kategorie", "Geschoss"]]);
   expect(c.display.mode).toBe("hide");
   expect(c.display.colourBy).toBe("Material");
-  // TASK-012 (CR-002, DEC-20): the section is saved as `display.sectionPlane` (the 1.0.0 3D view's flipped Z section
-  // = point at the offset on Z, normal +Z into the kept half), never as `display.section` (was: display.section equal
-  // to the axis section)
-  expect(before.view.section).toMatchObject({ axis: "Z", flipped: true });
-  expect(c.display.sectionPlane).toEqual({ point: [0, 0, before.view.section.offset], normal: [0, 0, 1] });
+  // TASK-012 / TASK-017c (CR-002, DEC-20): the section is saved as `display.sectionPlane` = the click section's plane
+  // as state().section reports it (spec 4.4), never as `display.section` (was: display.section equal to the 1.0.0
+  // axis section, then the plane of the flipped Z section)
+  expect(before.threeD.section).not.toBeNull();
+  expect(before.view.section).toEqual(before.threeD.section);
+  expect(c.display.sectionPlane).toEqual(before.threeD.section);
   expect("section" in c.display).toBe(false);
   // no element references, no expanded state, no selection (REQ-009)
   expect(first.text).not.toMatch(/"m\d+:\d+"|expanded|selected(Key|Group)/);
@@ -251,7 +255,9 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   await openColourPanel(page);
   await expect(colourPanel(page).locator("#cv-colour-param .cv-suggest-label")).toHaveText("Material");
   await colourTool(page).click();
-  await expect(page.getByRole("radio", { name: "Schnitt Z" })).toHaveAttribute("aria-checked", "true");
+  // the section: the pill `Schnitt entfernen` and the handle (CR-002, TASK-017c; was the radio `Schnitt Z`)
+  await expect(page.locator("#cv-pill-section")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Schnitt verschieben" })).toBeVisible();
   const second = await saveConfig(page);
   expect(second.text).toBe(first.text);
   expect(second.fileName).toBe(first.fileName);

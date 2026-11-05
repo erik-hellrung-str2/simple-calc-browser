@@ -157,7 +157,7 @@ test("@e2e @REQ-007 properties panel header: kicker, title, model chip, `Ausblen
   await panel.locator(".cv-det-group-head").first().click();
   expect((await viewState(page)).selected).toEqual([wall]);
 
-  // every property row has the two row tools; hidden until hover or keyboard focus (REQ-007-AC7 is TASK-017b's)
+  // every property row has the two row tools; hidden until hover or keyboard focus (REQ-007-AC7: panel-actions.spec)
   const rowCount = await panel.locator(".cv-prop-row").count();
   expect(rowCount).toBeGreaterThan(10);
   expect(await panel.getByRole("button", { name: "Nach Wert filtern", exact: true }).count()).toBe(rowCount);

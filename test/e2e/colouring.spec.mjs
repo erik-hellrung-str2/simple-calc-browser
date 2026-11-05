@@ -148,10 +148,9 @@ test("@e2e @acceptance @REQ-005-AC5 `Farbskala` by `BaseQuantities.NetVolume (m�
   expect(errors).toEqual([]);
 });
 
-// REQ-005-AC7 without its `Schnitt X` part: the interim 1.0.0 axis section bar stays until TASK-017c replaces it by
-// the click section (spec 5 TASK-017c; view-3d.spec "interim 1.0.0 `Schnitt`"), so this test does not name the AC
-// (T5: a title names an AC only when the test verifies all of it). TASK-017c completes and tags it.
-test("@e2e the 3D toolbar holds exactly `Fokus`, `Filter`, `Färben` and the hint; no 1.0.0 control `Ansicht einpassen`, `Elemente außerhalb des Filters` or `Färben nach`; `Filter` and `Färben` exclude each other; the `Filter` dot follows rules and search, the `Färben` dot the colouring", async ({
+// REQ-005-AC7 (TASK-016; completed and tagged by TASK-017c, which removed the interim 1.0.0 axis section bar with
+// `Schnitt X` / `Y` / `Z`: the section is the click section of REQ-013)
+test("@e2e @acceptance @REQ-005-AC7 the 3D toolbar holds exactly `Fokus`, `Filter`, `Färben` and the hint; no 1.0.0 control `Ansicht einpassen`, `Elemente außerhalb des Filters`, `Färben nach` or `Schnitt X`; `Filter` and `Färben` exclude each other; the `Filter` dot follows rules and search, the `Färben` dot the colouring", async ({
   page,
 }) => {
   const errors = await openWith(page, FZK);
@@ -161,11 +160,17 @@ test("@e2e the 3D toolbar holds exactly `Fokus`, `Filter`, `Färben` and the hin
       .evaluateAll((list) => list.map((b) => b.getAttribute("aria-label"))),
   ).toEqual(["Fokus", "Filter", "Färben"]);
   await expect(page.locator("#cv-hint")).toBeAttached();
-  for (const name of ["Ansicht einpassen", "Elemente außerhalb des Filters", "Färben nach"]) {
+  for (const name of ["Ansicht einpassen", "Elemente außerhalb des Filters", "Färben nach", "Schnitt X"]) {
     await expect(page.getByRole("button", { name })).toHaveCount(0);
     await expect(page.getByRole("radiogroup", { name })).toHaveCount(0);
+    await expect(page.getByRole("radio", { name })).toHaveCount(0);
     await expect(page.getByText(name, { exact: false })).toHaveCount(0);
   }
+  // none of the axis section controls of 1.0.0 (Y / Z, slider, flip, view bar)
+  for (const name of ["Schnitt Y", "Schnitt Z"]) await expect(page.getByRole("radio", { name })).toHaveCount(0);
+  await expect(page.getByRole("slider", { name: "Schnittposition" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Schnitt umkehren" })).toHaveCount(0);
+  await expect(page.locator("#cv-view-bar")).toHaveCount(0);
   await expect(page.locator("#cv-colour, #cv-colour-clear, #cv-legend-strip, .cv-legend-strip")).toHaveCount(0);
 
   const filterTool = toolbar(page).getByRole("button", { name: "Filter", exact: true });

@@ -1,10 +1,10 @@
 // TASK-014 (CR-002, INC-2): the 3D side of the element tools and `Fokus`, through the cv-3d test hook
 // window.CalcView3D and real clicks on the canvas (spec REQ-013, REQ-005 `Fokus`, §4.4 CalcView.state(), DEC-18).
 // The menu actions `Ausblenden` / `Isolieren` (TASK-017a, tested in hide-isolate.spec.mjs), the pills and the toolbar
-// are wired in TASK-015a / TASK-017a / TASK-017c, so these tests cite the acceptance criteria in comments only (spec
-// T5): REQ-013-AC1 (menu placement and following),
-// REQ-013-AC9 (plane from the face normal, offset in `point`, replace), REQ-013-AC10 (handle drag and keys),
-// REQ-013-AC13 (menu below the point near the top), REQ-005-AC6 (`Fokus`). TASK-017c tags the end-to-end tests.
+// are wired in TASK-015a / TASK-017a / TASK-017c. The `Schneiden` and handle tests verify REQ-013-AC9 and AC10 as a
+// whole since TASK-017c wired the pill `Schnitt entfernen` and are tagged with them; the other tests cite their ACs in
+// comments only (spec T5), their end-to-end tests are in element-tools.spec.mjs: REQ-013-AC1 (menu placement and
+// following), REQ-013-AC13 (menu below the point near the top), REQ-005-AC6 (`Fokus`).
 // Expected values: GlobalIds and storeys from test/fixtures/reference-values.json (STEP-text derivation); planes,
 // offsets, key steps and handle anchors derived here from the spec rules (REQ-013) and from the engine's geometry
 // (element boxes, axis ranges, camera), never from the section code under test.
@@ -212,11 +212,12 @@ test("@e2e the click menu opens below its point near the top of the 3D view and 
   expect(errors).toEqual([]);
 });
 
-test("@e2e `Schneiden` on the slab top gives a horizontal plane 2 mm above the point; on a wall's side face a vertical plane away from the camera; a second cut replaces it", async ({
+test("@e2e @acceptance @REQ-013-AC9 `Schneiden` on the slab top gives a horizontal plane 2 mm above the point with the handle and the pill `Schnitt entfernen`; on a wall's side face a vertical plane away from the camera; a second cut replaces it", async ({
   page,
 }) => {
-  // REQ-013-AC9 (3D side): state().section = { point, normal }; slab top face with the camera above: normal [0, 0, -1],
-  // point 2 mm above the clicked point (+-0.1 mm); the canvas changes; the handle `Schnitt verschieben` is shown;
+  // REQ-013-AC9: state().section = { point, normal }; slab top face with the camera above: normal [0, 0, -1],
+  // point 2 mm above the clicked point (+-0.1 mm); the canvas changes; the handle `Schnitt verschieben` and the pill
+  // `Schnitt entfernen` are shown (TASK-017c);
   // a wall's side face: normal horizontal (vertical component 0), perpendicular to the face, away from the camera;
   // a second `Schneiden` (the wall's top face) replaces the plane
   test.setTimeout(240_000);
@@ -224,7 +225,9 @@ test("@e2e `Schneiden` on the slab top gives a horizontal plane 2 mm above the p
   const [wall, slab] = await keysOfGuids(page, [WALL, SLAB]);
   await onlyGuids(page, [SLAB]);
   const handle = page.getByRole("button", { name: "Schnitt verschieben" });
+  const pill = page.locator("#cv-pill-section");
   await expect(handle).toBeHidden();
+  await expect(pill).toBeHidden();
 
   // slab top face (camera above it)
   let without = await canvasShot(page);
@@ -243,6 +246,13 @@ test("@e2e `Schneiden` on the slab top gives a horizontal plane 2 mm above the p
   expect(Math.abs(s.point[0] - slabPick.point[0])).toBeLessThan(1e-6);
   expect(Math.abs(s.point[1] - slabPick.point[1])).toBeLessThan(1e-6);
   await expect(handle).toBeVisible();
+  await expect(pill).toBeVisible();
+  await expect(pill.getByRole("button", { name: "Schnitt entfernen", exact: true })).toHaveAttribute(
+    "title",
+    "Schnitt aufheben",
+  );
+  // the app holds the same plane (saved in the configuration, DEC-20)
+  expect(await page.evaluate(() => window.__calc.view.section)).toEqual(s);
   // the canvas changes (the ghosts above the slab are cut away)
   expect(await pixelDifference(page, without, await canvasShot(page)), "the cut changes the canvas").toBeGreaterThan(
     0.01,
@@ -251,9 +261,11 @@ test("@e2e `Schneiden` on the slab top gives a horizontal plane 2 mm above the p
   expect((await viewState(page)).selected).toEqual([slab]);
   expect(await page.evaluate(() => window.__calc.filter.count)).toBe(1);
 
-  // wall side face (a hit whose face normal is horizontal), after removing the slab's section
-  expect(await hook(page, () => window.CalcView3D.setSection(null))).toBe(true);
+  // wall side face (a hit whose face normal is horizontal), after removing the slab's section with the pill
+  await pill.getByRole("button", { name: "Schnitt entfernen", exact: true }).click();
+  expect(await section(page)).toBeNull();
   await expect(handle).toBeHidden();
+  await expect(pill).toBeHidden();
   await onlyGuids(page, [SLAB, WALL]); // unticks the slab, ticks the wall
   without = await canvasShot(page);
   const wallAt = await clickElement(page, wall, (h) => h.normal && Math.abs(h.normal[2]) < 0.1);
@@ -334,13 +346,13 @@ test("@e2e `Schneiden` without a face normal uses the direction to the camera: v
   expect(errors).toEqual([]);
 });
 
-test("@e2e the section handle sits on the plane at the models' centre; arrow keys move the plane by 1 % / 10 % of the extent, dragging moves it along the normal only", async ({
+test("@e2e @acceptance @REQ-013-AC10 the section handle sits on the plane at the models' centre; arrow keys move the plane by 1 % / 10 % of the extent, dragging moves it along the normal only; `Schnitt entfernen` removes the section, handle and pill", async ({
   page,
 }) => {
-  // REQ-013-AC10 (3D side): drag moves state().section.point along the normal only, normal unchanged; ArrowUp x3 =
-  // 3 % of the extent along +normal (the kept half shrinks), ArrowDown x3 back; Shift = 10 %; ArrowRight / ArrowLeft
-  // as Up / Down; removing the section hides the handle (here through the interim 1.0.0 axis controls, whose
-  // `Schnitt entfernen` clears the engine's plane; the pill is TASK-017c)
+  // REQ-013-AC10: drag moves state().section.point along the normal only, normal unchanged; ArrowUp x3 = 3 % of the
+  // extent along +normal (the kept half shrinks), ArrowDown x3 back; Shift = 10 %; ArrowRight / ArrowLeft as Up /
+  // Down; the pill `Schnitt entfernen` (TASK-017c; was: the interim 1.0.0 axis controls) sets state().section = null
+  // and hides handle and pill
   test.setTimeout(240_000);
   const errors = await openWith(page, FZK);
   const [slab] = await keysOfGuids(page, [SLAB]);
@@ -404,11 +416,16 @@ test("@e2e the section handle sits on the plane at the models' centre; arrow key
   expect(dot(d, start.normal), "dragged upwards: against the downward normal").toBeLessThan(-0.05);
   expect((await viewState(page)).selected, "the drag is no pick").toEqual([slab]);
 
-  // removing the section hides the handle (interim 1.0.0 axis controls)
-  await page.getByRole("radio", { name: "Schnitt Z" }).click();
-  await page.getByRole("button", { name: "Schnitt entfernen" }).click();
+  // the app follows the handle (the plane it would save, DEC-20)
+  expect(await page.evaluate(() => window.__calc.view.section)).toEqual(dragged);
+  // `Schnitt entfernen`: no section, handle and pill gone
+  const pill = page.locator("#cv-pill-section");
+  await expect(pill).toBeVisible();
+  await pill.getByRole("button", { name: "Schnitt entfernen", exact: true }).click();
   expect(await section(page)).toBeNull();
+  expect(await page.evaluate(() => window.__calc.view.section)).toBeNull();
   await expect(handle).toBeHidden();
+  await expect(pill).toBeHidden();
   expect(errors).toEqual([]);
 });
 

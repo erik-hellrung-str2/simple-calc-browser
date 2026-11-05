@@ -142,7 +142,8 @@ test("@e2e @acceptance @REQ-007-AC3 @REQ-007-AC5 a table row click selects the e
   await expectMarked(page, wall);
   expect(await camera(page)).toEqual(before);
 
-  // REQ-007-AC4 panel part (table side; the buttons are TASK-017b): an element without geometry, clicked in the table
+  // REQ-007-AC4 panel part (table side; the whole AC with the buttons: panel-actions.spec, TASK-017b): an element without
+  // geometry, clicked in the table
   const virtual = FZK_REF.conditionalElements.find((e) => e.hasRepresentationInIfc === false);
   const [noGeo] = await keysOfGuids(page, [virtual.GlobalId]);
   expect((await rowsByKey(page)).get(noGeo).values.Geometrie).toBe("Nein");
@@ -203,6 +204,11 @@ test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC2 a 3D click marks the table row 
   expect(await rowVisibility(page, first)).toMatchObject({ rendered: true, visible: true });
   expect((await markedRows(page)).keys).toEqual([first]);
   expect(await camera(page), "a pick does not move the camera").toEqual(before);
+  // REQ-007-AC5 (changed CR-002, TASK-017c): the 3D click opened the click menu; the first Esc closes only the menu,
+  // the second clears the selection
+  await page.keyboard.press("Escape");
+  await expect(page.locator('#cv-pick [role="menu"]')).toBeHidden();
+  expect((await viewState(page)).selected).toEqual([first]);
   await page.keyboard.press("Escape");
   await expectCleared(page);
 

@@ -100,14 +100,15 @@ export async function clickRow(page, id, options = {}) {
     box.scrollTop = Math.max(0, i * 28 - 40);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   }, index);
-  const row = page.locator(`#cv-tbl-scroll .cv-tbl-body .cv-tr[aria-rowindex="${index + 2}"]`);
+  const row = page.locator(`#cv-tbl-scroll .cv-tbl-body .cv-tr[aria-rowindex="${index + 2}"]:not([hidden])`);
   await row.click({ position: { x: 300, y: 14 } });
 }
 
 /**
  * Finds a screen position where a real 3D click selects the element key (projected centre of its engine bounding box
  * first, then points inside the box; as the REQ-007-AC1 test). The probe clicks select; the selection is cleared with
- * Escape afterwards. Returns [x, y] or null.
+ * Escape afterwards (since CR-002 a 3D click also opens the click menu, which the first Escape closes alone, REQ-007
+ * `Esc` order; TASK-017c). Returns [x, y] or null.
  */
 export async function probePick(page, key) {
   const box = await page.evaluate((k) => window.CalcView.screenBox(k), key);
@@ -124,6 +125,7 @@ export async function probePick(page, key) {
       break;
     }
   }
+  if (await page.locator('#cv-pick [role="menu"]').isVisible()) await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   expect((await viewState(page)).selected).toEqual([]);
   return hit;

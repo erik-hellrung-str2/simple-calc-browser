@@ -53,14 +53,17 @@ async function candidatePoints(page, key) {
   return points;
 }
 
-/** A screen point where a pick hits key (cv-3d hook pickAt, no click): { x, y } or null. */
-export async function pickPoint(page, key) {
+/**
+ * A screen point where a pick hits key (cv-3d hook pickAt, no click): { x, y, hit } or null. accept(hit) (optional)
+ * narrows the hits, e.g. to a face normal (hit.normal, Z up) or a screen region.
+ */
+export async function pickPoint(page, key, accept = () => true) {
   const canvas = await page.locator("#cv-viewport canvas").boundingBox();
   for (const [x, y] of await candidatePoints(page, key)) {
     if (x < canvas.x + 2 || y < canvas.y + 2 || x > canvas.x + canvas.width - 2 || y > canvas.y + canvas.height - 2)
       continue;
     const hit = await page.evaluate(([px, py]) => window.CalcView3D.pickAt(px, py), [x, y]);
-    if (hit && hit.key === key) return { x, y };
+    if (hit && hit.key === key && accept(hit, x, y)) return { x, y, hit };
   }
   return null;
 }
@@ -72,6 +75,22 @@ export async function firstPickable(page, keys) {
     if (at) return { key, ...at };
   }
   throw new Error("none of the elements can be picked in the current view");
+}
+
+/**
+ * A canvas point where a click picks some element (cv-3d hook pickAt on a grid from the centre outwards, no click):
+ * { key, x, y, hit }.
+ */
+export async function anyPickable(page) {
+  const c = await page.locator("#cv-viewport canvas").boundingBox();
+  for (const fy of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8])
+    for (const fx of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
+      const x = c.x + c.width * fx;
+      const y = c.y + c.height * fy;
+      const hit = await page.evaluate(([px, py]) => window.CalcView3D.pickAt(px, py), [x, y]);
+      if (hit) return { key: hit.key, x, y, hit };
+    }
+  throw new Error("no element can be picked in the current view");
 }
 
 /** The click menu (role menu inside #cv-pick). */
@@ -103,13 +122,11 @@ export async function panelAction(page, key, name) {
 }
 
 /**
- * Isolates exactly the elements with these GlobalIds with one `Isolieren` (a "Given" state reachable by the UI): the
- * filter set GlobalId (added if missing) is narrowed to them, the grouping view by `Geometrie` gives one group row
- * `Ja` holding them, a click on it selects them (group selection), `Isolieren` in the properties panel isolates
- * them; then the GlobalId ticks are reset and the single-element view is shown (grouping level 1 stays `Geometrie`).
- * All elements need geometry.
+ * Selects exactly the elements with these GlobalIds through one group row (group selection, DEC-18): the filter set
+ * GlobalId (added if missing) is narrowed to them, the grouping view by `Geometrie` gives one group row `Ja` holding
+ * them, and a click on it selects them. Returns the id of that group row. All elements need geometry.
  */
-export async function isolateTogether(page, guids) {
+export async function selectGroupOf(page, guids) {
   if (!(await filterSet(page, "GlobalId").count())) await addFilterSet(page, "GlobalId", "GlobalId");
   const search = filterSet(page, "GlobalId").getByRole("searchbox");
   for (const guid of guids) {
@@ -124,8 +141,52 @@ export async function isolateTogether(page, guids) {
   );
   await clickRow(page, id, { group: true });
   await expect(page.locator("#cv-props")).toBeVisible();
+  return id;
+}
+
+/**
+ * Isolates exactly the elements with these GlobalIds with one `Isolieren` (a "Given" state reachable by the UI): the
+ * group row of selectGroupOf is selected, `Isolieren` in the properties panel isolates them; then the GlobalId ticks
+ * are reset and the single-element view is shown (grouping level 1 stays `Geometrie`). All elements need geometry.
+ */
+export async function isolateTogether(page, guids) {
+  await selectGroupOf(page, guids);
   await afterUpdate(page, () => page.locator("#cv-props-isolate").click());
   await afterUpdate(page, () => page.getByRole("button", { name: "Auswahl zurücksetzen: GlobalId" }).click());
   await setView(page, "Einzelelemente");
   await idle(page);
+}
+
+/** Centre of the click menu's point marker and the card's box, in page pixels (TASK-017c). */
+export function menuGeometry(page) {
+  return page.evaluate(() => {
+    const d = document.querySelector("#cv-pick .cv-pick-dot").getBoundingClientRect();
+    const c = document.querySelector("#cv-pick .cv-pick-card").getBoundingClientRect();
+    return { x: d.left + d.width / 2, y: d.top + d.height / 2, card: { top: c.top, bottom: c.bottom } };
+  });
+}
+
+/** The section plane the app holds (window.__calc.view.section: { point, normal } | null, spec 4.4). */
+export function appSection(page) {
+  return page.evaluate(() => window.__calc.view.section);
+}
+
+/**
+ * `Schneiden` (REQ-013) through the UI: a real click at the point at = { x, y } (selects the element and opens the
+ * click menu), then the menu item `Schneiden`; waits until the app holds the new plane and the view is idle. Returns
+ * the plane ({ point, normal }).
+ */
+export async function cutAt(page, at) {
+  const before = await appSection(page);
+  await page.mouse.click(at.x, at.y);
+  await idle(page);
+  await expect(clickMenu(page)).toBeVisible();
+  await clickMenu(page).getByRole("menuitem", { name: "Schneiden", exact: true }).click();
+  await expect(clickMenu(page)).toBeHidden();
+  await page.waitForFunction((b) => {
+    const s = window.__calc.view.section;
+    return s !== null && JSON.stringify(s) !== JSON.stringify(b);
+  }, before);
+  await idle(page);
+  return appSection(page);
 }

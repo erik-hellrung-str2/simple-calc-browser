@@ -15,6 +15,7 @@ import { pickGroup, setView, toggleGroup } from "../support/grouping.mjs";
 import { chooseLogo, configuredState, openHeaderDialog } from "../support/config.mjs";
 import { exportFile, readExport } from "../support/export.mjs";
 import { exportViewer, nonBackgroundShare, openViewerFile, withoutExportTime } from "../support/viewer.mjs";
+import { anyPickable, cutAt } from "../support/tools.mjs";
 
 const FZK = fixture("AC20-FZK-Haus.ifc");
 const DUPLEX = fixture("Ifc2x3_Duplex_Architecture.ifc");
@@ -77,18 +78,21 @@ async function configureView(page) {
   await loadFiles(page, [EXPORT_IFC, DUPLEX]);
   await idle(page);
   await editHeader(page, { title: "The M Bouwkundig", date: "2026-08-12", logo: LOGO_SVG });
+  // a section: `Schneiden` in the click menu of an element (TASK-017c; was the interim 1.0.0 `Schnitt Z`); Esc then
+  // clears the selection the click made, so builder and viewer show the same canvas
+  await cutAt(page, await anyPickable(page));
+  await page.keyboard.press("Escape");
   // filter sets: one added and moved up, Material collapsed, Kategorie = IfcWallStandardCase
   await addFilterSet(page, "Typ", "Typ");
   await page.getByRole("button", { name: "Filtersatz nach oben: Typ" }).click();
   await page.getByRole("button", { name: "Filtersatz einklappen: Material" }).click();
   for (const v of EXP.filter.Kategorie) await toggleValue(page, "Kategorie", v);
-  // columns, sort, model display (hide, colour by Geschoss, section Z)
+  // columns, sort, model display (hide, colour by Geschoss; the section is set above)
   await addColumn(page, "Material", "Material");
   await addColumn(page, "CalcTest_Export", NUMBER);
   await clickSort(page, NUMBER);
   await setGhosts(page, false);
   await colourBy(page, "Geschoss", "Geschoss");
-  await page.getByRole("radio", { name: "Schnitt Z" }).click();
   await idle(page);
 }
 
