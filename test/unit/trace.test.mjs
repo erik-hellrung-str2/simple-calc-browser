@@ -30,11 +30,12 @@ const INC2_PENDING = [
   "REQ-005-AC10",
   "REQ-005-AC11",
   "REQ-005-AC12",
-  // REQ-006 Table (new CR-002)
+  // REQ-006 Table (new CR-002; AC12 covered by TASK-013)
   "REQ-006-AC11",
-  "REQ-006-AC12",
-  // REQ-007 Selection and properties panel (AC6: BUG-T2; AC7, AC8 new CR-002)
-  "REQ-007-AC6",
+  // REQ-007 Selection and properties panel (AC6 covered by TASK-013; AC7, AC8 new CR-002). AC4 (changed CR-002): the
+  // panel part is tested since TASK-013 without the AC ID in the title (T5: the whole AC includes the buttons
+  // `Ausblenden` / `Isolieren`), TASK-017b tags it
+  "REQ-007-AC4",
   "REQ-007-AC7",
   "REQ-007-AC8",
   // REQ-008 Export (new CR-002)

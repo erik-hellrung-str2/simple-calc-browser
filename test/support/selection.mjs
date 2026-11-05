@@ -134,21 +134,23 @@ export function camera(page) {
   return page.evaluate(() => window.CalcView.camera());
 }
 
-/** The details panel body: { key (data-key), group (data-group), kicker, title, count, nogeo, placeholder }. */
+/**
+ * The properties panel (REQ-007, CR-002: floating inside the 3D view, hidden while nothing is selected): { open (shown),
+ * key (data-key), group (data-group), kicker, title, chip (Modell), count, nogeo }.
+ */
 export function details(page) {
   return page.evaluate(() => {
-    const body = document.getElementById("cv-details-body");
-    const text = (sel) => body.querySelector(sel)?.textContent ?? null;
+    const panel = document.getElementById("cv-props");
+    const text = (sel) => panel.querySelector(sel)?.textContent ?? null;
     return {
-      key: body.dataset.key || null,
-      group: body.dataset.group ?? null,
+      open: !panel.hidden && panel.getBoundingClientRect().height > 0,
+      key: panel.dataset.key || null,
+      group: panel.dataset.group ?? null,
       kicker: text(".cv-det-kicker"),
       title: text(".cv-det-title"),
+      chip: text(".cv-props-chip"),
       count: text(".cv-det-count"),
       nogeo: text(".cv-det-nogeo"),
-      placeholder: text(".cv-hint"),
     };
   });
 }
-
-export const PLACEHOLDER = "Klick auf ein Element zeigt seine Eigenschaften.";

@@ -25,7 +25,8 @@ const NUMBER = EXP.properties.number; // CalcTest_Export.Zahl
 const TEXT = EXP.properties.text; // CalcTest_Export.Text
 const fzkGroups = REF["REQ-006-grouping-fzk"];
 const WALL = "IfcWallStandardCase";
-const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend { visibility: hidden !important; }" };
+// the floating properties panel (CR-002) is an overlay like the view bar
+const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props { visibility: hidden !important; }" };
 const modell = (path) => basename(path).replace(/\.[^.]*$/, "");
 const deDate = (iso) => {
   const [y, m, d] = iso.split("-").map(Number);
@@ -287,13 +288,13 @@ test("@acceptance @e2e @REQ-010-AC3 the viewer file has no controls for loading 
     await expect(v.locator("#cv-columns")).toBeEnabled();
     await expect(v.getByRole("radio", { name: "Gruppiert", exact: true })).toBeEnabled();
     await expect(v.getByRole("radio", { name: "Ausblenden" })).toBeEnabled();
-    // selection and details (REQ-007): a table row click selects the element in 3D and shows its GlobalId
+    // selection and properties panel (REQ-007): a table row click selects the element in 3D and shows its GlobalId
     const row = v.locator(".cv-tbl-body .cv-tr[data-key]:not([hidden])").first();
     const key = await row.getAttribute("data-key");
     await row.click();
     await expect.poll(() => v.evaluate(() => window.__calc.view.selected)).toBe(key);
     const guid = await v.evaluate((k) => window.__calc.rows.find((r) => r.key === k).guid, key);
-    await expect(v.locator("#cv-details-body")).toContainText(guid);
+    await expect(v.locator("#cv-props")).toContainText(guid);
     expect(await v.evaluate(() => [...window.CalcView.state().selected])).toEqual([key]);
     // a file dropped on the viewer is ignored (no IFC or configuration loading)
     const before = await v.evaluate(() => ({ loads: window.__calc.loads, models: window.__calc.modelCount }));

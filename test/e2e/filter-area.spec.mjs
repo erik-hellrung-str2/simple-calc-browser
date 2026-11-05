@@ -347,7 +347,7 @@ test("@e2e @acceptance @REQ-001-AC1 two models: a filter set `Modell` lists both
   await shot(page, "04-two-models-modell-set");
 });
 
-test("@e2e @UI screen layout: header, filter area ~280 px, details ~320 px collapsible, splitter 55/45, status line, colours", async ({
+test("@e2e @UI screen layout: header, filter area ~280 px, model and table to the right edge, splitter 55/45, status line, colours", async ({
   page,
 }) => {
   await openBuilder(page);
@@ -368,7 +368,10 @@ test("@e2e @UI screen layout: header, filter area ~280 px, details ~320 px colla
 
   const width = (sel) => page.locator(sel).evaluate((n) => n.getBoundingClientRect().width);
   expect(await width("#cv-filters")).toBe(280);
-  expect(await width("#cv-details")).toBe(320);
+  // CR-002: no details column; the centre (3D view and table) takes the rest of the width
+  await expect(page.locator("#cv-details")).toHaveCount(0);
+  const viewportWidth = page.viewportSize().width;
+  expect(await width("#cv-center")).toBe(viewportWidth - 280);
   const height = (sel) => page.locator(sel).evaluate((n) => n.getBoundingClientRect().height);
   const share = async () => {
     const v = await height("#cv-viewport");
@@ -386,13 +389,6 @@ test("@e2e @UI screen layout: header, filter area ~280 px, details ~320 px colla
   expect(await share()).toBeCloseTo(0.3, 1);
   await page.locator("#cv-splitter").press("ArrowDown");
   expect(await page.evaluate(() => window.__calc.layout.split)).toBeCloseTo(35, 0);
-
-  // details collapsible
-  await page.getByRole("button", { name: "Details einklappen" }).click();
-  expect(await width("#cv-details")).toBe(40);
-  expect(await page.evaluate(() => window.__calc.layout.detailsCollapsed)).toBe(true);
-  await page.getByRole("button", { name: "Details ausklappen" }).click();
-  expect(await width("#cv-details")).toBe(320);
 
   // light reference style (UI-02): colour tokens, font
   const tokens = await page.evaluate(() => {
@@ -463,7 +459,7 @@ test("@e2e @UI data text keeps its characters (no calt/liga); search clear butto
     ".cv-model-name",
     ".cv-search input",
     "#cv-table",
-    "#cv-details .cv-details-body",
+    "#cv-props",
     // verification INC-1 SYNC F4: the header title (default = Modell value, e.g. Ifc2x3_...), the legend and the
     // grouping pickers that show property names (the colour picker text has its own rule)
     "#cv-title",
@@ -540,25 +536,25 @@ test("@e2e @REQ-004 numeric filter values show at most 3 decimals (spec 3.2), th
   expect(errors).toEqual([]);
 });
 
-test("@e2e @UI below 1280 px the side panels collapse to drawers: hidden from Tab, opened with `Filter` / `Details`", async ({
+test("@e2e @UI below 1280 px the filter area collapses to a drawer: hidden from Tab, opened with `Filter`; no `Details` drawer", async ({
   page,
 }) => {
-  // verification INC-1 SYNC F2 / UX M1: below 1280 px both panels were 0 px wide for good, yet reachable by Tab
+  // verification INC-1 SYNC F2 / UX M1: below 1280 px both panels were 0 px wide for good, yet reachable by Tab;
+  // CR-002 (TASK-013): the details column and its drawer are gone, the properties panel floats in the 3D view
   const errors = await openBuilder(page);
   await loadFiles(page, FZK);
   const filtersToggle = page.getByRole("button", { name: "Filter", exact: true });
-  const detailsToggle = page.getByRole("button", { name: "Details", exact: true });
-  // wide: the panels are columns, the drawer toggles are not shown
+  // wide: the filter area is a column, the drawer toggle is not shown
   await expect(filtersToggle).toBeHidden();
-  await expect(detailsToggle).toBeHidden();
+  await expect(page.getByRole("button", { name: "Details", exact: true })).toHaveCount(0);
   await expect(page.locator("#cv-opt-spaces")).toBeVisible();
 
   for (const width of [1100, 1000]) {
     await page.setViewportSize({ width, height: 760 });
     await expect(filtersToggle).toBeVisible();
-    await expect(detailsToggle).toBeVisible();
-    // collapsed: nothing in the panels can be seen or focused
-    for (const sel of ["#cv-opt-spaces", "#cv-add-filterset", "#cv-details-toggle"]) {
+    await expect(page.locator(".cv-header").getByRole("button", { name: /Details/ })).toHaveCount(0);
+    // collapsed: nothing in the filter area can be seen or focused
+    for (const sel of ["#cv-opt-spaces", "#cv-add-filterset"]) {
       await expect(page.locator(sel), sel).toBeHidden();
       expect(
         await page.locator(sel).evaluate((n) => (n.focus(), document.activeElement === n)),
@@ -567,6 +563,10 @@ test("@e2e @UI below 1280 px the side panels collapse to drawers: hidden from Ta
     }
     const header = await page.locator(".cv-header").evaluate((n) => ({ sw: n.scrollWidth, cw: n.clientWidth }));
     expect(header.sw, "header buttons fit").toBeLessThanOrEqual(header.cw);
+    // the model area and the table take the full width
+    let cb = await page.locator("#cv-center").boundingBox();
+    expect(Math.round(cb.x)).toBe(0);
+    expect(Math.round(cb.width)).toBe(width);
 
     // the filter drawer: 280 px over the model area, every control usable
     await filtersToggle.click();
@@ -576,30 +576,66 @@ test("@e2e @UI below 1280 px the side panels collapse to drawers: hidden from Ta
     expect(fb.x).toBe(0);
     await expect(page.locator("#cv-opt-spaces")).toBeVisible();
     // the model area and the table keep the full width under the drawer
-    const cb = await page.locator("#cv-center").boundingBox();
+    cb = await page.locator("#cv-center").boundingBox();
     expect(Math.round(cb.x)).toBe(0);
     expect(Math.round(cb.width)).toBe(width);
     await toggleValue(page, "Kategorie", "IfcWindow");
     await expect(status(page)).toHaveText(`${de(FZK_ROWS_BY_KATEGORIE.IfcWindow)} von ${de(FZK_TOTAL)} Elementen`);
     await toggleValue(page, "Kategorie", "IfcWindow");
-
-    // the details drawer replaces it (one drawer at a time), at the right edge
-    await detailsToggle.click();
+    await filtersToggle.click();
     await expect(filtersToggle).toHaveAttribute("aria-expanded", "false");
     await expect(page.locator("#cv-opt-spaces")).toBeHidden();
-    const db = await page.locator("#cv-details").boundingBox();
-    expect(Math.round(db.width)).toBe(320);
-    expect(Math.round(db.x + db.width)).toBe(width);
-    expect(Math.round((await page.locator("#cv-center").boundingBox()).width)).toBe(width);
-    await expect(page.locator("#cv-details-body")).toBeVisible();
-    await detailsToggle.click();
-    await expect(page.locator("#cv-details-body")).toBeHidden();
   }
-  // back to wide: columns again
+  // back to wide: a column again
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(filtersToggle).toBeHidden();
   expect(Math.round((await page.locator("#cv-filters").boundingBox()).width)).toBe(280);
-  await expect(page.locator("#cv-details-body")).toBeVisible();
+  await expect(page.locator("#cv-opt-spaces")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("@e2e @acceptance @REQ-006-AC12 no column right of the 3D view: 3D view and table reach the right edge, the filter area is as high as both; at 1100 px only the `Filter` drawer", async ({
+  page,
+}) => {
+  const errors = await openBuilder(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await loadFiles(page, FZK);
+  await expect(page.locator("#cv-details")).toHaveCount(0);
+  // the main grid holds exactly the filter area and the centre (3D view over table): nothing right of the 3D view
+  const main = await page.locator(".cv-main").evaluate((n) => ({
+    children: [...n.children].map((c) => c.id),
+    tracks: getComputedStyle(n).gridTemplateColumns.split(" ").length,
+  }));
+  expect(main).toEqual({ children: ["cv-filters", "cv-center"], tracks: 2 });
+  const box = (sel) => page.locator(sel).boundingBox();
+  const view = await box("#cv-viewport");
+  const table = await box("#cv-table");
+  const filters = await box("#cv-filters");
+  expect(Math.abs(view.x + view.width - 1280), "3D view right edge").toBeLessThanOrEqual(1);
+  expect(Math.abs(table.x + table.width - 1280), "table right edge").toBeLessThanOrEqual(1);
+  // no element of the page lies right of the 3D view's right edge
+  const beyond = await page.evaluate(
+    () =>
+      [...document.querySelectorAll("body *")].filter((n) => {
+        const r = n.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && r.right > window.innerWidth + 1;
+      }).length,
+  );
+  expect(beyond, "nothing beyond the window's right edge").toBe(0);
+  // the filter area spans the height of the 3D view, the splitter and the table together
+  expect(Math.abs(filters.y - view.y), "filter area top = 3D view top").toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(filters.y + filters.height - (table.y + table.height)),
+    "filter area bottom = table bottom",
+  ).toBeLessThanOrEqual(1);
+  expect(Math.abs(filters.height - (table.y + table.height - view.y))).toBeLessThanOrEqual(1);
+
+  // 1100 px: the header offers the drawer button `Filter` and no button `Details`
+  await page.setViewportSize({ width: 1100, height: 800 });
+  const header = page.locator(".cv-header");
+  await expect(header.getByRole("button", { name: "Filter", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Details", exact: true })).toHaveCount(0);
+  await expect(header.getByRole("button", { name: /Details/ })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -616,8 +652,10 @@ test("@e2e @UI the builder with FZK loaded and filters active (screenshots for r
     `${de(FZK_ROWS_BY_KATEGORIE.IfcWindow + FZK_ROWS_BY_KATEGORIE.IfcDoor)} von ${de(FZK_TOTAL)} Elementen`,
   );
   await shot(page, "06-fzk-filters-active");
-  await page.getByRole("button", { name: "Details einklappen" }).click();
-  await shot(page, "07-details-collapsed");
+  // CR-002: a selected element shows the floating properties panel in the 3D view
+  await page.evaluate(() => window.CalcView.select(window.__calc.table.keys[0]));
+  await expect(page.locator("#cv-props")).toBeVisible();
+  await shot(page, "07-properties-panel");
 });
 
 test("@e2e @robustness @UI below 1280 px a load error or configuration message opens the filter drawer and is visible", async ({

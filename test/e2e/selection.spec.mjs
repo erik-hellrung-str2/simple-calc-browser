@@ -1,7 +1,7 @@
 // TASK-006c selection in both directions (spec REQ-007-AC1 table side, AC2, AC3, AC4 table side, AC5 both sides; the
 // REQ-007 text "clicking a group row highlights all its elements"). The 3D side is read from CalcView.state() (spec
 // 4.4), the table side from the rendered rows (class `cv-sel` + aria-selected, fully visible in the table box), the
-// details from the panel. 3D clicks are real mouse clicks at a probed screen position of the element (as REQ-007-AC1).
+// properties from the floating properties panel `#cv-props` (CR-002, TASK-013). 3D clicks are real mouse clicks at a probed screen position of the element (as REQ-007-AC1).
 // Expected GlobalIds and labels come from test/fixtures/reference-values.json (section REQ-007-selection and REQ-005-AC4,
 // STEP-text derivation).
 import { test, expect } from "../support/network-guard.mjs";
@@ -11,7 +11,6 @@ import { idle, keysOfGuids, rowsByKey, viewState } from "../support/view-3d.mjs"
 import { addColumn, clickSort, headerKeys } from "../support/table.mjs";
 import { deCount, pickGroup, setView, toggleGroup } from "../support/grouping.mjs";
 import {
-  PLACEHOLDER,
   camera,
   clickRow,
   details,
@@ -51,16 +50,37 @@ async function expectMarked(page, key) {
   expect(marks.inconsistent).toEqual([]);
 }
 
-/** Nothing selected on any side: 3D, hook, details placeholder, no marked row. */
+/** Nothing selected on any side: 3D, hook, properties panel closed (REQ-007), no marked row. */
 async function expectCleared(page) {
   expect((await viewState(page)).selected).toEqual([]);
   expect(await selection(page)).toEqual({ selected: null, selectedGroup: null, selectedKeys: [] });
   const d = await details(page);
-  expect(d.placeholder).toBe(PLACEHOLDER);
+  expect(d.open, "the properties panel is closed").toBe(false);
   expect(d.key).toBeNull();
   expect(d.group).toBeNull();
   expect((await markedRows(page)).keys).toEqual([]);
   expect((await markedRows(page)).groups).toEqual([]);
+}
+
+/**
+ * No click menu is open in the 3D view (REQ-007-AC3; the menu of REQ-013 is a role="menu" inside #cv-canvas-box,
+ * TASK-014).
+ */
+async function expectNoClickMenu(page) {
+  await expect(page.locator('#cv-canvas-box [role="menu"]:visible')).toHaveCount(0);
+}
+
+/** The properties panel is shown inside the 3D view at its top right (REQ-007, CR-002). */
+async function expectPanelInView(page) {
+  const panel = await page.locator("#cv-props").boundingBox();
+  const view = await page.locator("#cv-canvas-box").boundingBox();
+  expect(panel, "properties panel shown").not.toBeNull();
+  expect(panel.x).toBeGreaterThanOrEqual(view.x);
+  expect(panel.y).toBeGreaterThanOrEqual(view.y);
+  expect(Math.abs(view.x + view.width - 16 - (panel.x + panel.width)), "16 px from the right edge").toBeLessThanOrEqual(
+    1,
+  );
+  expect(panel.y + panel.height).toBeLessThanOrEqual(view.y + view.height);
 }
 
 /** Clicks empty canvas (bottom-left corner of the 3D view). */
@@ -69,7 +89,7 @@ async function clickEmptyCanvas(page) {
   await page.mouse.click(canvas.x + 12, canvas.y + canvas.height - 12);
 }
 
-test("@e2e @acceptance @REQ-007-AC3 @REQ-007-AC4 @REQ-007-AC5 a table row click selects the element in 3D and shows its details; the camera stays; the selection survives sort, columns and view switch", async ({
+test("@e2e @acceptance @REQ-007-AC3 @REQ-007-AC5 a table row click selects the element in 3D and shows its properties panel without a click menu; the camera stays; the selection survives sort, columns and view switch", async ({
   page,
 }) => {
   const errors = await openWith(page, FZK);
@@ -80,14 +100,16 @@ test("@e2e @acceptance @REQ-007-AC3 @REQ-007-AC4 @REQ-007-AC5 a table row click 
   expect((await viewState(page)).selected).toEqual([wall]);
   expect(await selection(page)).toEqual({ selected: wall, selectedGroup: null, selectedKeys: [wall] });
   let d = await details(page);
+  expect(d.open).toBe(true);
   expect(d.key).toBe(wall);
   expect(d.kicker).toBe(SEL.wall.Kategorie);
   expect(d.title).toBe(SEL.wall.Name);
+  expect(d.chip, "model chip").toBe("AC20-FZK-Haus");
   await expect(
-    page
-      .locator('#cv-details-body .cv-det-group[data-group="Allgemein"] dt', { hasText: /^GlobalId$/ })
-      .locator("+ dd"),
+    page.locator('#cv-props .cv-det-group[data-group="Allgemein"] dt', { hasText: /^GlobalId$/ }).locator("+ dd"),
   ).toHaveText(SEL.wall.GlobalId);
+  await expectPanelInView(page);
+  await expectNoClickMenu(page);
   await expectMarked(page, wall);
   expect(await camera(page), "a row click does not move the camera").toEqual(before);
 
@@ -120,12 +142,13 @@ test("@e2e @acceptance @REQ-007-AC3 @REQ-007-AC4 @REQ-007-AC5 a table row click 
   await expectMarked(page, wall);
   expect(await camera(page)).toEqual(before);
 
-  // REQ-007-AC4 (table side): an element without geometry, clicked in the table
+  // REQ-007-AC4 panel part (table side; the buttons are TASK-017b): an element without geometry, clicked in the table
   const virtual = FZK_REF.conditionalElements.find((e) => e.hasRepresentationInIfc === false);
   const [noGeo] = await keysOfGuids(page, [virtual.GlobalId]);
   expect((await rowsByKey(page)).get(noGeo).values.Geometrie).toBe("Nein");
   await clickRow(page, noGeo);
   d = await details(page);
+  expect(d.open).toBe(true);
   expect(d.key).toBe(noGeo);
   expect(d.nogeo).toBe("Dieses Element hat keine 3D-Geometrie.");
   expect(d.kicker).toBe(virtual.Kategorie);

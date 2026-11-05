@@ -39,7 +39,8 @@ export async function keysOfGuids(page, guids) {
   return page.evaluate((list) => list.map((g) => window.__calc.rows.find((r) => r.guid === g)?.key ?? null), guids);
 }
 
-const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend { visibility: hidden !important; }" };
+// the floating properties panel (CR-002) is an overlay like the view bar
+const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props { visibility: hidden !important; }" };
 
 /** PNG screenshot of the 3D canvas only (controls and legend hidden), after the view is idle. */
 export async function canvasShot(page) {

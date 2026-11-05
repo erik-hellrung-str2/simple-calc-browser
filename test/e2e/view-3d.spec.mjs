@@ -1,11 +1,12 @@
 // TASK-005 3D coupling (spec REQ-005, REQ-007-AC1/AC4/AC5, §4.4 CalcView.state(), DEC-15, process-log 2026-11-02):
-// ghost / hide, colouring with legend and filter-set dots, section, picking and details, render on demand, IfcSpace kept
-// hidden. 3D assertions read CalcView.state() (derived from the calls cv-3d makes to the engine) and, where stated,
+// ghost / hide, colouring with legend and filter-set dots, section, picking and the properties panel (floating in the 3D
+// view since CR-002, TASK-013), render on demand, IfcSpace kept hidden. 3D assertions read CalcView.state() (derived from the calls cv-3d makes to the engine) and, where stated,
 // the engine itself (model.getVisible) or the drawn canvas. Expected key sets and counts come from
 // test/fixtures/reference-values.json (STEP-text derivation), not from the product.
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
 import { addFilterSet, filterSet, toggleValue } from "../support/filter-area.mjs";
+import { clickRow } from "../support/selection.mjs";
 import {
   canvasShot,
   colourBy,
@@ -244,7 +245,7 @@ test("@e2e @acceptance @REQ-005-AC4 `Färben nach` Material: an element with two
   expect(errors).toEqual([]);
 });
 
-test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and shows its details; empty space and Esc clear", async ({
+test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and shows its properties panel in the 3D view (no details column); empty space and Esc clear", async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -281,11 +282,23 @@ test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and 
   expect(state.selected).toEqual([key]);
   console.log(`[REQ-007-AC1] wall ${WALL} picked at (${hit.map((v) => v.toFixed(0)).join(", ")})`);
 
-  // details: kicker, title, GlobalId and the BaseQuantities pset with reference values (German format, units)
-  const details = page.locator("#cv-details-body");
+  // properties panel inside the 3D view (CR-002): kicker, title, model chip, GlobalId and the BaseQuantities pset with
+  // reference values (German format, units); no element-details column right of the 3D view
+  const details = page.locator("#cv-props");
+  await expect(details).toBeVisible();
   await expect(details).toHaveAttribute("data-key", key);
+  await expect(page.locator("#cv-details")).toHaveCount(0);
+  const panelBox = await details.boundingBox();
+  const viewBox = await page.locator("#cv-canvas-box").boundingBox();
+  expect(panelBox.x).toBeGreaterThanOrEqual(viewBox.x);
+  expect(panelBox.y).toBeGreaterThanOrEqual(viewBox.y);
+  expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(viewBox.x + viewBox.width);
+  expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(viewBox.y + viewBox.height);
+  expect(panelBox.x + panelBox.width / 2, "at the right of the 3D view").toBeGreaterThan(viewBox.x + viewBox.width / 2);
+  expect(panelBox.y + panelBox.height / 2, "at the top of the 3D view").toBeLessThan(viewBox.y + viewBox.height / 2);
   await expect(details.locator(".cv-det-kicker")).toHaveText(ref.Kategorie);
   await expect(details.locator(".cv-det-title")).toHaveText(ref.Name);
+  await expect(details.locator(".cv-props-chip")).toHaveText("AC20-FZK-Haus");
   const general = details.locator('.cv-det-group[data-group="Allgemein"]');
   await expect(general.locator("dt", { hasText: /^GlobalId$/ }).locator("+ dd")).toHaveText(WALL);
   const qto = details.locator('.cv-det-group[data-group="BaseQuantities"]');
@@ -305,11 +318,11 @@ test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and 
   await qto.locator(".cv-det-group-head").click();
   await expect(qto.locator("dl")).toBeVisible();
 
-  // REQ-007-AC5: a click on empty space clears the selection and the details
+  // REQ-007-AC5: a click on empty space clears the selection and closes the panel
   await page.mouse.click(canvas.x + 12, canvas.y + canvas.height - 12);
   state = await viewState(page);
   expect(state.selected).toEqual([]);
-  await expect(details).toHaveText("Klick auf ein Element zeigt seine Eigenschaften.");
+  await expect(details).toBeHidden();
 
   // ... and so does Esc (but not an Escape that closes a dialog)
   await page.mouse.click(...hit);
@@ -321,7 +334,7 @@ test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and 
   expect((await viewState(page)).selected, "Escape in a dialog keeps the selection").toEqual([key]);
   await page.keyboard.press("Escape");
   expect((await viewState(page)).selected).toEqual([]);
-  await expect(details).toHaveText("Klick auf ein Element zeigt seine Eigenschaften.");
+  await expect(details).toBeHidden();
 
   // a ghost is not pickable: reset the filter to Kategorie = IfcSlab only, the wall becomes a ghost
   await toggleValue(page, "GlobalId", WALL);
@@ -333,7 +346,9 @@ test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and 
   expect(errors).toEqual([]);
 });
 
-test("@e2e @acceptance @REQ-007-AC4 an element without geometry selected via the API shows its details and the hint", async ({
+// REQ-007-AC4, panel part (TASK-013): the buttons `Ausblenden` / `Isolieren` of that AC are verified and tagged in
+// TASK-017b (spec T5: a title names an AC only when the test verifies the whole AC)
+test("@e2e @REQ-007 an element without geometry, clicked in the table, shows its properties panel with the no-geometry hint", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -344,8 +359,9 @@ test("@e2e @acceptance @REQ-007-AC4 an element without geometry selected via the
   const row = (await rowsByKey(page)).get(key);
   expect(row.values.Geometrie).toBe("Nein");
 
-  await page.evaluate((k) => window.CalcView.select(k), key);
-  const details = page.locator("#cv-details-body");
+  await clickRow(page, key);
+  const details = page.locator("#cv-props");
+  await expect(details).toBeVisible();
   await expect(details).toHaveAttribute("data-key", key);
   await expect(details.locator(".cv-det-nogeo")).toHaveText("Dieses Element hat keine 3D-Geometrie.");
   await expect(details.locator(".cv-det-kicker")).toHaveText(virtual.Kategorie);
@@ -354,7 +370,10 @@ test("@e2e @acceptance @REQ-007-AC4 an element without geometry selected via the
   ).toHaveText(virtual.GlobalId);
   expect(await page.evaluate(() => window.__calc.view.selected)).toBe(key);
   expect((await viewState(page)).selected, "nothing to highlight in 3D").toEqual([]);
+  for (const name of ["Ausblenden", "Isolieren"])
+    await expect(details.getByRole("button", { name, exact: true }), `button ${name}`).toBeVisible();
   await page.keyboard.press("Escape");
+  await expect(details).toBeHidden();
   await expect(details.locator(".cv-det-nogeo")).toHaveCount(0);
   expect(await page.evaluate(() => window.__calc.view.selected)).toBeNull();
   expect(errors).toEqual([]);

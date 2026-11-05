@@ -228,14 +228,14 @@
         cursor: default;
       }
 
-      /* Three columns: filter area ~280 px, centre, details ~320 px (collapsible) */
+      /*
+       * Two columns: filter area ~280 px at full height, centre (3D view and table) up to the right edge (CR-002: the
+       * details column is gone; the properties panel floats inside the 3D view, REQ-007, REQ-006-AC12)
+       */
       .cv-main {
         display: grid;
-        grid-template-columns: 280px minmax(0, 1fr) 320px;
+        grid-template-columns: 280px minmax(0, 1fr);
         min-height: 0;
-      }
-      .cv-main.cv-details-collapsed {
-        grid-template-columns: 280px minmax(0, 1fr) 40px;
       }
       .cv-panel {
         min-height: 0;
@@ -246,25 +246,6 @@
       .cv-filters {
         overflow-x: hidden;
         border-right: 1px solid var(--cv-line);
-      }
-      .cv-details {
-        border-left: 1px solid var(--cv-line);
-      }
-      .cv-details-head {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .cv-details-head h2 {
-        flex: 1;
-        margin: 0;
-      }
-      .cv-details-collapsed .cv-details {
-        padding: 10px 8px;
-        overflow: hidden;
-      }
-      .cv-details-collapsed .cv-details-head h2 {
-        display: none;
       }
       .cv-panel h2 {
         margin: 0 0 8px;
@@ -642,7 +623,7 @@
       .cv-cat-group,
       .cv-search input,
       .cv-table,
-      .cv-details-body {
+      .cv-props-panel {
         font-feature-settings:
           "calt" 0,
           "liga" 0;
@@ -1583,31 +1564,127 @@
         height: min(300px, 38vh);
       }
 
-      /* Element details (REQ-007) */
-      .cv-details-body {
-        font-feature-settings:
-          "calt" 0,
-          "liga" 0;
-        font-variant-ligatures: none;
+      /*
+       * TASK-013 properties panel (REQ-007, CR-002): a floating glass panel at the top right inside the 3D view as the
+       * reference (ref L884-939, CSS L1755-1791): width min(360px, 100% - 32px); its height ends above the pill stack
+       * (--cv-pills-h, set by the pill stack on #cv-canvas-box) and at least 96 px above the bottom (toolbar), the body
+       * scrolls inside. Long values wrap inside the panel (BUG-T2, REQ-007-AC6).
+       */
+      .cv-canvas-box {
+        --cv-pills-h: 0px;
+        --cv-props-top: 16px;
+      }
+      /* interim: below the 1.0.0 view bar while it exists (removed by TASK-015a / TASK-016) */
+      .cv-canvas-box:has(> .cv-view-bar:not([hidden])) {
+        --cv-props-top: 52px;
+      }
+      .cv-props-panel {
+        position: absolute;
+        top: var(--cv-props-top);
+        right: 16px;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        width: min(360px, calc(100% - 32px));
+        max-height: calc(100% - var(--cv-props-top) - max(96px, var(--cv-pills-h) + 32px));
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(14px);
+        box-shadow: var(--cv-shadow);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .cv-props-head {
+        flex: none;
+        padding: 12px 12px 10px 16px;
+        border-bottom: 1px solid rgba(164, 168, 172, 0.35);
       }
       .cv-det-head {
         display: flex;
         align-items: flex-start;
-        gap: 8px;
-        margin: 4px 0 8px;
+        gap: 10px;
       }
       .cv-det-head-text {
         flex: 1;
         min-width: 0;
       }
       .cv-det-kicker {
-        color: var(--cv-muted);
-        font-size: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--cv-accent);
+        overflow-wrap: anywhere;
       }
       .cv-det-title {
-        font-size: 14px;
+        margin-top: 2px;
+        font-size: 15px;
         font-weight: 600;
+        color: var(--cv-ink);
         overflow-wrap: anywhere;
+      }
+      .cv-props-panel .cv-det-close {
+        flex: none;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        color: var(--cv-muted);
+      }
+      .cv-props-panel .cv-det-close:hover {
+        background: rgba(23, 24, 26, 0.07);
+        color: var(--cv-ink);
+      }
+      .cv-props-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .cv-props-chip {
+        max-width: 100%;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background: rgba(23, 24, 26, 0.06);
+        color: var(--cv-ink-2);
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+      .cv-props-actions {
+        display: flex;
+        gap: 6px;
+        margin-left: auto;
+      }
+      .cv-props-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 28px;
+        padding: 0 10px;
+        border: 1px solid var(--cv-line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--cv-ink-2);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .cv-props-action:hover {
+        border-color: var(--cv-accent);
+        color: var(--cv-accent);
+      }
+      .cv-props-action:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: 1px;
+      }
+      .cv-props-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 10px 16px 14px;
+        overflow-x: hidden;
+        overflow-y: auto;
       }
       .cv-det-count {
         margin: 0 0 8px;
@@ -1618,34 +1695,48 @@
         margin: 0 0 8px;
         padding: 6px 8px;
         border-left: 3px solid var(--cv-accent);
+        border-radius: 0 6px 6px 0;
         background: var(--cv-accent-soft);
         font-size: 12px;
       }
       .cv-det-group {
-        border-top: 1px solid var(--cv-line);
+        margin: 6px 0;
+        border-radius: 10px;
+        background: rgba(23, 24, 26, 0.035);
       }
       .cv-det-group-head {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         width: 100%;
-        padding: 6px 0;
+        padding: 7px 10px;
         border: 0;
+        border-radius: 10px;
         background: none;
-        color: var(--cv-ink-2);
+        color: var(--cv-ink);
         font: inherit;
-        font-size: 12px;
-        font-weight: 700;
+        font-weight: 600;
         text-align: left;
         cursor: pointer;
       }
+      .cv-det-group-head:hover {
+        background: rgba(23, 24, 26, 0.05);
+      }
+      .cv-det-group-head:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: -2px;
+      }
       .cv-det-group-head .cv-icon {
-        width: 14px;
-        height: 14px;
+        color: var(--cv-accent);
         transform: rotate(90deg);
         transition: transform 0.12s;
       }
+      .cv-det-group-head .cv-icon svg {
+        width: 14px;
+        height: 14px;
+      }
       .cv-det-group.cv-collapsed .cv-det-group-head .cv-icon {
+        color: var(--cv-muted);
         transform: none;
       }
       .cv-det-group-name {
@@ -1658,46 +1749,92 @@
         font-weight: 400;
       }
       .cv-det-props {
+        margin: 0;
+        padding: 0 10px 6px 32px;
+      }
+      .cv-prop-row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 2px 10px;
-        margin: 0 0 8px;
-        font-size: 12px;
+        grid-template-columns: 44% minmax(0, 1fr);
+        border-bottom: 1px solid rgba(164, 168, 172, 0.35);
+      }
+      .cv-prop-row:last-child {
+        border-bottom: 0;
       }
       .cv-det-name {
+        min-width: 0;
+        padding: 4px 10px 4px 0;
         color: var(--cv-muted);
         overflow-wrap: anywhere;
       }
       .cv-det-value {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        min-width: 0;
         margin: 0;
+        padding: 4px 0;
+        color: var(--cv-ink);
+      }
+      .cv-prop-text {
+        flex: 1;
+        min-width: 0;
         overflow-wrap: anywhere;
       }
-      .cv-det-value.cv-num {
+      .cv-det-value.cv-num .cv-prop-text {
         text-align: right;
+      }
+      /* row tools `Nach Wert filtern` / `Farbe nach Wert`: shown on hover and on keyboard focus (REQ-007-AC7) */
+      .cv-row-tools {
+        flex: none;
+        display: inline-flex;
+        gap: 2px;
+        margin: -3px 0;
+        opacity: 0;
+      }
+      .cv-prop-row:hover .cv-row-tools,
+      .cv-prop-row:focus-within .cv-row-tools {
+        opacity: 1;
+      }
+      @media (hover: none) {
+        .cv-row-tools {
+          opacity: 1;
+        }
+      }
+      .cv-row-tool {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        color: var(--cv-muted);
+      }
+      .cv-row-tool:hover {
+        background: var(--cv-accent-soft);
+        color: var(--cv-accent);
+      }
+      .cv-row-tool:focus-visible {
+        outline: 2px solid var(--cv-accent);
+        outline-offset: -2px;
       }
 
       /*
-       * Below 1280 px the side panels collapse to drawers (spec 2 Devices; verification INC-1 SYNC F2 / UX M1): hidden
-       * (not reachable by Tab) until opened with `Filter` / `Details` in the header, then over the model area.
+       * Below 1280 px the filter area collapses to a drawer (spec 2 Devices; verification INC-1 SYNC F2 / UX M1; CR-002:
+       * the `Details` drawer is gone with the details column): hidden (not reachable by Tab) until opened with `Filter`
+       * in the header, then over the model area.
        */
       .cv-panel-toggle {
         display: none;
       }
       @media (max-width: 1279px) {
-        .cv-main,
-        .cv-main.cv-details-collapsed {
+        .cv-main {
           position: relative;
-          grid-template-columns: 0 minmax(0, 1fr) 0;
+          grid-template-columns: 0 minmax(0, 1fr);
         }
-        .cv-filters,
-        .cv-details {
+        .cv-filters {
           padding: 0;
           overflow: hidden;
           border: 0;
           visibility: hidden;
         }
-        .cv-main.cv-show-filters .cv-filters,
-        .cv-main.cv-show-details .cv-details {
+        .cv-main.cv-show-filters .cv-filters {
           position: absolute;
           top: 0;
           bottom: 0;
@@ -1712,11 +1849,6 @@
           width: 280px;
           overflow-x: hidden;
           border-right: 1px solid var(--cv-line);
-        }
-        .cv-main.cv-show-details .cv-details {
-          right: 0;
-          width: 320px;
-          border-left: 1px solid var(--cv-line);
         }
         .cv-panel-toggle {
           display: inline-flex;
@@ -5040,7 +5172,6 @@
         grip: '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
         search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
         cube: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
-        panelRight: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
         fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
         palette:
           '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.6-1.3-.6-2.1 0-.9.7-1.5 1.6-1.5H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/>',
@@ -5055,6 +5186,10 @@
         fold: '<path d="M7 4l5 5 5-5M7 20l5-5 5 5"/>',
         layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
         edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
+        // `Ausblenden` / `Isolieren` (as the reference ICONS hide / isolate, ref L263-264)
+        hide: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" stroke-dasharray="2 2"/>',
+        isolate:
+          '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><g opacity=".35"><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></g>',
       };
 
       function icon(name) {
@@ -6793,54 +6928,125 @@
       const groupRank = (group) => (group === "Allgemein" ? 0 : group.indexOf("Typ: ") === 0 ? 2 : 1);
 
       /**
-       * Details panel body (REQ-007 `Element-Details`): all properties of one element, grouped (attributes and special
-       * properties, then psets, then type psets), groups collapsible (state kept per group name).
+       * Properties panel (REQ-007, CR-002; TASK-013): a floating panel at the top right inside the 3D view as the
+       * reference (ref L884-939), hidden while nothing is selected. Header: kicker `Kategorie`, title `Name`, a chip with
+       * the `Modell` value, the buttons `Ausblenden` / `Isolieren` (REQ-013) and `Schliessen`. Body: all properties of
+       * the element grouped as the property catalogue (attributes and special properties, then psets, then type psets),
+       * groups collapsible (state kept per group name); each property row carries the row tools `Nach Wert filtern`
+       * (REQ-003) and `Farbe nach Wert` (REQ-005), shown on hover and keyboard focus. A group selection shows
+       * `<n> Elemente ausgewaehlt` (and `Davon ohne 3D-Geometrie: <n>`) with the same buttons.
+       * handlers: { clear(), hide(), isolate(), filterByValue(key, value), colourByValue(key) }; all but clear may be
+       * absent (the control is then inert; wired by TASK-016 / TASK-017b).
        */
-      function createDetails(body, onClear) {
+      function createDetails(panel, handlers) {
         const collapsed = new Set();
-        const placeholder = "Klick auf ein Element zeigt seine Eigenschaften.";
+        const call = (name, ...args) => {
+          if (typeof handlers[name] === "function") handlers[name](...args);
+        };
+        const head = el("div", "cv-props-head");
+        const body = el("div", "cv-props-body");
+        body.id = "cv-props-body";
+        panel.append(head, body);
+
         function clear() {
-          body.replaceChildren(el("p", "cv-hint", placeholder));
-          body.dataset.key = "";
-          delete body.dataset.group;
+          panel.hidden = true;
+          head.replaceChildren();
+          body.replaceChildren();
+          delete panel.dataset.key;
+          delete panel.dataset.group;
         }
+
+        /** Header: kicker, title, close; then the chip (if any) and the buttons `Ausblenden` / `Isolieren`. */
+        function fillHead(kicker, title, chip) {
+          const top = el("div", "cv-det-head");
+          const text = el("div", "cv-det-head-text");
+          const titleNode = el("div", "cv-det-title", title);
+          titleNode.id = "cv-props-title";
+          text.append(el("div", "cv-det-kicker", kicker), titleNode);
+          const close = iconButton("close", "Schlie\u00dfen", "cv-det-close");
+          close.id = "cv-props-close";
+          close.addEventListener("click", () => handlers.clear());
+          top.append(text, close);
+          const meta = el("div", "cv-props-meta");
+          if (chip) {
+            const chipNode = el("span", "cv-props-chip", chip);
+            chipNode.title = "Modell: " + chip;
+            meta.append(chipNode);
+          }
+          const actions = el("div", "cv-props-actions");
+          for (const [name, label, title] of [
+            ["hide", "Ausblenden", "Auswahl ausblenden"],
+            ["isolate", "Isolieren", "Auswahl isolieren"],
+          ]) {
+            const button = el("button", "cv-props-action");
+            button.type = "button";
+            button.id = "cv-props-" + name;
+            button.title = title;
+            button.append(icon(name), el("span", "", label));
+            button.addEventListener("click", () => call(name));
+            actions.append(button);
+          }
+          meta.append(actions);
+          head.replaceChildren(top, meta);
+          panel.setAttribute("aria-labelledby", "cv-props-title");
+        }
+
+        function open() {
+          panel.hidden = false;
+          body.scrollTop = 0;
+        }
+
         /**
          * Group selection (REQ-007 "clicking a group row highlights all its elements"): info { id, kicker (grouping
          * properties), title (group path), count, withoutGeometry }.
          */
         function showGroup(info) {
-          const head = el("div", "cv-det-head");
-          const text = el("div", "cv-det-head-text");
-          text.append(el("div", "cv-det-kicker", info.kicker), el("div", "cv-det-title", info.title));
-          const close = iconButton("close", "Auswahl aufheben", "cv-det-close");
-          close.addEventListener("click", onClear);
-          head.append(text, close);
+          fillHead(info.kicker, info.title, null);
           const count = info.count.toLocaleString("de-DE");
-          const parts = [head, el("p", "cv-det-count", (info.count === 1 ? "1 Element" : count + " Elemente") + " ausgew\u00e4hlt")];
+          const parts = [el("p", "cv-det-count", (info.count === 1 ? "1 Element" : count + " Elemente") + " ausgew\u00e4hlt")];
           if (info.withoutGeometry) {
             const hint = el("p", "cv-det-nogeo", "Davon ohne 3D-Geometrie: " + info.withoutGeometry.toLocaleString("de-DE"));
             hint.setAttribute("role", "note");
             parts.push(hint);
           }
           body.replaceChildren(...parts);
-          body.dataset.key = "";
-          body.dataset.group = info.id;
-          body.scrollTop = 0;
+          delete panel.dataset.key;
+          panel.dataset.group = info.id;
+          open();
         }
+
+        /** One property row: name, value text and the row tools (REQ-007). */
+        function propRow(prop, name) {
+          const row = el("div", "cv-prop-row");
+          row.dataset.key = prop.key;
+          const dt = el("dt", "cv-det-name", name);
+          dt.title = prop.key;
+          const dd = el("dd", "cv-det-value");
+          const text = detailText(prop.value, prop.entry);
+          const textNode = el("span", "cv-prop-text", text);
+          textNode.title = text;
+          dd.classList.toggle("cv-num", typeof prop.value === "number");
+          const tools = el("span", "cv-row-tools");
+          const filterTool = iconButton("filter", "Nach Wert filtern", "cv-row-tool");
+          filterTool.addEventListener("click", () => call("filterByValue", prop.key, prop.value));
+          const colourTool = iconButton("palette", "Farbe nach Wert", "cv-row-tool");
+          colourTool.addEventListener("click", () => call("colourByValue", prop.key));
+          tools.append(filterTool, colourTool);
+          dd.append(textNode, tools);
+          row.append(dt, dd);
+          return row;
+        }
+
         /** info: { row (spec 4.3), catalog (Map key -> entry), order (Map key -> catalogue position) }. */
         function show(info) {
           const row = info.row;
           const values = row.values;
-          const head = el("div", "cv-det-head");
-          const text = el("div", "cv-det-head-text");
-          text.append(
-            el("div", "cv-det-kicker", values.Kategorie || "Element"),
-            el("div", "cv-det-title", values.Name !== undefined ? String(values.Name) : values.Kategorie || ""),
+          fillHead(
+            values.Kategorie || "Element",
+            values.Name !== undefined ? String(values.Name) : values.Kategorie || "",
+            values.Modell !== undefined && values.Modell !== null ? String(values.Modell) : null,
           );
-          const close = iconButton("close", "Auswahl aufheben", "cv-det-close");
-          close.addEventListener("click", onClear);
-          head.append(text, close);
-          const parts = [head];
+          const parts = [];
           if (!row.geometry) {
             const hint = el("p", "cv-det-nogeo", "Dieses Element hat keine 3D-Geometrie.");
             hint.setAttribute("role", "note");
@@ -6870,36 +7076,31 @@
             const toggle = el("button", "cv-det-group-head");
             toggle.type = "button";
             toggle.append(icon("chevron"), el("span", "cv-det-group-name", group), el("span", "cv-det-group-count", String(props.length)));
-            const table = el("dl", "cv-det-props");
+            const list = el("dl", "cv-det-props");
+            const pset = group.indexOf("Typ: ") === 0 ? group.slice(5) : group;
             for (const prop of props) {
-              const pset = group.indexOf("Typ: ") === 0 ? group.slice(5) : group;
               const name = prop.key.indexOf(pset + ".") === 0 ? prop.key.slice(pset.length + 1) : prop.key;
-              const dt = el("dt", "cv-det-name", name);
-              dt.title = prop.key;
-              const dd = el("dd", "cv-det-value", detailText(prop.value, prop.entry));
-              dd.title = dd.textContent;
-              dd.classList.toggle("cv-num", typeof prop.value === "number");
-              table.append(dt, dd);
+              list.append(propRow(prop, name));
             }
             const setCollapsed = (on) => {
               section.classList.toggle("cv-collapsed", on);
-              table.hidden = on;
+              list.hidden = on;
               toggle.setAttribute("aria-expanded", String(!on));
               if (on) collapsed.add(group);
               else collapsed.delete(group);
             };
             toggle.addEventListener("click", () => setCollapsed(!section.classList.contains("cv-collapsed")));
             setCollapsed(collapsed.has(group));
-            section.append(toggle, table);
+            section.append(toggle, list);
             parts.push(section);
           }
           body.replaceChildren(...parts);
-          body.dataset.key = row.key;
-          delete body.dataset.group;
-          body.scrollTop = 0;
+          panel.dataset.key = row.key;
+          delete panel.dataset.group;
+          open();
         }
         clear();
-        return { show, showGroup, clear };
+        return { show, showGroup, clear, element: panel };
       }
 
       /** Name shown as title while there is neither a title nor a model (REQ-011 default: first model's Modell). */
@@ -7112,12 +7313,9 @@
         htmlButton.id = "cv-html-export";
         htmlButton.type = "button";
         htmlButton.disabled = true;
-        // drawer toggles of the side panels, shown below 1280 px only (CSS)
+        // drawer toggle of the filter area, shown below 1280 px only (CSS; CR-002: no `Details` drawer)
         const panelToggles = {};
-        for (const [name, label, target] of [
-          ["filters", "Filter", "cv-filters"],
-          ["details", "Details", "cv-details"],
-        ]) {
+        for (const [name, label, target] of [["filters", "Filter", "cv-filters"]]) {
           const button = el("button", "cv-btn cv-panel-toggle", label);
           button.type = "button";
           button.id = "cv-toggle-" + name;
@@ -7178,6 +7376,16 @@
         overlay.append(overlayBox);
         canvasBox.append(overlay);
         const viewControls = createViewControls(canvasBox, legendStrip, options.viewHandlers);
+        // properties panel at the top right inside the 3D view (REQ-007, CR-002)
+        const propsPanel = el("section", "cv-props-panel");
+        propsPanel.id = "cv-props";
+        propsPanel.setAttribute("role", "region");
+        propsPanel.setAttribute("aria-label", "Eigenschaften");
+        canvasBox.append(propsPanel);
+        const detailsPanel = createDetails(
+          propsPanel,
+          options.propsHandlers || { clear: () => options.viewHandlers.clearSelection() },
+        );
         const splitter = el("div", "cv-splitter");
         splitter.id = "cv-splitter";
         splitter.tabIndex = 0;
@@ -7260,17 +7468,7 @@
         const tableView = createTable(tableBox, options.tableHandlers);
         center.append(viewport, splitter, table);
 
-        const details = el("aside", "cv-panel cv-details");
-        details.id = "cv-details";
-        const detailsHead = el("div", "cv-details-head");
-        const detailsToggle = iconButton("panelRight", "Details einklappen", "cv-details-toggle");
-        detailsToggle.id = "cv-details-toggle";
-        detailsHead.append(el("h2", "", "Element-Details"), detailsToggle);
-        const detailsBody = el("div", "cv-details-body");
-        detailsBody.id = "cv-details-body";
-        details.append(detailsHead, detailsBody);
-        const detailsPanel = createDetails(detailsBody, () => options.viewHandlers.clearSelection());
-        main.append(filters, center, details);
+        main.append(filters, center);
 
         const statusline = el("footer", "cv-statusline");
         const status = el("span", "cv-status", "");
@@ -7283,7 +7481,7 @@
         root.replaceChildren(app);
 
         // Splitter between 3D model and table (default 55 / 45 %), pointer and keyboard.
-        const layout = { split: 55, detailsCollapsed: false };
+        const layout = { split: 55 };
         function setSplit(percent) {
           layout.split = Math.round(Math.min(85, Math.max(15, percent)) * 10) / 10;
           center.style.gridTemplateRows = "minmax(0, " + layout.split + "fr) 6px minmax(0, " + (100 - layout.split) + "fr)";
@@ -7313,27 +7511,13 @@
           event.preventDefault();
         });
 
-        // Details panel collapsible (spec 2 User interface).
-        function setDetailsCollapsed(collapsed) {
-          layout.detailsCollapsed = collapsed;
-          main.classList.toggle("cv-details-collapsed", collapsed);
-          detailsBody.hidden = collapsed;
-          const label = collapsed ? "Details ausklappen" : "Details einklappen";
-          detailsToggle.title = label;
-          detailsToggle.setAttribute("aria-label", label);
-          detailsToggle.setAttribute("aria-expanded", String(!collapsed));
-        }
-        setDetailsCollapsed(false);
-        detailsToggle.addEventListener("click", () => setDetailsCollapsed(!layout.detailsCollapsed));
-
-        // Drawers below 1280 px: one side panel at a time over the model area
+        // Drawer below 1280 px: the filter area over the model area
         function setDrawer(name) {
           for (const [key, button] of Object.entries(panelToggles)) {
             const open = key === name;
-            main.classList.toggle(key === "filters" ? "cv-show-filters" : "cv-show-details", open);
+            main.classList.toggle("cv-show-" + key, open);
             button.setAttribute("aria-expanded", String(open));
           }
-          if (name === "details" && layout.detailsCollapsed) setDetailsCollapsed(false);
         }
         for (const [name, button] of Object.entries(panelToggles))
           button.addEventListener("click", () => setDrawer(button.getAttribute("aria-expanded") === "true" ? null : name));
@@ -8432,7 +8616,7 @@
        * all filters, ascending row order; the set 3D and table follow), facets ({ id -> { total, checkedCount, values
        * [{ value, count, checked }] } }), updates (number of filter evaluations), lastMs (duration of the last
        * evaluation incl. filter-area update), storeColumns (TASK-010: property keys the column store holds, read only), at (TASK-010: performance.now() when the
-       * last evaluation incl. filter-area update finished) }. layout: { split (model share in %), detailsCollapsed }. view (TASK-005):
+       * last evaluation incl. filter-area update finished) }. layout: { split (model share in %) }. view (TASK-005):
        * { mode 'ghost' | 'hide', colourKey, selected (row key or null), section }; the 3D state itself is
        * window.CalcView.state() (spec 4.4). table (TASK-006a): { columns [{ key, width }] in display order, sort
        * ({ key, dir } | null), filters ([{ key, type 'values', values } | { key, type 'range', min, max }] column
@@ -9828,6 +10012,9 @@
           viewHandlers,
           tableHandlers,
           headerHandlers,
+          // properties panel (REQ-007): `Schliessen` clears the selection; `Ausblenden` / `Isolieren` and the row tools
+          // are inert until TASK-017b / TASK-016 wire them (spec 5, TASK-013)
+          propsHandlers: { clear: () => select(null) },
         });
         hook.layout = ui.layout;
         ui.overlay("3D-Ansicht wird gestartet ...");

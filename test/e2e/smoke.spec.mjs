@@ -7,7 +7,8 @@ import { test, expect } from "../support/network-guard.mjs";
 const FZK = fileURLToPath(new URL("../fixtures/AC20-FZK-Haus.ifc", import.meta.url));
 const BACKGROUND = [0xec, 0xee, 0xf0]; // --cv-bg-3d behind the transparent WebGL canvas
 // screenshot the canvas only, not the hint box or the 3D view controls / legend drawn over it (TASK-005)
-const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend { visibility: hidden !important; }" };
+// the floating properties panel (CR-002) is an overlay like the view bar
+const CANVAS_ONLY = { style: "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props { visibility: hidden !important; }" };
 
 /** Share of pixels in a PNG screenshot that differ clearly from the empty 3D background (decoded in the page). */
 async function nonBackgroundShare(page, png) {
@@ -46,9 +47,12 @@ test("@smoke @system builder loads AC20-FZK-Haus.ifc and shows it in 3D @REQ-001
     webIfc: "0.0.77",
   });
   await expect(page.locator("#cv-title")).toHaveText("Calc Viewer Builder");
-  for (const id of ["#cv-filters", "#cv-viewport", "#cv-details", "#cv-table", "#cv-status"]) {
+  for (const id of ["#cv-filters", "#cv-viewport", "#cv-table", "#cv-status"]) {
     await expect(page.locator(id)).toBeVisible();
   }
+  // CR-002: no element-details column; the properties panel floats in the 3D view and opens on a selection only
+  await expect(page.locator("#cv-details")).toHaveCount(0);
+  await expect(page.locator("#cv-props")).toBeHidden();
 
   const canvas = page.locator("#cv-viewport canvas");
   const emptyShare = await nonBackgroundShare(page, await canvas.screenshot(CANVAS_ONLY));

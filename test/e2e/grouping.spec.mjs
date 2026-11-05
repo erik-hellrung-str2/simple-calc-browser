@@ -398,9 +398,8 @@ test("@e2e @REQ-006 switching views keeps columns, filters and grouping; columns
   expect(rows[0].cells[COUNT_COLUMN]).toBe(deCount(FZK_KATEGORIEN.IfcDoor.count));
 
   // drag `Geschoss` before `Modell`: the fixed columns stay first, the column order is the configuration.
-  // With the details panel collapsed every column fits: scrolled sideways, `Modell` would lie under the pinned
-  // `Gruppe` / `Anzahl` columns (verification INC-1 UX M3) where no drop can reach it.
-  await page.getByRole("button", { name: "Details einklappen" }).click();
+  // Every column fits (CR-002: the table spans to the right edge, no details column): scrolled sideways, `Modell` would
+  // lie under the pinned `Gruppe` / `Anzahl` columns (verification INC-1 UX M3) where no drop can reach it.
   expect(await page.locator("#cv-tbl-scroll").evaluate((n) => n.scrollWidth <= n.clientWidth)).toBe(true);
   const target = await header(page, "Modell").boundingBox();
   await header(page, "Geschoss")
