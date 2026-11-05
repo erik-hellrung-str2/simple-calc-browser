@@ -5,7 +5,13 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { ifc4x3Header, minimalPdf, truncatedIfc } from "../../scripts/make-error-fixtures.mjs";
-import { configErrorFixtures, logoPng, logoSvg } from "../../scripts/make-config-fixtures.mjs";
+import {
+  compatConfigFixtures,
+  configErrorFixtures,
+  configText,
+  logoPng,
+  logoSvg,
+} from "../../scripts/make-config-fixtures.mjs";
 import { ifcGuidFromSeed, splitRecords, synthesize, validateStep } from "../../scripts/lib/ifc-synth.mjs";
 
 const dir = new URL("../fixtures/", import.meta.url);
@@ -47,6 +53,30 @@ test("[unit] configuration and logo fixtures are reproduced byte-identically by 
   assert.deepEqual(readFileSync(new URL("logo-test.png", dir)), logoPng());
   assert.equal(readFileSync(new URL("logo-test.svg", dir), "utf8"), logoSvg());
   assert.deepEqual([...logoPng().subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+});
+
+test("[unit] CR-002 compatibility configurations are reproduced byte-identically and listed in the manifest", () => {
+  const compat = compatConfigFixtures();
+  const listed = new Set(manifest.committed.map((f) => f.file));
+  assert.deepEqual(Object.keys(compat).sort(), [
+    "config-1.0.0-axis-section-flipped.json",
+    "config-1.0.0-axis-section.json",
+    "config-1.1.0-full.json",
+    "config-1.1.0-rules-skipped.json",
+  ]);
+  for (const [name, { config }] of Object.entries(compat)) {
+    assert.ok(listed.has(name), name + " in manifest.json");
+    assert.equal(readFileSync(new URL(name, dir), "utf8"), configText(config), name);
+  }
+  // the 1.0.0 files have exactly the 1.0.0 fields (tag v1.0.0 buildConfig), the 1.1.0 files the DEC-20 fields
+  const old = compat["config-1.0.0-axis-section.json"].config;
+  assert.deepEqual(Object.keys(old), ["schema", "header", "filterSets", "table", "display"]);
+  assert.deepEqual(Object.keys(old.display), ["mode", "colourBy", "section"]);
+  assert.deepEqual(old.display.section, { axis: "Z", offset: 3, flipped: false });
+  assert.equal(compat["config-1.0.0-axis-section-flipped.json"].config.display.section.flipped, true);
+  const full = compat["config-1.1.0-full.json"].config;
+  assert.deepEqual(Object.keys(full), ["schema", "header", "filterSets", "filterRules", "search", "table", "display"]);
+  assert.deepEqual(Object.keys(full.display), ["mode", "colourBy", "colourMode", "scaleColour", "sectionPlane"]);
 });
 
 test("[unit] ifcGuidFromSeed gives deterministic, distinct 22-char IFC GlobalIds", () => {

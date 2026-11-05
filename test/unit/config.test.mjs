@@ -86,7 +86,29 @@ const STATE = {
     ],
   },
   grouping: { view: "grouped", groupBy: ["Kategorie", "Geschoss"] },
-  display: { mode: "hide", colourKey: "Material", section: { axis: "Z", offset: 1.25, flipped: true } },
+  // CR-002 fields (DEC-20): rules in order (one `Freie Textsuche`), search text, colouring mode and scale colour,
+  // section plane { point, normal }
+  filterRules: [
+    { mode: "isolate", key: "Kategorie", op: "contains", value: "Ifc" },
+    { mode: "text", key: null, op: "eq", value: "Beton" },
+    { mode: "mark", key: "Geschoss", op: "starts", value: "E" },
+  ],
+  search: "beton",
+  display: {
+    mode: "hide",
+    colourKey: "Material",
+    colourMode: "scale",
+    scaleColour: "#2e9b4f",
+    section: { point: [1, -2, 1.25], normal: [0, 0, 1] },
+  },
+};
+/** STATE.display as saved (DEC-20 field names). */
+const SAVED_DISPLAY = {
+  mode: "hide",
+  colourBy: "Material",
+  colourMode: "scale",
+  scaleColour: "#2e9b4f",
+  sectionPlane: { point: [1, -2, 1.25], normal: [0, 0, 1] },
 };
 
 test("[unit] parseConfig: one committed fixture per error class gives that class and the spec message (REQ-009-AC3)", () => {
@@ -128,7 +150,17 @@ test("[unit] validateConfig: schema missing, foreign, empty version, non-object 
 
 test("[unit] buildConfig: schema, every REQ-009 field in a fixed order, values unchanged, JSON-stable", () => {
   const config = buildConfig(STATE);
-  assert.deepEqual(Object.keys(config), ["schema", "header", "filterSets", "table", "display"]);
+  // TASK-012 (CR-002, DEC-20): filterRules and search added after filterSets; display carries colourMode,
+  // scaleColour and sectionPlane instead of the 1.0.0 section
+  assert.deepEqual(Object.keys(config), [
+    "schema",
+    "header",
+    "filterSets",
+    "filterRules",
+    "search",
+    "table",
+    "display",
+  ]);
   assert.equal(config.schema, "calc-viewer-config/1");
   assert.deepEqual(config.header, STATE.header);
   assert.deepEqual(config.filterSets, STATE.filterSets);
@@ -138,7 +170,10 @@ test("[unit] buildConfig: schema, every REQ-009 field in a fixed order, values u
   assert.deepEqual(config.table.columnFilters, STATE.table.columnFilters);
   assert.equal(config.table.view, "grouped");
   assert.deepEqual(config.table.groupBy, ["Kategorie", "Geschoss"]);
-  assert.deepEqual(config.display, { mode: "hide", colourBy: "Material", section: STATE.display.section });
+  assert.deepEqual(config.filterRules, STATE.filterRules);
+  assert.equal(config.search, "beton");
+  assert.deepEqual(Object.keys(config.display), ["mode", "colourBy", "colourMode", "scaleColour", "sectionPlane"]);
+  assert.deepEqual(config.display, SAVED_DISPLAY);
   // equal states give equal text; the result is plain data (no shared references with the state)
   assert.equal(JSON.stringify(buildConfig(STATE)), JSON.stringify(config));
   config.filterSets[0].selected.push("x");
@@ -148,8 +183,11 @@ test("[unit] buildConfig: schema, every REQ-009 field in a fixed order, values u
     schema: "calc-viewer-config/1",
     header: { title: "", date: "2026-01-02", logo: null },
     filterSets: [],
+    filterRules: [],
+    search: "",
     table: { view: "single", groupBy: [], columns: [], sort: null, columnFilters: [] },
-    display: { mode: "ghost", colourBy: null, section: null },
+    // DEC-20 "written by 1.1.0": the start mode and colour also while nothing is coloured, null = no section
+    display: { mode: "ghost", colourBy: null, colourMode: "distinct", scaleColour: "#d72622", sectionPlane: null },
   });
 });
 
@@ -161,14 +199,24 @@ test("[unit] applyConfig: a saved configuration applies unchanged to the same ro
   assert.deepEqual(apply.header, STATE.header);
   assert.deepEqual(apply.filterSets, STATE.filterSets);
   assert.deepEqual(apply.table, { ...STATE.table, ...STATE.grouping });
-  assert.deepEqual(apply.display, { mode: "hide", colourBy: "Material", section: STATE.display.section });
+  assert.deepEqual(apply.display, SAVED_DISPLAY);
+  assert.deepEqual(apply.filterRules, STATE.filterRules);
+  assert.equal(apply.search, STATE.search);
   // applying the result and saving again gives the same configuration
   const again = buildConfig({
     header: apply.header,
     filterSets: apply.filterSets,
+    filterRules: apply.filterRules,
+    search: apply.search,
     table: apply.table,
     grouping: { view: apply.table.view, groupBy: apply.table.groupBy },
-    display: { mode: apply.display.mode, colourKey: apply.display.colourBy, section: apply.display.section },
+    display: {
+      mode: apply.display.mode,
+      colourKey: apply.display.colourBy,
+      colourMode: apply.display.colourMode,
+      scaleColour: apply.display.scaleColour,
+      section: apply.display.sectionPlane,
+    },
   });
   assert.deepEqual(again, config);
 });
@@ -218,7 +266,8 @@ test("[unit] applyConfig: properties and filter values missing from the loaded r
   // a values filter left without values is dropped; the range filter stays
   assert.deepEqual(apply.table.columnFilters, [{ key: "Vol", type: "range", min: 1, max: 4 }]);
   assert.equal(apply.display.colourBy, undefined);
-  assert.equal(apply.display.section, null);
+  // TASK-012 (DEC-20): a 1.0.0 `section: null` gives no section plane (was apply.display.section = null)
+  assert.equal(apply.display.sectionPlane, null);
 
   const notice = configNotice(skipped, (key) => (key === "Kategorie" ? "Kategorie" : key));
   assert.match(notice, /^Konfiguration geladen\. Nicht angewendet:/);
@@ -290,11 +339,13 @@ test("[unit] applyConfig: malformed and unknown entries are reported, valid part
   ]);
   assert.ok(!("view" in apply.table) && !("groupBy" in apply.table) && !("sort" in apply.table));
   assert.deepEqual(apply.table.columnFilters, []);
-  assert.deepEqual(apply.display, {});
+  // TASK-012 (DEC-20 field table): colourMode and scaleColour are absent, so the 1.0.0 look applies (was {})
+  assert.deepEqual(apply.display, { colourMode: "distinct", scaleColour: "#1f6fd1" });
 
-  // a file with only some parts leaves the others out (they keep the current state)
+  // a file with only some parts leaves the others out (they keep the current state); TASK-012 (DEC-20): absent
+  // filterRules and search mean none, so they are always part of the result (was { header } only)
   const partial = applyConfig({ schema: "calc-viewer-config/1", header: { title: "Nur Titel" } }, ctxOf(ROWS));
-  assert.deepEqual(partial.apply, { header: { title: "Nur Titel" } });
+  assert.deepEqual(partial.apply, { header: { title: "Nur Titel" }, filterRules: [], search: "" });
   // sort / column filters without a columns list are checked against the current columns
   const current = applyConfig(
     { schema: "calc-viewer-config/1", table: { sort: { key: "Vol", dir: "asc" } } },

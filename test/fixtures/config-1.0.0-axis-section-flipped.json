@@ -1,0 +1,62 @@
+{
+  "schema": "calc-viewer-config/1",
+  "header": {
+    "title": "Haus",
+    "date": "2026-08-12",
+    "logo": null
+  },
+  "filterSets": [
+    {
+      "key": "Kategorie",
+      "collapsed": false,
+      "selected": []
+    },
+    {
+      "key": "Geschoss",
+      "collapsed": false,
+      "selected": []
+    },
+    {
+      "key": "Material",
+      "collapsed": false,
+      "selected": []
+    }
+  ],
+  "table": {
+    "view": "single",
+    "groupBy": [],
+    "columns": [
+      {
+        "key": "Modell",
+        "width": 160
+      },
+      {
+        "key": "Kategorie",
+        "width": 160
+      },
+      {
+        "key": "Name",
+        "width": 240
+      },
+      {
+        "key": "Geschoss",
+        "width": 160
+      },
+      {
+        "key": "BaseQuantities.NetVolume",
+        "width": 150
+      }
+    ],
+    "sort": null,
+    "columnFilters": []
+  },
+  "display": {
+    "mode": "ghost",
+    "colourBy": "BaseQuantities.NetVolume",
+    "section": {
+      "axis": "Z",
+      "offset": 3,
+      "flipped": true
+    }
+  }
+}

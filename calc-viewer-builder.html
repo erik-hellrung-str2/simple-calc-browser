@@ -2658,6 +2658,9 @@
        */
       export function createColumnStore(rows) {
         const columns = new Map();
+        let textIndex = null; // display-text index (TASK-011, spec 4.3): one string per row, built lazily
+        let building = null; // promise of a chunked build in progress
+        let rowIndex = null; // element key -> row index, built on the first key-set filter
         return {
           rows,
           size: rows.length,
@@ -2675,6 +2678,49 @@
           retain(keys) {
             const keep = new Set(keys);
             for (const key of [...columns.keys()]) if (!keep.has(key)) columns.delete(key);
+          },
+          /** Bitsets of `text` rules and the search, cached per needle (dropped with the store). */
+          textMasks: new Map(),
+          /** True once the display-text index exists (no build needed before a text rule or search). */
+          hasTextIndex: () => textIndex !== null,
+          /** The display-text index; built at once (synchronously) if it does not exist yet. */
+          textIndex() {
+            if (!textIndex) textIndex = rows.map((row) => rowText(row.values));
+            return textIndex;
+          },
+          /**
+           * Builds the display-text index in chunks of options.chunkRows rows (default TEXT_INDEX_CHUNK_ROWS), awaiting
+           * options.pause(fraction) after each chunk (progress overlay, yielding). Concurrent calls share one build;
+           * resolves to the index. A store is created per row set, so the index is dropped with it when a model is
+           * added or removed or the IfcSpace option changes (spec 4.3).
+           */
+          buildTextIndex(options) {
+            if (textIndex) return Promise.resolve(textIndex);
+            if (building) return building;
+            const chunk = Math.max(1, (options && options.chunkRows) || TEXT_INDEX_CHUNK_ROWS);
+            const pause = options && options.pause;
+            building = (async () => {
+              const out = new Array(rows.length);
+              for (let first = 0; first < rows.length; first += chunk) {
+                const end = Math.min(rows.length, first + chunk);
+                for (let i = first; i < end; i++) out[i] = rowText(rows[i].values);
+                if (pause && !textIndex) await pause(end / rows.length);
+                if (textIndex) break; // built synchronously meanwhile
+              }
+              if (!textIndex) textIndex = out;
+              return textIndex;
+            })().finally(() => {
+              building = null;
+            });
+            return building;
+          },
+          /** Row index of an element key (`<modelId>:<localId>`), or undefined. */
+          rowOf(key) {
+            if (!rowIndex) {
+              rowIndex = new Map();
+              for (let i = 0; i < rows.length; i++) rowIndex.set(rows[i].key, i);
+            }
+            return rowIndex.get(key);
           },
         };
       }
@@ -2705,8 +2751,15 @@
        * Normalises a filter: { id?, key, type: 'values', values: [...] } (checklist / filter set; OR within; null =
        * empty) or { id?, key, type: 'range', min, max } (inclusive bounds, null or "" = no bound; DEC-17). id
        * defaults to key. Returns null for a filter that does not restrict anything (no value checked, no bound).
+       * CR-002 filter sources (TASK-011, spec 4.3): { type: 'rule', id?, mode, key, op, value } (normaliseRule; a
+       * `mark` rule is no filter source), { type: 'search', id?, text } and { type: 'keys', id?, mode: 'include' |
+       * 'exclude', keys } - see normaliseRuleFilter, normaliseSearchFilter, normaliseKeysFilter. Each is one row mask
+       * in evaluateFilters, so facet counts are computed under them (DEC-14, DEC-18).
        */
       export function normaliseFilter(filter) {
+        if (filter && filter.type === "rule") return normaliseRuleFilter(filter);
+        if (filter && filter.type === "search") return normaliseSearchFilter(filter);
+        if (filter && filter.type === "keys") return normaliseKeysFilter(filter);
         if (!filter || !filter.key) return null;
         const id = filter.id === undefined ? filter.key : filter.id;
         if (filter.type === "range") {
@@ -2727,6 +2780,9 @@
 
       /** Bitset (Uint32Array, one bit per row) of the rows passing one normalised filter; cached on its column. */
       function filterMask(store, filter) {
+        if (filter.type === "rule") return ruleFilterMask(store, filter);
+        if (filter.type === "search") return textNeedleMask(store, "contains", filter.needle);
+        if (filter.type === "keys") return keysMask(store, filter);
         const col = store.column(filter.key);
         const signature =
           filter.type === "range"
@@ -2972,29 +3028,320 @@
       }
 
       // ---------------------------------------------------------------------------------------------------------
-      // Colouring (TASK-005; REQ-005 "Faerben nach", DEC-15; ref computeColoring / distinctHex / scaleHex)
+      // Rules, search and key sets (TASK-011; CR-002: REQ-012, REQ-013, DEC-18, DEC-19, spec 4.3 filter sources)
       // ---------------------------------------------------------------------------------------------------------
 
-      /** Text values with an own colour (as ref DISTINCT_COLOR_COUNT); further values share COLOUR_OTHER. */
+      /** Actions of a rule with their German labels (REQ-012 `Aktion`; ref FILTER_MODES, `select` is `mark` here). */
+      export const RULE_MODES = [
+        ["isolate", "Isolieren"],
+        ["hide", "Ausblenden"],
+        ["mark", "Markieren"],
+        ["text", "Freie Textsuche"],
+      ];
+      /** Comparisons of a rule with their German labels (REQ-012 `Vergleich`; ref FILTER_OPERATORS). */
+      export const RULE_OPS = [
+        ["eq", "Gleich"],
+        ["starts", "Beginnt mit"],
+        ["ends", "Endet mit"],
+        ["contains", "Enth\u00e4lt"],
+      ];
+      /** Property text of a `Freie Textsuche` rule row (REQ-012). */
+      export const RULE_ANY_PROPERTY = "Beliebige Eigenschaft";
+      /** Paint of shown elements matching a `Markieren` rule (REQ-012, DEC-19). */
+      export const MARK_COLOUR = "#f08a87";
+      /** Rows per chunk of the chunked display-text index build (as INDEX_CHUNK_SIZE of the extraction). */
+      export const TEXT_INDEX_CHUNK_ROWS = 2000;
+      /** Separator between the display texts of one row in the display-text index (spec 4.3). */
+      export const TEXT_SEPARATOR = "\u0001";
+
+      const RULE_MODE_IDS = new Set(RULE_MODES.map(([id]) => id));
+      const RULE_OP_IDS = new Set(RULE_OPS.map(([id]) => id));
+      // C0 and C1 control characters (everything outside " ".."~" and U+00A0..U+FFFF), replaced by a space (spec 4.3)
+      const CONTROL_RE = /[^ -~\u00a0-\uffff]/g;
+
+      /** Text as rules compare it (DEC-19): lower case (toLowerCase), control characters replaced by a space. */
+      export function matchText(text) {
+        return String(text).toLowerCase().replace(CONTROL_RE, " ");
+      }
+
+      /** Display text of one non-empty scalar value: as the table shows it (formatCell), booleans as Ja / Nein. */
+      function scalarText(v) {
+        if (typeof v === "number") return CELL_FORMAT.format(v);
+        if (typeof v === "boolean") return v ? "Ja" : "Nein";
+        return String(v);
+      }
+
+      /**
+       * The text rules compare (DEC-19; spec 4.4 displayText): the value as the table shows it - German numbers with
+       * "." thousands and "," decimals, up to 3 decimals, already in the converted unit and without unit text;
+       * booleans `Ja` / `Nein`; text as stored; multi-values joined with ", "; empty values "". entry (the catalogue
+       * entry of the property) is accepted for the documented signature; units are converted at extraction, so it
+       * changes nothing.
+       */
+      // eslint-disable-next-line no-unused-vars
+      export function displayText(value, entry) {
+        if (isEmptyValue(value)) return "";
+        if (!Array.isArray(value)) return scalarText(value);
+        return valueTexts(value).join(", ");
+      }
+
+      /** Display texts of the non-empty values of a cell, one per value (a rule matches if any of them matches). */
+      export function valueTexts(value) {
+        if (isEmptyValue(value)) return [];
+        if (!Array.isArray(value)) return [scalarText(value)];
+        const out = [];
+        for (const v of value) if (!isEmptyValue(v)) out.push(scalarText(v));
+        return out;
+      }
+
+      /**
+       * One row of the display-text index (spec 4.3): the match texts (matchText) of every non-empty value of every
+       * property, each multi-value on its own, joined with and enclosed by TEXT_SEPARATOR. Property names are not part
+       * of it (DEC-19: the search does not search names).
+       */
+      function rowText(values) {
+        const parts = [];
+        for (const key in values) {
+          const value = values[key];
+          if (isEmptyValue(value)) continue;
+          if (Array.isArray(value)) {
+            for (const v of value) if (!isEmptyValue(v)) parts.push(scalarText(v).replace(CONTROL_RE, " "));
+          } else parts.push(scalarText(value).replace(CONTROL_RE, " "));
+        }
+        // one toLowerCase over the joined text equals one per part: the separator is no letter
+        return (TEXT_SEPARATOR + parts.join(TEXT_SEPARATOR) + TEXT_SEPARATOR).toLowerCase();
+      }
+
+      /** True when the match text `text` satisfies op against the match text `needle` (ref textMatches). */
+      export function textMatches(text, op, needle) {
+        if (op === "eq") return text === needle;
+        if (op === "starts") return text.startsWith(needle);
+        if (op === "ends") return text.endsWith(needle);
+        return text.includes(needle);
+      }
+
+      /**
+       * A valid rule {mode, key, op, value} (spec 4.3, DEC-20 rule validity) or null: mode isolate / hide / mark /
+       * text, op eq / starts / ends / contains, value a non-empty string, key a non-empty string except for `text`
+       * (whose key is null). The value is kept as typed (the dialog trims it).
+       */
+      export function normaliseRule(rule) {
+        if (!rule || typeof rule !== "object") return null;
+        const { mode, op, value } = rule;
+        if (!RULE_MODE_IDS.has(mode) || !RULE_OP_IDS.has(op)) return null;
+        if (typeof value !== "string" || value === "") return null;
+        if (mode === "text") return { mode, key: null, op, value };
+        if (typeof rule.key !== "string" || rule.key === "") return null;
+        return { mode, key: rule.key, op, value };
+      }
+
+      /**
+       * Filter of one rule ({ type: 'rule', id?, mode, key, op, value }): isolate and text keep the matching rows,
+       * hide removes them; a mark rule is no filter source (null; see markRows), nor is an invalid rule.
+       */
+      function normaliseRuleFilter(filter) {
+        const rule = normaliseRule(filter);
+        if (!rule || rule.mode === "mark") return null;
+        const id =
+          filter.id === undefined ? ["rule", rule.mode, rule.op, rule.key, rule.value].join(TEXT_SEPARATOR) : filter.id;
+        return { id, type: "rule", ...rule, needle: matchText(rule.value) };
+      }
+
+      /** Filter of the search field ({ type: 'search', id?, text }); blank text (after trim, as ref) is no filter. */
+      function normaliseSearchFilter(filter) {
+        const text = typeof filter.text === "string" ? filter.text.trim() : "";
+        if (!text) return null;
+        return { id: filter.id === undefined ? "search" : filter.id, type: "search", text, needle: matchText(text) };
+      }
+
+      /**
+       * Filter of a key set ({ type: 'keys', id?, mode: 'include' | 'exclude', keys }; DEC-18): include keeps only the
+       * rows whose key is in keys (isolated set; keys null = no isolation, an empty set keeps nothing - cv-app ends an
+       * isolation that becomes empty), exclude removes them (hidden set; empty = no filter).
+       */
+      function normaliseKeysFilter(filter) {
+        if (filter.mode !== "include" && filter.mode !== "exclude") return null;
+        if (filter.keys === null || filter.keys === undefined) return null;
+        const keys = new Set(filter.keys);
+        if (filter.mode === "exclude" && keys.size === 0) return null;
+        return { id: filter.id === undefined ? "keys:" + filter.mode : filter.id, type: "keys", mode: filter.mode, keys };
+      }
+
+      function invertBits(bits, n) {
+        const out = allBits(n);
+        for (let w = 0; w < out.length; w++) out[w] &= ~bits[w];
+        return out;
+      }
+
+      function cacheMask(cache, signature, bits) {
+        if (cache.size >= MASK_CACHE_LIMIT) cache.clear();
+        cache.set(signature, bits);
+        return bits;
+      }
+
+      /**
+       * Rows with some value of column key matching (op, needle) (DEC-19): evaluated once per distinct value of the
+       * column (dictionary codes), then mapped to the rows; the empty value never matches. Cached on the column.
+       */
+      function columnMatchMask(store, key, op, needle) {
+        const col = store.column(key);
+        const signature = "t" + op + TEXT_SEPARATOR + needle;
+        const cached = col.masks.get(signature);
+        if (cached) return cached;
+        if (!col.matchTexts) {
+          col.matchTexts = new Array(col.emptyCode);
+          for (let c = 0; c < col.emptyCode; c++) col.matchTexts[c] = matchText(scalarText(col.values[c]));
+        }
+        const wanted = new Uint8Array(col.values.length);
+        let any = false;
+        for (let c = 0; c < col.emptyCode; c++) {
+          if (textMatches(col.matchTexts[c], op, needle)) {
+            wanted[c] = 1;
+            any = true;
+          }
+        }
+        const n = col.n;
+        const bits = new Uint32Array(wordsFor(n));
+        if (any) {
+          const { start, flat } = col;
+          for (let i = 0; i < n; i++) {
+            for (let j = start[i]; j < start[i + 1]; j++) {
+              if (wanted[flat[j]]) {
+                bits[i >>> 5] |= 1 << (i & 31);
+                break;
+              }
+            }
+          }
+        }
+        return cacheMask(col.masks, signature, bits);
+      }
+
+      /**
+       * Rows with some value of some property matching (op, needle), on the display-text index (spec 4.3): contains =
+       * includes(v), eq = includes(SEP v SEP), starts = includes(SEP v), ends = includes(v SEP). Builds the index
+       * synchronously if it does not exist yet (cv-app awaits store.buildTextIndex first, with progress).
+       */
+      function textNeedleMask(store, op, needle) {
+        const signature = op + TEXT_SEPARATOR + needle;
+        const cached = store.textMasks.get(signature);
+        if (cached) return cached;
+        const S = TEXT_SEPARATOR;
+        const pattern = op === "eq" ? S + needle + S : op === "starts" ? S + needle : op === "ends" ? needle + S : needle;
+        const index = store.textIndex();
+        const n = store.size;
+        const bits = new Uint32Array(wordsFor(n));
+        for (let i = 0; i < n; i++) if (index[i].includes(pattern)) bits[i >>> 5] |= 1 << (i & 31);
+        return cacheMask(store.textMasks, signature, bits);
+      }
+
+      /** Rows matching a normalised rule ({mode, key, op, needle}), regardless of its action. */
+      function ruleMatchMask(store, rule) {
+        return rule.mode === "text"
+          ? textNeedleMask(store, rule.op, rule.needle)
+          : columnMatchMask(store, rule.key, rule.op, rule.needle);
+      }
+
+      function ruleFilterMask(store, filter) {
+        const match = ruleMatchMask(store, filter);
+        return filter.mode === "hide" ? invertBits(match, store.size) : match;
+      }
+
+      function keysMask(store, filter) {
+        const n = store.size;
+        const bits = new Uint32Array(wordsFor(n));
+        for (const key of filter.keys) {
+          const i = store.rowOf(key);
+          if (i !== undefined) bits[i >>> 5] |= 1 << (i & 31);
+        }
+        return filter.mode === "exclude" ? invertBits(bits, n) : bits;
+      }
+
+      /**
+       * Mark mask (REQ-012 `Markieren`, DEC-19): bitset of the rows matching ANY `mark` rule of rules (rules or rule
+       * filters; other actions and invalid rules are ignored), restricted to `within` (e.g. the shown rows,
+       * evaluateFilters(...).pass) when given. Marking never removes a row: it is not a filter source.
+       */
+      export function markRows(source, rules, within) {
+        const store = asStore(source);
+        const n = store.size;
+        const bits = new Uint32Array(wordsFor(n));
+        for (const r of rules || []) {
+          const rule = normaliseRule(r);
+          if (!rule || rule.mode !== "mark") continue;
+          const match = ruleMatchMask(store, { ...rule, needle: matchText(rule.value) });
+          for (let w = 0; w < bits.length; w++) bits[w] |= match[w];
+        }
+        if (within) andInto(bits, within);
+        return bits;
+      }
+
+      /**
+       * Row text of a rule (REQ-012): { mode: action label, text: `<Eigenschaft> <vergleich> \u201e<Wert>\u201c` } with the
+       * comparison in lower case and `Beliebige Eigenschaft` for `Freie Textsuche`; the property label comes from the
+       * catalogue (the key when the property is not loaded). The UI renders both as text only.
+       */
+      export function describeRule(rule, catalog) {
+        const modeEntry = RULE_MODES.find(([id]) => id === rule.mode);
+        const opEntry = RULE_OPS.find(([id]) => id === rule.op);
+        const entry = rule.mode === "text" ? null : catalog && catalog.get(rule.key);
+        const property = rule.mode === "text" ? RULE_ANY_PROPERTY : entry ? entry.label : String(rule.key);
+        const op = (opEntry ? opEntry[1] : String(rule.op)).toLowerCase();
+        return {
+          mode: modeEntry ? modeEntry[1] : String(rule.mode),
+          text: property + " " + op + " \u201e" + rule.value + "\u201c",
+        };
+      }
+
+      // ---------------------------------------------------------------------------------------------------------
+      // Colouring (TASK-005, changed TASK-012 for CR-002; REQ-005 `Faerben`, DEC-15; ref computeColoring /
+      // distinctHex / scaleHex L465-521)
+      // ---------------------------------------------------------------------------------------------------------
+
+      /** Values with an own colour in `Unterschiedliche Farben`; further values repeat the colours (ref). */
       export const COLOUR_DISTINCT_COUNT = 120;
-      /** Steps of the numeric scale min -> max (as ref SCALE_STEPS). */
+      /** Steps of the colour scale (as ref SCALE_STEPS): position t is rounded to round(t * 24) / 24. */
       export const COLOUR_SCALE_STEPS = 24;
-      /** Base colour of the numeric scale (light tint for small values, full colour for large values). */
-      export const COLOUR_SCALE_BASE = "#1f6fd1";
       const COLOUR_SCALE_MIN_STRENGTH = 0.12; // smallest value: 12 % of the scale colour on white (ref)
-      /** Grey of the empty value "(leer)". */
+      /** Colouring modes with their German labels (REQ-005 colouring panel, DEC-15; ref L1574-1582). */
+      export const COLOUR_MODES = [
+        ["distinct", "Unterschiedliche Farben"],
+        ["scale", "Farbskala"],
+      ];
+      /** Swatches of `Farbskala` with their German labels (DEC-15; ref SCALE_COLORS L233), lower-case hex. */
+      export const SCALE_COLOURS = [
+        ["#d72622", "Rot"],
+        ["#1f6fd1", "Blau"],
+        ["#2e9b4f", "Gr\u00fcn"],
+        ["#e8890c", "Orange"],
+        ["#7b3fb5", "Violett"],
+        ["#4e5355", "Grau"],
+      ];
+      /** Mode and scale colour before the user chose any (DEC-15 "start: Unterschiedliche Farben, Rot"; ref L1533). */
+      export const DEFAULT_COLOUR_MODE = "distinct";
+      export const DEFAULT_SCALE_COLOUR = "#d72622";
+      /** Scale colour of the 1.0.0 look (DEC-20: a configuration without colourMode and scaleColour). */
+      export const LEGACY_SCALE_COLOUR = "#1f6fd1";
+      /** Rows of the legend in the colouring panel before `+<n> weitere Werte` (REQ-005). */
+      export const COLOUR_LEGEND_LIMIT = 200;
+      /** Note of `Unterschiedliche Farben` with more than COLOUR_DISTINCT_COUNT values (REQ-005, DEC-15). */
+      export const COLOUR_REPEAT_NOTE = "Mehr als 120 Werte: Farben wiederholen sich.";
+      /** Grey of the empty value "(leer)" (both modes). */
       export const COLOUR_EMPTY = "#c4c7ca";
-      /** Neutral colour of elements with several values ("mehrere Werte"). */
+      /** Neutral colour of elements with several values ("mehrere Werte", both modes). */
       export const COLOUR_MULTI = "#6e6259";
-      /** Shared colour of the text values beyond COLOUR_DISTINCT_COUNT ("Sonstige"). */
-      export const COLOUR_OTHER = "#8f9aa6";
       export const MULTI_LABEL = "mehrere Werte";
-      export const OTHER_LABEL = "Sonstige";
 
       const hex2 = (x) =>
         Math.round(Math.min(255, Math.max(0, x)))
           .toString(16)
           .padStart(2, "0");
+
+      const HEX_COLOUR_RE = /^#[0-9a-fA-F]{6}$/;
+
+      /** "#rrggbb" in lower case for a colour "#" + 6 hex digits (either case), else null (DEC-20 `scaleColour`). */
+      export function normaliseHexColour(text) {
+        return typeof text === "string" && HEX_COLOUR_RE.test(text) ? text.toLowerCase() : null;
+      }
 
       /** sRGB hex of HSL (h, s, l in 0..1). */
       function hslHex(h, s, l) {
@@ -3012,76 +3359,64 @@
         return "#" + hex2(channel(h + 1 / 3) * 255) + hex2(channel(h) * 255) + hex2(channel(h - 1 / 3) * 255);
       }
 
-      /** Distinct colour number index (0 .. COLOUR_DISTINCT_COUNT - 1): golden-angle hues, alternating lightness (ref). */
+      /** Distinct colour of value number index: golden-angle hues, alternating lightness; repeats after 120 (ref). */
       export function distinctColour(index) {
         const i = index % COLOUR_DISTINCT_COUNT;
         return hslHex(((i * 137.508) % 360) / 360, 0.65, i % 2 ? 0.42 : 0.58);
       }
 
-      /** Colour of step 0 .. COLOUR_SCALE_STEPS - 1 of the numeric scale (tint of COLOUR_SCALE_BASE, ref scaleHex). */
-      export function scaleColour(step) {
-        const t = COLOUR_SCALE_STEPS > 1 ? step / (COLOUR_SCALE_STEPS - 1) : 1;
-        const amount = COLOUR_SCALE_MIN_STRENGTH + (1 - COLOUR_SCALE_MIN_STRENGTH) * t;
-        const base = parseInt(COLOUR_SCALE_BASE.slice(1), 16);
-        return (
-          "#" + [(base >> 16) & 255, (base >> 8) & 255, base & 255].map((c) => hex2(255 + (c - 255) * amount)).join("")
-        );
+      /**
+       * Scale colour for position t in [0, 1] (DEC-15, ref scaleHex): each channel = round(255 + (c - 255) * a) with
+       * a = 0.12 + 0.88 * round(t * 24) / 24, so t = 0 is the 12 % tint of base on white and t = 1 is base itself.
+       * base: "#rrggbb" (either case; anything else uses DEFAULT_SCALE_COLOUR).
+       */
+      export function scaleColour(base, t) {
+        const hex = normaliseHexColour(base) || DEFAULT_SCALE_COLOUR;
+        const position = Number.isFinite(t) ? Math.min(1, Math.max(0, t)) : 1;
+        const amount =
+          COLOUR_SCALE_MIN_STRENGTH +
+          (1 - COLOUR_SCALE_MIN_STRENGTH) * (Math.round(position * COLOUR_SCALE_STEPS) / COLOUR_SCALE_STEPS);
+        const n = parseInt(hex.slice(1), 16);
+        return "#" + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => hex2(255 + (c - 255) * amount)).join("");
       }
-
-      const formatNumber = (n) => n.toLocaleString("de-DE", { maximumFractionDigits: 3 });
 
       /**
        * Colour scheme of property key over all rows of the store (REQ-005, DEC-15), stable while the row set is the
-       * same (colours do not change when the filter changes, so legend and filter-set dots always agree). Text (or
-       * mixed) values: one distinct colour per value in value order up to COLOUR_DISTINCT_COUNT, the rest share
-       * `Sonstige`. Only numbers: COLOUR_SCALE_STEPS equal ranges min -> max (last range closed). A row with several
-       * distinct values gets `mehrere Werte`, an empty row `(leer)`. Returns { key, numeric, entries [{ kind: 'value' |
-       * 'range' | 'other' | 'multi' | 'empty', label, colour, value?, min?, max? }], rowEntry(i), rowColour(i),
-       * valueColour(value) }.
+       * same (colours do not change when the filter changes, so legend and filter-set dots always agree). options:
+       * { mode: 'distinct' | 'scale' (default DEFAULT_COLOUR_MODE), colour: scale colour "#rrggbb" (default
+       * DEFAULT_SCALE_COLOUR) }. One entry per distinct non-empty value, in value order (compareValues, as the filter
+       * sets): `distinct` gives value number i the golden-angle colour i (repeating after 120 values); `scale` places
+       * numbers by value (t = (v - min) / (max - min); one value: t = 1) and other values (text, or text and numbers
+       * mixed) by rank (t = rank / (n - 1)) on scaleColour(colour, t). A row with several distinct values gets
+       * `mehrere Werte`, an empty row `(leer)`, in both modes. Returns { key, mode, colour, numeric, count (distinct
+       * values), repeats (distinct mode with more than 120 values), gradient ({ from, to, first, last } in scale mode
+       * with values, else null), entries [{ kind: 'value' | 'multi' | 'empty', label, colour, value? }], rowEntry(i),
+       * rowColour(i), valueColour(value) }.
        */
-      export function colourScheme(source, key) {
+      export function colourScheme(source, key, options) {
+        const opts = options || {};
+        const mode = opts.mode === "scale" ? "scale" : DEFAULT_COLOUR_MODE;
+        const colour = normaliseHexColour(opts.colour) || DEFAULT_SCALE_COLOUR;
         const store = asStore(source);
         const col = store.column(key);
         const n = col.emptyCode; // distinct non-empty values, in compareValues order
         let numeric = n > 0;
         for (let c = 0; c < n && numeric; c++) if (typeof col.values[c] !== "number") numeric = false;
+        const min = numeric ? col.values[0] : 0;
+        const max = numeric ? col.values[n - 1] : 0;
+        const position = (c) => {
+          if (numeric) return max > min ? (col.values[c] - min) / (max - min) : 1;
+          return n > 1 ? c / (n - 1) : 1;
+        };
         const entries = [];
-        const codeEntry = new Int32Array(n);
-        if (numeric) {
-          const min = col.values[0];
-          const max = col.values[n - 1];
-          const steps = max > min ? COLOUR_SCALE_STEPS : 1;
-          const width = (max - min) / steps;
-          for (let b = 0; b < steps; b++) {
-            const lo = min + b * width;
-            const hi = b === steps - 1 ? max : min + (b + 1) * width;
-            entries.push({
-              kind: "range",
-              min: lo,
-              max: hi,
-              colour: scaleColour(steps === 1 ? COLOUR_SCALE_STEPS - 1 : b),
-              label: steps === 1 ? formatNumber(lo) : formatNumber(lo) + " \u2013 " + formatNumber(hi),
-            });
-          }
-          for (let c = 0; c < n; c++)
-            codeEntry[c] = width > 0 ? Math.min(steps - 1, Math.floor((col.values[c] - min) / width)) : 0;
-        } else {
-          const own = Math.min(n, COLOUR_DISTINCT_COUNT);
-          for (let c = 0; c < own; c++) {
-            const value = col.values[c];
-            entries.push({
-              kind: "value",
-              value,
-              colour: distinctColour(c),
-              label: typeof value === "number" ? formatNumber(value) : String(value),
-            });
-            codeEntry[c] = c;
-          }
-          if (n > own) {
-            const other = entries.length;
-            entries.push({ kind: "other", label: OTHER_LABEL, colour: COLOUR_OTHER });
-            for (let c = own; c < n; c++) codeEntry[c] = other;
-          }
+        for (let c = 0; c < n; c++) {
+          const value = col.values[c];
+          entries.push({
+            kind: "value",
+            value,
+            colour: mode === "scale" ? scaleColour(colour, position(c)) : distinctColour(c),
+            label: displayText(value),
+          });
         }
         const multi = entries.length;
         entries.push({ kind: "multi", label: MULTI_LABEL, colour: COLOUR_MULTI });
@@ -3091,11 +3426,24 @@
           const s = col.start[i];
           if (col.start[i + 1] - s > 1) return multi;
           const code = col.flat[s];
-          return code === col.emptyCode ? empty : codeEntry[code];
+          return code === col.emptyCode ? empty : code;
         };
         return {
           key,
+          mode,
+          colour,
           numeric,
+          count: n,
+          repeats: mode === "distinct" && n > COLOUR_DISTINCT_COUNT,
+          gradient:
+            mode === "scale" && n > 0
+              ? {
+                  from: scaleColour(colour, 0),
+                  to: scaleColour(colour, 1),
+                  first: entries[0].label,
+                  last: entries[n - 1].label,
+                }
+              : null,
           entries,
           rowEntry,
           rowColour: (i) => entries[rowEntry(i)].colour,
@@ -3103,13 +3451,13 @@
           valueColour(value) {
             if (value === null || value === undefined) return COLOUR_EMPTY;
             const code = col.index.get(value);
-            return code === undefined || code === col.emptyCode ? undefined : entries[codeEntry[code]].colour;
+            return code === undefined || code === col.emptyCode ? undefined : entries[code].colour;
           },
         };
       }
 
       /**
-       * Legend of a colour scheme over the rows at indices (the elements inside the filter, REQ-005): the entries that
+       * Legend of a colour scheme over the rows at indices (the shown elements, REQ-005, DEC-15): the entries that
        * occur, in scheme order (`mehrere Werte` and `(leer)` last), each with its element count.
        */
       export function colourLegend(scheme, indices) {
@@ -3120,6 +3468,15 @@
           if (counts[e]) out.push({ ...entry, count: counts[e] });
         });
         return out;
+      }
+
+      /**
+       * The legend rows the colouring panel lists (REQ-005): the first `limit` (COLOUR_LEGEND_LIMIT) entries and the
+       * number of further entries for `+<n> weitere Werte` (0 = none).
+       */
+      export function legendRows(legend, limit) {
+        const max = limit === undefined ? COLOUR_LEGEND_LIMIT : limit;
+        return { rows: legend.slice(0, max), more: Math.max(0, legend.length - max) };
       }
 
       // ---------------------------------------------------------------------------------------------------------
@@ -3608,11 +3965,57 @@
       /** A filter value as saved: text or finite number; null is the empty value `(leer)`. */
       const configValue = (v) => v === null || typeof v === "string" || (typeof v === "number" && Number.isFinite(v));
 
+      /** Smallest length of a section-plane normal (DEC-20 field table: length <= 1e-6 is invalid). */
+      export const SECTION_NORMAL_MIN = 1e-6;
+      const AXIS_INDEX = { X: 0, Y: 1, Z: 2 };
+
       /**
-       * The configuration object saved by `Konfiguration speichern` (REQ-009), from the current state:
-       * { header { title, date, logo }, filterSets [{ key, collapsed, selected }], table { view, groupBy, columns
-       * [{ key, width }], sort, columnFilters }, display { mode, colourBy, section } }. Fixed field order, so equal
-       * states give equal JSON text. The expanded state of groups, the selection and the models are not part of it.
+       * The section plane of a 1.0.0 axis section (DEC-20 `display.section`): { axis 'X' | 'Y' | 'Z', offset, flipped }
+       * -> { point, normal } in the scene frame of spec 4.4 (Z up, IFC axes): point = 0 except the axis component =
+       * offset; normal = -axis (not flipped: the part with coordinate <= offset is kept) or +axis (flipped). null for
+       * anything else.
+       */
+      export function planeFromAxisSection(section) {
+        if (!isPlainObject(section) || !Object.prototype.hasOwnProperty.call(AXIS_INDEX, section.axis)) return null;
+        if (typeof section.offset !== "number" || !Number.isFinite(section.offset)) return null;
+        const i = AXIS_INDEX[section.axis];
+        const point = [0, 0, 0];
+        const normal = [0, 0, 0];
+        point[i] = section.offset;
+        normal[i] = section.flipped === true ? 1 : -1;
+        return { point, normal };
+      }
+
+      /**
+       * A valid section plane (DEC-20 `display.sectionPlane`) { point [x, y, z], normal [x, y, z] } with a unit normal,
+       * or null: point and normal must be three finite numbers each and the normal longer than SECTION_NORMAL_MIN. A
+       * non-unit normal is normalised; a normal already of unit length (within 1e-12) is kept bit for bit, so saving a
+       * loaded plane gives the same JSON (REQ-009-AC1).
+       */
+      export function normaliseSectionPlane(plane) {
+        if (!isPlainObject(plane)) return null;
+        const vector = (v) =>
+          Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === "number" && Number.isFinite(x));
+        if (!vector(plane.point) || !vector(plane.normal)) return null;
+        const length = Math.hypot(plane.normal[0], plane.normal[1], plane.normal[2]);
+        if (!(length > SECTION_NORMAL_MIN)) return null;
+        const unit = Math.abs(length - 1) <= 1e-12;
+        return {
+          point: plane.point.map((x) => x + 0), // + 0 turns -0 into 0
+          normal: plane.normal.map((x) => (unit ? x : x / length) + 0),
+        };
+      }
+
+      /**
+       * The configuration object saved by `Konfiguration speichern` (REQ-009, DEC-20), from the current state:
+       * { header { title, date, logo }, filterSets [{ key, collapsed, selected }], filterRules [{ mode, key, op,
+       * value }], search, table { view, groupBy, columns [{ key, width }], sort, columnFilters }, display { mode,
+       * colourBy, colourMode, scaleColour, sectionPlane } }. Fixed field order, so equal states give equal JSON text.
+       * state.filterRules: the rules in order (invalid ones are left out; a `text` rule is written with key null);
+       * state.search: the search text; state.display: { mode, colourKey, colourMode, scaleColour, section } where
+       * section is a plane { point, normal } or a 1.0.0 axis section { axis, offset, flipped } (converted,
+       * planeFromAxisSection). `display.section` and hidden / isolated elements are never written (DEC-20). The
+       * expanded state of groups, the selection and the models are not part of it.
        */
       export function buildConfig(state) {
         const header = state.header || {};
@@ -3620,6 +4023,13 @@
         const grouping = state.grouping || {};
         const display = state.display || {};
         const section = display.section;
+        let plane = null;
+        if (section) plane = "axis" in section ? planeFromAxisSection(section) : normaliseSectionPlane(section);
+        const rules = [];
+        for (const rule of state.filterRules || []) {
+          const valid = normaliseRule(rule);
+          if (valid) rules.push({ mode: valid.mode, key: valid.key, op: valid.op, value: valid.value });
+        }
         return {
           schema: CONFIG_SCHEMA + "/" + CONFIG_VERSION,
           header: {
@@ -3632,6 +4042,8 @@
             collapsed: Boolean(s.collapsed),
             selected: (s.selected || []).map((v) => (v === undefined ? null : v)),
           })),
+          filterRules: rules,
+          search: typeof state.search === "string" ? state.search : "",
           table: {
             view: grouping.view === "grouped" ? "grouped" : "single",
             groupBy: (grouping.groupBy || []).slice(),
@@ -3646,28 +4058,36 @@
           display: {
             mode: display.mode === "hide" ? "hide" : "ghost",
             colourBy: display.colourKey || null,
-            section: section ? { axis: section.axis, offset: section.offset, flipped: Boolean(section.flipped) } : null,
+            colourMode: display.colourMode === "scale" ? "scale" : DEFAULT_COLOUR_MODE,
+            scaleColour: normaliseHexColour(display.scaleColour) || DEFAULT_SCALE_COLOUR,
+            sectionPlane: plane,
           },
         };
       }
 
+      // known fields per object; display.section is the 1.0.0 axis section (read and converted, never written)
       const CONFIG_FIELDS = {
-        "": ["schema", "header", "filterSets", "table", "display"],
+        "": ["schema", "header", "filterSets", "filterRules", "search", "table", "display"],
         header: ["title", "date", "logo"],
         table: ["view", "groupBy", "columns", "sort", "columnFilters"],
-        display: ["mode", "colourBy", "section"],
+        display: ["mode", "colourBy", "colourMode", "scaleColour", "sectionPlane", "section"],
       };
 
       /**
-       * Tolerant apply of a parsed, valid configuration to the loaded models (REQ-009, REQ-009-AC2). ctx:
+       * Tolerant apply of a parsed, valid configuration to the loaded models (REQ-009, REQ-009-AC2, DEC-20). ctx:
        * { has(key) -> property in the loaded models, hasValue(key, value) -> some element has that value (null = an
        * empty one), columns (current column keys, used when the file has no columns), isNumber(key) (optional: true
-       * for a numeric column; a range column filter on another column is reported as invalid and skipped) }.
-       * Returns { apply, skipped }. apply holds only the parts the file defines (a missing part keeps the current
-       * state): header { title?, date?, logo? }, filterSets, table { view?, groupBy?, columns?, sort?, columnFilters? },
-       * display { mode?, colourBy?, section? }. skipped lists what is not applied: properties (keys missing from the
-       * loaded models), values ([{ key, value }] filter values no element has), invalid (German names of malformed
-       * entries) and unknown (unknown field names). "" in a saved selection is the empty value null (TASK-003 D3).
+       * for a numeric column; a range column filter on another column is reported as invalid and skipped; also decides
+       * the colourMode default), hasGeometry() (optional: false while no model with geometry is loaded; a section plane
+       * is then skipped and named `Schnitt`) }.
+       * Returns { apply, skipped }. apply holds the parts the file defines (a missing part keeps the current state):
+       * header { title?, date?, logo? }, filterSets, table { view?, groupBy?, columns?, sort?, columnFilters? },
+       * display { mode?, colourBy?, colourMode, scaleColour, sectionPlane? } (display only when the file has one);
+       * apply.filterRules ([{ mode, key, op, value }] in file order) and apply.search (text) are always set, since an
+       * absent field clears them (DEC-20 field table). skipped lists what is not applied: properties (keys missing
+       * from the loaded models), values ([{ key, value }] filter values no element has), invalid (German names of
+       * malformed entries, the labels of the DEC-20 field table for the CR-002 fields) and unknown (unknown field
+       * names). "" in a saved selection is the empty value null (TASK-003 D3).
        */
       export function applyConfig(config, ctx) {
         const skipped = { properties: [], values: [], invalid: [], unknown: [] };
@@ -3765,6 +4185,22 @@
           }
         }
 
+        // filter rules and search text (REQ-012, DEC-20): absent = none, so active ones are cleared
+        apply.filterRules = [];
+        if (config.filterRules !== undefined) {
+          if (!Array.isArray(config.filterRules)) invalid("Filterregeln");
+          else
+            for (const raw of config.filterRules) {
+              const rule = normaliseRule(raw);
+              if (!rule) invalid("Filterregel");
+              else if (rule.key !== null && !has(rule.key)) missing(rule.key);
+              else apply.filterRules.push({ mode: rule.mode, key: rule.key, op: rule.op, value: rule.value });
+            }
+        }
+        apply.search = "";
+        if (typeof config.search === "string") apply.search = config.search;
+        else if (config.search !== undefined) invalid("Suche");
+
         // table: view, grouping, columns, sort, column filters (REQ-006-AC6, REQ-009)
         if (config.table !== undefined) {
           const table = {};
@@ -3843,7 +4279,8 @@
           apply.table = table;
         }
 
-        // model display: ghost / hide, colouring property, section (REQ-005, REQ-009)
+        // model display: ghost / hide, colouring property, mode and scale colour, section plane (REQ-005, REQ-009,
+        // DEC-20 field table)
         if (config.display !== undefined) {
           const display = {};
           if (!isPlainObject(config.display)) invalid("Modelldarstellung");
@@ -3857,17 +4294,52 @@
               if (has(d.colourBy)) display.colourBy = d.colourBy;
               else missing(d.colourBy);
             } else if (d.colourBy !== undefined) invalid("F\u00e4rben nach");
-            const s = d.section;
-            if (s === null) display.section = null;
-            else if (
-              isPlainObject(s) &&
-              (s.axis === "X" || s.axis === "Y" || s.axis === "Z") &&
-              typeof s.offset === "number" &&
-              Number.isFinite(s.offset) &&
-              (s.flipped === undefined || typeof s.flipped === "boolean")
-            )
-              display.section = { axis: s.axis, offset: s.offset, flipped: s.flipped === true };
-            else if (s !== undefined) invalid("Schnitt");
+            // colouring mode and scale colour; absent (or invalid = treated as absent): the 1.0.0 look, i.e. Farbskala
+            // in Blau for a numeric colouring property, else Unterschiedliche Farben
+            let colourMode = d.colourMode;
+            if (colourMode !== undefined && colourMode !== "distinct" && colourMode !== "scale") {
+              invalid("Farbmodus");
+              colourMode = undefined;
+            }
+            let scaleColour = d.scaleColour;
+            if (scaleColour !== undefined) {
+              scaleColour = normaliseHexColour(scaleColour);
+              if (!scaleColour) {
+                invalid("Skalenfarbe");
+                scaleColour = undefined;
+              }
+            }
+            const numericColour =
+              typeof display.colourBy === "string" && Boolean(ctx.isNumber && ctx.isNumber(display.colourBy));
+            display.colourMode = colourMode !== undefined ? colourMode : numericColour ? "scale" : "distinct";
+            if (scaleColour !== undefined) display.scaleColour = scaleColour;
+            else display.scaleColour = colourMode === undefined ? LEGACY_SCALE_COLOUR : DEFAULT_SCALE_COLOUR;
+            // section plane; a 1.0.0 axis section is converted and only read when sectionPlane is absent
+            let plane; // undefined = keep the current section
+            if (d.sectionPlane !== undefined) {
+              if (d.sectionPlane === null) plane = null;
+              else {
+                plane = normaliseSectionPlane(d.sectionPlane);
+                if (!plane) {
+                  invalid("Schnitt");
+                  plane = undefined;
+                }
+              }
+            } else if (d.section !== undefined) {
+              const s = d.section;
+              if (s === null) plane = null;
+              else if (
+                isPlainObject(s) &&
+                (s.axis === "X" || s.axis === "Y" || s.axis === "Z") &&
+                typeof s.offset === "number" &&
+                Number.isFinite(s.offset) &&
+                (s.flipped === undefined || typeof s.flipped === "boolean")
+              )
+                plane = planeFromAxisSection(s);
+              else invalid("Schnitt");
+            } else plane = null;
+            if (plane && ctx.hasGeometry && !ctx.hasGeometry()) invalid("Schnitt");
+            else if (plane !== undefined) display.sectionPlane = plane;
           }
           apply.display = display;
         }
@@ -5275,7 +5747,7 @@
             }
           },
           /**
-           * Legend under the model: { title, entries [{ label, colour, count, kind }] } or null. Values are text
+           * Legend under the model: { title, entries [{ label, colour, count, kind }], more } or null. Values are text
            * (labels from the model are set with textContent).
            */
           setLegend(data) {
@@ -5302,6 +5774,8 @@
               legendList.append(item);
             }
             if (!data.entries.length) legendList.append(el("li", "cv-hint", "Keine Elemente im Filter."));
+            // at most COLOUR_LEGEND_LIMIT rows (TASK-012: one row per value since DEC-15 changed)
+            if (data.more) legendList.append(el("li", "cv-hint", "+" + formatCount(data.more) + " weitere Werte"));
             /*
              * The legend strip is part of the model area: a shorter legend would resize the 3D canvas, and a canvas
              * resize redraws the whole view (about 280 ms in software WebGL) on every filter click. So during one
@@ -7897,7 +8371,9 @@
       import {
         CONFIG_MAX_BYTES,
         ConfigError,
+        DEFAULT_COLOUR_MODE,
         DEFAULT_COLUMNS,
+        DEFAULT_SCALE_COLOUR,
         LoadError,
         allGroups,
         applyConfig,
@@ -7915,6 +8391,7 @@
         colourScheme,
         createColumnStore,
         defaultColumnWidth,
+        legendRows,
         evaluateFilters,
         exportSheet,
         facetCounts,
@@ -8063,7 +8540,11 @@
         // 3D coupling (TASK-005, REQ-005 / REQ-007): display mode, colouring, section, selection.
         let viewMode = "ghost";
         let colourKey = null;
-        let scheme = null; // colourScheme(store, colourKey) for the current row set
+        // colouring mode and scale colour (DEC-15 start values; set by a configuration, DEC-20). The 1.0.0 control
+        // `Faerben nach` keeps them until the colouring panel of TASK-016 lets the user choose them.
+        let colourMode = DEFAULT_COLOUR_MODE;
+        let scaleColourHex = DEFAULT_SCALE_COLOUR;
+        let scheme = null; // currentScheme() for the current row set
         let selectedKey = null;
         // group selection (TASK-006c, REQ-007): { id, keys (row keys inside the filter), kicker, title } or null
         let selectedGroup = null;
@@ -8633,10 +9114,9 @@
             filterActive: view.evaluation !== null && view.evaluation.filters.length > 0,
           });
           const entry = colourKey ? catalog.get(colourKey) : null;
+          const legend = scheme ? legendRows(colourLegend(scheme, view.indices)) : null;
           ui.view.setLegend(
-            scheme
-              ? { title: entry ? entry.header : colourKey, entries: colourLegend(scheme, view.indices) }
-              : null,
+            legend ? { title: entry ? entry.header : colourKey, entries: legend.rows, more: legend.more } : null,
           );
           if (selectedKey !== null) {
             const at = rowIndex.get(selectedKey);
@@ -8658,6 +9138,8 @@
           hook.view = {
             mode: viewMode,
             colourKey,
+            colourMode,
+            scaleColour: scaleColourHex,
             selected: selectedKey,
             selectedGroup: selectedGroup ? selectedGroup.id : null,
             selectedKeys: selectedGroup ? selectedGroup.keys.slice() : selectedKey !== null ? [selectedKey] : [],
@@ -8759,9 +9241,14 @@
           markTable();
         }
 
+        /** Colour scheme of the colouring property in the current mode and scale colour (DEC-15), or null. */
+        function currentScheme() {
+          return colourKey ? colourScheme(store, colourKey, { mode: colourMode, colour: scaleColourHex }) : null;
+        }
+
         function setColouring(key) {
           colourKey = key && catalog.has(key) ? key : null;
-          scheme = colourKey ? colourScheme(store, colourKey) : null;
+          scheme = currentScheme();
           const entry = colourKey ? catalog.get(colourKey) : null;
           ui.view.setColouring(entry ? entry.header : null);
           store.retain(keysInUse());
@@ -8810,7 +9297,7 @@
             filterSets: filterSets.map((s) => ({ key: s.key, collapsed: s.collapsed, selected: s.selected })),
             table: tableState(),
             grouping: groupingState(),
-            display: { mode: viewMode, colourKey, section },
+            display: { mode: viewMode, colourKey, colourMode, scaleColour: scaleColourHex, section },
           });
         }
 
@@ -8830,6 +9317,7 @@
               const entry = catalog.get(key);
               return Boolean(entry && entry.kind === "number");
             },
+            hasGeometry: () => Boolean(engine.axisRange("Z")),
           });
           closePopup();
           if (apply.header) setHeader(apply.header);
@@ -8876,16 +9364,22 @@
             viewMode = d.mode;
             ui.view.setMode(viewMode);
           }
+          if (d.colourMode !== undefined) colourMode = d.colourMode;
+          if (d.scaleColour !== undefined) scaleColourHex = d.scaleColour;
           if (d.colourBy !== undefined) {
             colourKey = d.colourBy;
-            scheme = colourKey ? colourScheme(store, colourKey) : null;
             const entry = colourKey ? catalog.get(colourKey) : null;
             ui.view.setColouring(entry ? entry.header : null);
           }
-          if (d.section !== undefined) {
-            // a section needs 3D geometry on its axis (no model with geometry: not applied)
-            if (d.section && !engine.axisRange(d.section.axis)) skipped.invalid.push("Schnitt");
-            else setSection(d.section);
+          if (d.colourBy !== undefined || d.colourMode !== undefined || d.scaleColour !== undefined)
+            scheme = currentScheme();
+          if (d.sectionPlane !== undefined) {
+            // Interim (TASK-012 until TASK-014/018): the 1.0.0 3D view cuts along X / Y / Z only, so a plane is shown
+            // as the axis section it equals; another plane is not applied and named `Schnitt`
+            const axisSection = d.sectionPlane ? axisSectionOfPlane(d.sectionPlane) : null;
+            if (d.sectionPlane && (!axisSection || !engine.axisRange(axisSection.axis))) {
+              if (!skipped.invalid.includes("Schnitt")) skipped.invalid.push("Schnitt");
+            } else setSection(axisSection);
           }
           store.retain(keysInUse());
           publishSets();
@@ -8898,6 +9392,16 @@
             return entry ? entry.label : key;
           });
           return { notice, skipped };
+        }
+
+        /**
+         * The 1.0.0 axis section { axis, offset, flipped } a section plane equals (normal +-X, +-Y or +-Z in the scene
+         * frame of spec 4.4; inverse of planeFromAxisSection), else null. Interim for the 1.0.0 3D view (TASK-012).
+         */
+        function axisSectionOfPlane(plane) {
+          const i = plane.normal.findIndex((x) => Math.abs(Math.abs(x) - 1) <= 1e-9);
+          if (i < 0 || plane.normal.some((x, j) => j !== i && Math.abs(x) > 1e-9)) return null;
+          return { axis: "XYZ"[i], offset: plane.point[i], flipped: plane.normal[i] > 0 };
         }
 
         /** Offers text, bytes or a Blob as a file download (works from file:// as well). */
@@ -9440,7 +9944,7 @@
             colourKey = null;
             ui.view.setColouring(null);
           }
-          scheme = colourKey ? colourScheme(store, colourKey) : null;
+          scheme = currentScheme();
           // grouping follows the new row set: properties no element has any more are dropped (level 2 moves up)
           if (catalog.size && groupBy.some((key) => !catalog.has(key))) {
             const kept = normaliseGrouping({ view: tableView, groupBy }, catalog);

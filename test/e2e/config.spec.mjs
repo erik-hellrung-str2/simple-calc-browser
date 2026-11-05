@@ -213,8 +213,12 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   expect([c.table.view, c.table.groupBy]).toEqual(["grouped", ["Kategorie", "Geschoss"]]);
   expect(c.display.mode).toBe("hide");
   expect(c.display.colourBy).toBe("Material");
-  expect(c.display.section).toEqual(before.view.section);
-  expect(c.display.section.flipped).toBe(true);
+  // TASK-012 (CR-002, DEC-20): the section is saved as `display.sectionPlane` (the 1.0.0 3D view's flipped Z section
+  // = point at the offset on Z, normal +Z into the kept half), never as `display.section` (was: display.section equal
+  // to the axis section)
+  expect(before.view.section).toMatchObject({ axis: "Z", flipped: true });
+  expect(c.display.sectionPlane).toEqual({ point: [0, 0, before.view.section.offset], normal: [0, 0, 1] });
+  expect("section" in c.display).toBe(false);
   // no element references, no expanded state, no selection (REQ-009)
   expect(first.text).not.toMatch(/"m\d+:\d+"|expanded|selected(Key|Group)/);
 

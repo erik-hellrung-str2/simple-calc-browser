@@ -1,0 +1,86 @@
+{
+  "schema": "calc-viewer-config/1",
+  "header": {
+    "title": "Haus",
+    "date": "2026-08-12",
+    "logo": null
+  },
+  "filterSets": [
+    {
+      "key": "Kategorie",
+      "collapsed": false,
+      "selected": []
+    },
+    {
+      "key": "Geschoss",
+      "collapsed": false,
+      "selected": []
+    },
+    {
+      "key": "Material",
+      "collapsed": false,
+      "selected": []
+    }
+  ],
+  "filterRules": [
+    {
+      "mode": "isolate",
+      "key": "Kategorie",
+      "op": "contains",
+      "value": "wall"
+    },
+    {
+      "mode": "text",
+      "key": null,
+      "op": "contains",
+      "value": "erdg"
+    }
+  ],
+  "search": "wand",
+  "table": {
+    "view": "single",
+    "groupBy": [],
+    "columns": [
+      {
+        "key": "Modell",
+        "width": 160
+      },
+      {
+        "key": "Kategorie",
+        "width": 160
+      },
+      {
+        "key": "Name",
+        "width": 240
+      },
+      {
+        "key": "Geschoss",
+        "width": 160
+      },
+      {
+        "key": "BaseQuantities.NetVolume",
+        "width": 150
+      }
+    ],
+    "sort": null,
+    "columnFilters": []
+  },
+  "display": {
+    "mode": "ghost",
+    "colourBy": "BaseQuantities.NetVolume",
+    "colourMode": "scale",
+    "scaleColour": "#2e9b4f",
+    "sectionPlane": {
+      "point": [
+        0,
+        0,
+        1.502
+      ],
+      "normal": [
+        0,
+        0,
+        -1
+      ]
+    }
+  }
+}

@@ -8,6 +8,81 @@ import { buildTraceability, idsOf, specIds, testTitles } from "../../scripts/tra
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
+// INC-2 (CR-002, TASK-011a; docs/process-log.md 2026-11-04 "traceability check during INC-2"): the acceptance criteria
+// of the CR-002 delta that have no test yet. The "every AC has a test" check skips exactly these IDs and fails when a
+// listed ID is not an AC of the spec or already has a test, so each INC-2 task removes the IDs it covers in the same
+// change. TASK-020 requires this list to be empty. Changed ACs (REQ-004-AC4, REQ-005-AC1/AC2/AC4, REQ-007-AC1/AC3/
+// AC4/AC5, REQ-009-AC1, REQ-010-AC2) are not listed: their 1.0.0 tests still name them and are updated by the INC-2
+// task that changes the behaviour (CR-002 §6).
+const INC2_PENDING = [
+  // REQ-003 Configure filter sets (new CR-002)
+  "REQ-003-AC4",
+  "REQ-003-AC5",
+  // REQ-004 Filter with filter sets (new CR-002)
+  "REQ-004-AC5",
+  "REQ-004-AC6",
+  // REQ-005 3D model view (new CR-002)
+  "REQ-005-AC5",
+  "REQ-005-AC6",
+  "REQ-005-AC7",
+  "REQ-005-AC8",
+  "REQ-005-AC9",
+  "REQ-005-AC10",
+  "REQ-005-AC11",
+  "REQ-005-AC12",
+  // REQ-006 Table (new CR-002)
+  "REQ-006-AC11",
+  "REQ-006-AC12",
+  // REQ-007 Selection and properties panel (AC6: BUG-T2; AC7, AC8 new CR-002)
+  "REQ-007-AC6",
+  "REQ-007-AC7",
+  "REQ-007-AC8",
+  // REQ-008 Export (new CR-002)
+  "REQ-008-AC6",
+  // REQ-009 Configuration (new CR-002)
+  "REQ-009-AC4",
+  "REQ-009-AC5",
+  "REQ-009-AC6",
+  "REQ-009-AC7",
+  "REQ-009-AC8",
+  // REQ-010 Viewer file (new CR-002)
+  "REQ-010-AC4",
+  // REQ-012 In-viewer rule filter (new requirement, CR-002)
+  "REQ-012-AC1",
+  "REQ-012-AC2",
+  "REQ-012-AC3",
+  "REQ-012-AC4",
+  "REQ-012-AC5",
+  "REQ-012-AC6",
+  "REQ-012-AC7",
+  "REQ-012-AC8",
+  "REQ-012-AC9",
+  "REQ-012-AC10",
+  "REQ-012-AC11",
+  "REQ-012-AC12",
+  "REQ-012-AC13",
+  "REQ-012-AC14",
+  // REQ-013 Element tools (new requirement, CR-002)
+  "REQ-013-AC1",
+  "REQ-013-AC2",
+  "REQ-013-AC3",
+  "REQ-013-AC4",
+  "REQ-013-AC5",
+  "REQ-013-AC6",
+  "REQ-013-AC7",
+  "REQ-013-AC8",
+  "REQ-013-AC9",
+  "REQ-013-AC10",
+  "REQ-013-AC11",
+  "REQ-013-AC12",
+  "REQ-013-AC13",
+];
+
+/** IDs whose row in the generated traceability table says "gap: no test". */
+function gapRows(text) {
+  return [...text.matchAll(/^\| ((?:REQ|NFR)-\d{3}(?:-AC\d+)?)\b[^|]*\| \*\*gap: no test\*\* \|$/gm)].map((m) => m[1]);
+}
+
 test("[unit] trace: titles of test() calls, IDs as tags, in text and with underscores", () => {
   // the source text is assembled from parts so that the generator, which scans this file too, does not read these
   // fixture calls as tests of this file (verification INC-1 SYNC F5)
@@ -45,10 +120,50 @@ test("[unit] trace: every acceptance criterion and NFR of the spec has a test; d
     ["NFR-001", "NFR-002", "NFR-003", "NFR-004", "NFR-005"],
   );
   const text = buildTraceability();
-  assert.doesNotMatch(text, /gap: no test/, "an acceptance criterion or NFR without a test");
+  const gaps = gapRows(text);
+  assert.equal(gaps.length, (text.match(/gap: no test/g) || []).length, "every gap row is recognised");
+  assert.deepEqual(
+    gaps.filter((id) => !INC2_PENDING.includes(id)),
+    [],
+    "an acceptance criterion or NFR without a test",
+  );
+  // INC2_PENDING itself: no duplicates, only ACs of the spec, and none that already has a test
+  assert.equal(new Set(INC2_PENDING).size, INC2_PENDING.length, "INC2_PENDING has no duplicates");
+  const acIds = spec.acs.map(([id]) => id);
+  assert.deepEqual(
+    INC2_PENDING.filter((id) => !acIds.includes(id)),
+    [],
+    "INC2_PENDING lists an ID that is not an acceptance criterion of docs/spec.md",
+  );
+  assert.deepEqual(
+    INC2_PENDING.filter((id) => !gaps.includes(id)),
+    [],
+    "INC2_PENDING lists an AC that has a test now: remove it from the list",
+  );
   assert.equal(
     readFileSync(ROOT + "docs/testing/traceability.md", "utf8"),
     text,
     "docs/testing/traceability.md is stale: run node scripts/trace.mjs",
   );
+});
+
+test("[unit] trace: retired acceptance criteria (~~ID~~) are not ACs of the spec; the INC-2 gap rows are recognised", () => {
+  const text = readFileSync(ROOT + "docs/spec.md", "utf8");
+  const retired = [...text.matchAll(/^- ~~(REQ-\d{3}-AC\d+)~~/gm)].map((m) => m[1]);
+  assert.ok(retired.includes("REQ-005-AC3"), "REQ-005-AC3 is listed as retired (CR-002)");
+  const acIds = specIds(text).acs.map(([id]) => id);
+  for (const id of retired) assert.ok(!acIds.includes(id), id + " is retired and must not count as an AC");
+  // retired line shape, and a line with the active shape, read from a fixture (not from the spec)
+  const fixture = "- ~~REQ-001-AC9~~ retired by CR-999: was ...\n- REQ-001-AC8: Given x, Then y.\n";
+  assert.deepEqual(
+    specIds(fixture).acs.map(([id]) => id),
+    ["REQ-001-AC8"],
+  );
+  // gap rows of the generated table, for an AC and an NFR row; covered rows are not gaps
+  const table = [
+    "| REQ-012-AC1 | **gap: no test** |",
+    "| REQ-001-AC1 | `test/e2e/x.spec.mjs`: t |",
+    "| NFR-002 Model size | **gap: no test** |",
+  ].join("\n");
+  assert.deepEqual(gapRows(table), ["REQ-012-AC1", "NFR-002"]);
 });

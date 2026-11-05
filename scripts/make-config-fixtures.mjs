@@ -1,5 +1,7 @@
 // Writes the committed configuration and logo fixtures of TASK-007 (spec Testing -> Test data: "configuration files
-// per error class"; REQ-011 logo) deterministically into test/fixtures/. Re-run after changing this script, then
+// per error class"; REQ-011 logo) and the CR-002 compatibility fixtures of TASK-012 (1.0.0 configuration with an axis
+// section and a numeric colourBy, 1.1.0 configurations with rules, search, colouring mode and section plane; DEC-20)
+// deterministically into test/fixtures/. Re-run after changing this script, then
 // update the sha256 values in test/fixtures/manifest.json (test/unit/fixtures.test.mjs fails until they match).
 //
 //   node scripts/make-config-fixtures.mjs
@@ -39,6 +41,166 @@ export function configErrorFixtures() {
         ) + "\n",
     },
   };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// CR-002 compatibility fixtures (TASK-012; spec Testing -> Test data "CR-002 additions", DEC-20, REQ-009-AC4..AC8).
+// For AC20-FZK-Haus.ifc. Written as the builders write them: JSON.stringify(config, null, 2) + "\n".
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Numeric colouring property of AC20-FZK-Haus (REQ-005-AC5, REQ-006-AC2). */
+export const FZK_VOLUME = "BaseQuantities.NetVolume";
+/** Offset (m, IFC Z) of the 1.0.0 axis section in the compatibility fixtures (inside the FZK-Haus storeys). */
+export const AXIS_SECTION_OFFSET = 3;
+
+const header = () => ({ title: "Haus", date: "2026-08-12", logo: null });
+const defaultSets = () => [
+  { key: "Kategorie", collapsed: false, selected: [] },
+  { key: "Geschoss", collapsed: false, selected: [] },
+  { key: "Material", collapsed: false, selected: [] },
+];
+const table = () => ({
+  view: "single",
+  groupBy: [],
+  columns: [
+    { key: "Modell", width: 160 },
+    { key: "Kategorie", width: 160 },
+    { key: "Name", width: 240 },
+    { key: "Geschoss", width: 160 },
+    { key: FZK_VOLUME, width: 150 },
+  ],
+  sort: null,
+  columnFilters: [],
+});
+
+/**
+ * A configuration as the 1.0.0 builder saves it (tag v1.0.0, cv-core buildConfig: fields schema, header, filterSets,
+ * table, display { mode, colourBy, section { axis, offset, flipped } }), with an axis section on Z and the numeric
+ * colouring property NetVolume (REQ-009-AC4).
+ */
+export function config100(flipped) {
+  return {
+    schema: "calc-viewer-config/1",
+    header: header(),
+    filterSets: defaultSets(),
+    table: table(),
+    display: {
+      mode: "ghost",
+      colourBy: FZK_VOLUME,
+      section: { axis: "Z", offset: AXIS_SECTION_OFFSET, flipped },
+    },
+  };
+}
+
+/**
+ * A configuration as the 1.1.0 builder saves it (DEC-20: all five new fields written; REQ-009-AC1 / AC7 content):
+ * two rules (one `Freie Textsuche`), a search text, colouring in `Farbskala` with `Gruen`, a section plane (point with
+ * the 2 mm offset, normal into the kept half).
+ */
+export function config110() {
+  return {
+    schema: "calc-viewer-config/1",
+    header: header(),
+    filterSets: defaultSets(),
+    filterRules: [
+      { mode: "isolate", key: "Kategorie", op: "contains", value: "wall" },
+      { mode: "text", key: null, op: "contains", value: "erdg" },
+    ],
+    search: "wand",
+    table: table(),
+    display: {
+      mode: "ghost",
+      colourBy: FZK_VOLUME,
+      colourMode: "scale",
+      scaleColour: "#2e9b4f",
+      sectionPlane: { point: [0, 0, 1.502], normal: [0, 0, -1] },
+    },
+  };
+}
+
+/**
+ * REQ-009-AC6: a rule on a property absent from AC20-FZK-Haus (it exists in the Duplex fixture,
+ * reference-values.json REQ-009-config.absentProperty) and a malformed rule (unknown action) between two valid rules.
+ */
+export function configRulesSkipped() {
+  return {
+    schema: "calc-viewer-config/1",
+    header: header(),
+    filterRules: [
+      { mode: "isolate", key: "Kategorie", op: "contains", value: "wall" },
+      { mode: "hide", key: "PSet_Revit_Other.AssetIdentifier", op: "eq", value: "x" },
+      { mode: "select", key: "Name", op: "eq", value: "x" },
+      { mode: "hide", key: "Name", op: "ends", value: "-1" },
+    ],
+  };
+}
+
+/** The file text of a configuration as both builders save it. */
+export function configText(config) {
+  return JSON.stringify(config, null, 2) + "\n";
+}
+
+/** The compatibility fixtures: file name -> { purpose, config }. */
+export function compatConfigFixtures() {
+  return {
+    "config-1.0.0-axis-section.json": {
+      purpose: "1.0.0 configuration: axis section Z (not flipped), numeric colourBy (REQ-009-AC4, DEC-20)",
+      config: config100(false),
+    },
+    "config-1.0.0-axis-section-flipped.json": {
+      purpose: "1.0.0 configuration: axis section Z flipped, numeric colourBy (REQ-009-AC4, DEC-20)",
+      config: config100(true),
+    },
+    "config-1.1.0-full.json": {
+      purpose: "1.1.0 configuration: rules, search, Farbskala Gruen, section plane (REQ-009-AC1, AC7, DEC-20)",
+      config: config110(),
+    },
+    "config-1.1.0-rules-skipped.json": {
+      purpose: "1.1.0 configuration: a rule on an absent property and a malformed rule (REQ-009-AC6)",
+      config: configRulesSkipped(),
+    },
+  };
+}
+
+/**
+ * One configuration per invalid case of the DEC-20 field table (REQ-009-AC8), each changing one field of a valid
+ * 1.1.0 configuration (config110): { name, field, label (the notice label of the DEC-20 table, null = no notice),
+ * config }. Not written to files (loaded as text in the tests).
+ */
+export function dec20InvalidCases() {
+  const withField = (name, field, label, change) => {
+    const config = config110();
+    change(config);
+    return { name, field, label, config };
+  };
+  const rule = (patch) => (c) =>
+    c.filterRules.push({ ...{ mode: "hide", key: "Name", op: "eq", value: "x" }, ...patch });
+  return [
+    withField("filterRules-not-a-list", "filterRules", "Filterregeln", (c) => (c.filterRules = { mode: "isolate" })),
+    withField("rule-unknown-mode", "filterRules", "Filterregel", rule({ mode: "select" })),
+    withField("rule-unknown-op", "filterRules", "Filterregel", rule({ op: "ne" })),
+    withField("rule-empty-value", "filterRules", "Filterregel", rule({ value: "" })),
+    withField("rule-non-text-value", "filterRules", "Filterregel", rule({ value: 3 })),
+    withField("rule-missing-key", "filterRules", "Filterregel", (c) =>
+      c.filterRules.push({ mode: "isolate", op: "eq", value: "x" }),
+    ),
+    withField("search-not-text", "search", "Suche", (c) => (c.search = ["wand"])),
+    withField("colourMode-rainbow", "display.colourMode", "Farbmodus", (c) => (c.display.colourMode = "rainbow")),
+    withField("scaleColour-red", "display.scaleColour", "Skalenfarbe", (c) => (c.display.scaleColour = "red")),
+    withField("sectionPlane-zero-normal", "display.sectionPlane", "Schnitt", (c) => {
+      c.display.sectionPlane = { point: [0, 0, 1], normal: [0, 0, 0] };
+    }),
+    withField("sectionPlane-nan-point", "display.sectionPlane", "Schnitt", (c) => {
+      // JSON has no NaN: JSON.stringify writes null, which is not a finite number either
+      c.display.sectionPlane = { point: [0, NaN, 1], normal: [0, 0, -1] };
+    }),
+    withField("sectionPlane-missing-point", "display.sectionPlane", "Schnitt", (c) => {
+      c.display.sectionPlane = { normal: [0, 0, -1] };
+    }),
+    withField("sectionPlane-non-unit-normal", "display.sectionPlane", null, (c) => {
+      c.display.sectionPlane = { point: [0, 0, 1.502], normal: [0, 0, -2] };
+    }),
+  ];
 }
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
@@ -103,7 +265,10 @@ export function logoSvg() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const configs = configErrorFixtures();
   for (const [name, { text }] of Object.entries(configs)) writeFileSync(DIR + name, text);
+  const compat = compatConfigFixtures();
+  for (const [name, { config }] of Object.entries(compat)) writeFileSync(DIR + name, configText(config));
   writeFileSync(DIR + "logo-test.png", logoPng());
   writeFileSync(DIR + "logo-test.svg", logoSvg());
-  console.log(`make-config-fixtures: wrote ${Object.keys(configs).length + 2} files to test/fixtures/`);
+  const count = Object.keys(configs).length + Object.keys(compat).length + 2;
+  console.log(`make-config-fixtures: wrote ${count} files to test/fixtures/`);
 }
