@@ -274,7 +274,8 @@ test("@e2e @acceptance @REQ-007-AC2 DEC-16 an element in two Material groups: a 
   expect(errors).toEqual([]);
 });
 
-test("@e2e @acceptance @REQ-007-AC2 @REQ-007 a group row click selects all elements of the group in 3D; sub-groups; elements leaving the filter leave the selection", async ({
+// a group row, not the 3D click of REQ-007-AC2 (verification INC-2 SYNC-4: tag removed, spec Testing T5)
+test("@e2e @acceptance @REQ-007 a group row click selects all elements of the group in 3D; sub-groups; elements leaving the filter leave the selection", async ({
   page,
 }) => {
   const errors = await openWith(page, FZK);

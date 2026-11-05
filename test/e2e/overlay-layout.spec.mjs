@@ -9,6 +9,8 @@ import { colourBy, colourPanel, colourTool, idle, keysOfGuids } from "../support
 import { clickRow } from "../support/selection.mjs";
 import { addRule, filterPanel, openFilterPanel, toolbar } from "../support/rules.mjs";
 import { cutAt, firstPickable, isolateTogether, panelAction, shownPills } from "../support/tools.mjs";
+import { openHeaderDialog } from "../support/config.mjs";
+import { openColumnFilter } from "../support/table.mjs";
 
 const FZK = fixture("AC20-FZK-Haus.ifc");
 const TOOLS = REF["REQ-013-tools"];
@@ -310,5 +312,99 @@ test("@e2e overlay layout with room to spare (one pill): the properties panel st
       for (let j = i + 1; j < names.length; j++)
         expect(overlap(parts[names[i]], parts[names[j]]), `${at}: ${names[i]} / ${names[j]} overlap`).toBe(false);
   }
+  expect(errors).toEqual([]);
+});
+
+// Verification INC-2 UX-1: the glass pill style belongs to the 3D navigation hint `#cv-hint` only. Every other help or
+// empty-state text (class `cv-hint`) stays inline text inside its own container: in normal flow, wrapping, and inside
+// the box of the dialog, popup or list it belongs to (fails before the fix: position absolute, bottom 82 px, nowrap).
+test("@e2e @UI help and empty-state texts stay inline in their dialog, popup or list; only the 3D hint is a pill (INC-2 UX-1)", async ({
+  page,
+}) => {
+  const errors = await openBuilder(page);
+  const inside = (outer, inner) =>
+    inner.x >= outer.x - 0.5 &&
+    inner.y >= outer.y - 0.5 &&
+    inner.x + inner.width <= outer.x + outer.width + 0.5 &&
+    inner.y + inner.height <= outer.y + outer.height + 0.5;
+  const style = (locator) =>
+    locator.evaluate((node) => {
+      const cs = getComputedStyle(node);
+      return { position: cs.position, whiteSpace: cs.whiteSpace, radius: cs.borderTopLeftRadius };
+    });
+  const expectInline = async (container, hint, label) => {
+    await expect(hint, label).toBeVisible();
+    expect(await style(hint), label).toEqual(expect.objectContaining({ position: "static", whiteSpace: "normal" }));
+    expect(inside(await container.boundingBox(), await hint.boundingBox()), label + ": inside its container").toBe(
+      true,
+    );
+  };
+  // no model: the model list says so, inline
+  const modelList = page.locator(".cv-hint", { hasText: "Keine Modelle geladen." });
+  await expectInline(modelList.locator("xpath=.."), modelList, "Keine Modelle geladen.");
+  // header dialog: the three help texts inside the dialog, one below the other (no overlap)
+  const dialog = await openHeaderDialog(page);
+  const hints = dialog.locator(".cv-hint");
+  const n = await hints.count();
+  expect(n).toBeGreaterThanOrEqual(3);
+  const boxes = [];
+  for (let i = 0; i < n; i++) {
+    const hint = hints.nth(i);
+    await expectInline(dialog, hint, `header dialog hint ${i}: ${await hint.textContent()}`);
+    boxes.push(await hint.boundingBox());
+  }
+  for (let i = 0; i < boxes.length; i++)
+    for (let j = i + 1; j < boxes.length; j++) {
+      const [a, b] = [boxes[i], boxes[j]];
+      const apart = a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
+      expect(apart, `header dialog hints ${i} / ${j} overlap`).toBe(true);
+    }
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  // column filter popup: `Keine Treffer.` inside the popup, not over the sort buttons
+  await loadFiles(page, FZK);
+  const popup = await openColumnFilter(page, "Name");
+  await popup.getByRole("searchbox").fill("zzz-kein-Wert-zzz");
+  const empty = popup.locator(".cv-hint", { hasText: "Keine Treffer." });
+  await expectInline(popup, empty, "column filter Keine Treffer.");
+  const sort = popup.getByRole("button", { name: "Absteigend" });
+  const [e, s] = [await empty.boundingBox(), await sort.boundingBox()];
+  const apart = e.x + e.width <= s.x || s.x + s.width <= e.x || e.y + e.height <= s.y || s.y + s.height <= e.y;
+  expect(apart, "Keine Treffer. does not cover Absteigend").toBe(true);
+  // the 3D navigation hint keeps its pill
+  const nav = await style(page.locator("#cv-hint"));
+  expect(nav.position).toBe("absolute");
+  expect(nav.whiteSpace).toBe("nowrap");
+  expect(errors).toEqual([]);
+});
+
+// Verification INC-2 UX-6 (user answer Q4 `Genauso`; reference ref L1723-1727, docs/reviews/CR-002-reference-app.md
+// "Background"): the 3D view's background is the reference radial gradient, white near the top centre and darker than
+// `--cv-bg-3d` at the edges, behind the transparent canvas (fails before the fix: one flat #eceef0).
+test("@e2e @UI the 3D background is the reference radial gradient: lightest at 50 % / 28 %, #eceef0 at 58 %, darker at the corners (INC-2 UX-6)", async ({
+  page,
+}) => {
+  const errors = await openBuilder(page);
+  const box = page.locator("#cv-canvas-box");
+  const image = await box.evaluate((n) => getComputedStyle(n).backgroundImage);
+  expect(image).toMatch(/^radial-gradient\(120% 95% at 50% 28%, rgb\(255, 255, 255\) 0%, /);
+  expect(image).toContain("rgb(236, 238, 240) 58%");
+  // the pixels behind the (hidden) canvas: centre-top white, corners darker than #eceef0 (82 % #eceef0 + 18 % #6b6f73)
+  const png = await box.screenshot({
+    style: "#cv-canvas-box > *:not(canvas), #cv-canvas-box canvas { visibility: hidden !important; }",
+  });
+  const sample = await page.evaluate(async (b64) => {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0);
+    const at = (x, y) => [...ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data.slice(0, 3)];
+    const [w, h] = [bitmap.width, bitmap.height];
+    return { top: at(w / 2, h * 0.28), corner: at(1, h - 2) };
+  }, png.toString("base64"));
+  for (const c of sample.top) expect(c).toBeGreaterThanOrEqual(250);
+  const sum = (rgb) => rgb[0] + rgb[1] + rgb[2];
+  expect(sum(sample.corner)).toBeLessThan(sum([0xec, 0xee, 0xf0]) - 20);
   expect(errors).toEqual([]);
 });

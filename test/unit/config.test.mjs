@@ -191,7 +191,8 @@ test("[unit] buildConfig: schema, every REQ-009 field in a fixed order, values u
   });
 });
 
-test("[unit] applyConfig: a saved configuration applies unchanged to the same rows (round trip, REQ-009-AC1)", () => {
+// logic of REQ-009-AC1 (spec Testing T5: cited in a comment, not in the title; verification INC-2 SYNC-4)
+test("[unit] applyConfig: a saved configuration applies unchanged to the same rows (REQ-009 round trip)", () => {
   const config = JSON.parse(JSON.stringify(buildConfig(STATE)));
   const { apply, skipped } = applyConfig(config, ctxOf(ROWS));
   assert.equal(configSkippedAnything(skipped), false, JSON.stringify(skipped));

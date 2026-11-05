@@ -282,6 +282,13 @@
         flex: 1 1 auto;
         min-height: 0;
         overflow: hidden;
+        /* the reference's 3D background behind the transparent canvas (ref L1723-1727; verification INC-2 UX-6) */
+        background: radial-gradient(
+          120% 95% at 50% 28%,
+          #ffffff 0%,
+          var(--cv-bg-3d) 58%,
+          color-mix(in srgb, var(--cv-bg-3d) 82%, #6b6f73) 100%
+        );
       }
       .cv-viewport canvas {
         display: block;
@@ -1807,7 +1814,8 @@
         color: var(--cv-muted);
         font-size: 11px;
       }
-      .cv-hint {
+      /* the 3D navigation hint only (verification INC-2 UX-1): every other .cv-hint stays inline grey text */
+      #cv-hint {
         position: absolute;
         left: 50%;
         bottom: 82px;
@@ -1829,11 +1837,11 @@
           opacity 0.6s,
           visibility 0s;
       }
-      .cv-hint[hidden] {
+      #cv-hint[hidden] {
         display: none;
       }
       /* faded: invisible after the 0.6 s fade (ref .tov-hidden is opacity 0 only) */
-      .cv-hint.cv-hint-gone {
+      #cv-hint.cv-hint-gone {
         opacity: 0;
         visibility: hidden;
         transition:
@@ -4899,12 +4907,20 @@
         const vector = (v) =>
           Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === "number" && Number.isFinite(x));
         if (!vector(plane.point) || !vector(plane.normal)) return null;
-        const length = Math.hypot(plane.normal[0], plane.normal[1], plane.normal[2]);
+        let normal = plane.normal;
+        let length = Math.hypot(normal[0], normal[1], normal[2]);
         if (!(length > SECTION_NORMAL_MIN)) return null;
+        if (length === Infinity) {
+          // finite components whose length overflows (e.g. 1.7e308 twice; verification INC-2 CODE-3): scale by the
+          // largest component first, so the direction is kept instead of becoming [0, 0, 0]
+          const largest = Math.max(Math.abs(normal[0]), Math.abs(normal[1]), Math.abs(normal[2]));
+          normal = normal.map((x) => x / largest);
+          length = Math.hypot(normal[0], normal[1], normal[2]);
+        }
         const unit = Math.abs(length - 1) <= 1e-12;
         return {
           point: plane.point.map((x) => x + 0), // + 0 turns -0 into 0
-          normal: plane.normal.map((x) => (unit ? x : x / length) + 0),
+          normal: normal.map((x) => (unit ? x : x / length) + 0),
         };
       }
 
@@ -6705,6 +6721,7 @@
         searchBox.append(searchInput);
         const rules = el("div", "cv-rules");
         rules.id = "cv-rules";
+        let rulesSignature = null; // the rule list last rendered (setRules)
         const addRule = el("button", "cv-link cv-rule-add");
         addRule.type = "button";
         addRule.id = "cv-rule-add";
@@ -7268,6 +7285,13 @@
            * geladen` (DEC-21). Texts are set as text only.
            */
           setRules(items) {
+            // unchanged list (every refresh passes it): keep the rows, so a filter interaction does not pay for
+            // re-rendering a long list loaded from a configuration (verification INC-2 CODE-2)
+            const signature = items
+              .map((item) => item.mode + "\u0000" + item.text + "\u0000" + (item.missing ? 1 : 0))
+              .join("\u0001");
+            if (signature === rulesSignature && rules.children.length === items.length) return;
+            rulesSignature = signature;
             const focusedAt = [...rules.children].findIndex((row) => row.contains(document.activeElement));
             rules.replaceChildren(
               ...items.map((item, index) => {
@@ -11019,7 +11043,7 @@
           ui.status(indices.length, store.size, hook.modelCount);
           // in-viewer filter panel and pill (REQ-012): same X / Y as the status line; `Filter` dot and panel
           // `Zuruecksetzen` while the search (TASK-015b: or a rule) is active; the pill while any source is active
-          if (!indexing) ui.tools.setStatus(indices.length, store.size);
+          if (indexing !== store) ui.tools.setStatus(indices.length, store.size);
           ui.tools.setFilterState({
             textActive: searchText.trim() !== "" || rules.length > 0,
             pill: anySource(evaluation),
@@ -12257,11 +12281,14 @@
          * (status `Eigenschaften werden gelesen ... N %`, as ref L1379-1384), then the filters are evaluated; texts
          * typed meanwhile wait for the same build and the latest text wins (refresh reads searchText).
          */
-        let indexing = false;
+        // the store whose index is being built with progress (null: none). Only that store's status shows the
+        // progress: a row-set change during the build (new store) gets its `X von Y Objekten sichtbar` at once, and
+        // an older build never clears the flag of a newer one (verification INC-2 CODE-1).
+        let indexing = null;
         async function ensureTextIndex() {
           const target = store;
           if (target.hasTextIndex()) return true;
-          indexing = true;
+          indexing = target;
           ui.tools.setIndexing(0);
           try {
             await target.buildTextIndex({
@@ -12272,7 +12299,7 @@
                 }),
             });
           } finally {
-            indexing = false;
+            if (indexing === target) indexing = null;
           }
           return target === store;
         }

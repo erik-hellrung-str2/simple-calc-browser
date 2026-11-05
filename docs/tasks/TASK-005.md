@@ -207,3 +207,6 @@ The TASK-004 robustness test (`click-to-frame`, Name filter on the same set) now
 
 ## Verification INC-1 (2026-11-03)
 - **CODE F1, fixed:** removed Fragments models were kept alive by two Maps keyed by the model (`signatures`, `refreshCount`), one model per load/remove cycle. Both are `WeakMap`s now and `removeModel` deletes the entries. New test seam `CalcView.liveModels()` (WeakRef per loaded model). Test: `@robustness @REQ-001 repeated load and remove of a model frees every removed model` (`test/e2e/memory-robustness.spec.mjs`, fails before the fix with 1 retained model).
+
+## Verification INC-2 (2026-11-05)
+- **As built after CR-002 (SYNC-7):** the follow-up L1 above (legend overlay, `Ansicht einpassen` ignoring it) is superseded. CR-002 removed the legend under the model and the button `Ansicht einpassen`: the legend is in the colouring panel (`Färben`, TASK-016) and `Fokus` fits the elements shown opaque (TASK-014 / TASK-015a). L2 (legend text size) carries over to the panel legend (13 px, TASK-016 decision 3); L3 (terrain colour) is unchanged.

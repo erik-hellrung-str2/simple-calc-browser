@@ -22,6 +22,7 @@ import {
 const core = await loadCore();
 const { applyConfig, buildConfig, configNotice, configSkippedAnything, createColumnStore, parseConfig } = core;
 const { planeFromAxisSection, normaliseSectionPlane } = core;
+const SQRT_HALF = 1 / Math.SQRT2; // 0.7071067811865475
 
 const fixtures = new URL("../fixtures/", import.meta.url);
 const REF = JSON.parse(readFileSync(new URL("reference-values.json", fixtures), "utf8"));
@@ -327,6 +328,30 @@ test("[unit] DEC-20 sectionPlane: valid, normalised, null; wins over section; no
   });
   const unit = [0.6000000000000001, 0.8, 0];
   assert.deepEqual(normaliseSectionPlane({ point: [0, 0, 0], normal: unit }).normal, unit);
+  // verification INC-2 CODE-3: a normal whose length overflows (Math.hypot = Infinity) keeps its direction; it never
+  // becomes [0, 0, 0] (before the fix: every component / Infinity = 0, the section silently dropped)
+  const huge = 1.7e308;
+  assert.equal(Math.hypot(huge, huge, huge), Infinity);
+  const third = 1 / Math.sqrt(3);
+  for (const [normal, want] of [
+    [
+      [huge, huge, huge],
+      [third, third, third],
+    ],
+    [
+      [-huge, huge, 0],
+      [-SQRT_HALF, SQRT_HALF, 0],
+    ],
+    [
+      [Number.MAX_VALUE, Number.MAX_VALUE, -Number.MAX_VALUE],
+      [third, third, -third],
+    ],
+  ]) {
+    const got = normaliseSectionPlane({ point: [0, 0, 1], normal }).normal;
+    got.forEach((x, i) => assert.ok(Math.abs(x - want[i]) < 1e-15, JSON.stringify({ normal, got })));
+    assert.ok(Math.abs(Math.hypot(...got) - 1) < 1e-12);
+  }
+  assert.deepEqual(load({ sectionPlane: { point: [0, 0, 1], normal: [huge, huge, huge] } }).skipped, NOTHING_SKIPPED);
 });
 
 test("[unit] DEC-20 field table: every invalid case is named with its label and skipped, the rest applies", () => {
@@ -348,6 +373,7 @@ test("[unit] DEC-20 field table: every invalid case is named with its label and 
       "sectionPlane-nan-point",
       "sectionPlane-missing-point",
       "sectionPlane-non-unit-normal",
+      "sectionPlane-overflowing-normal",
     ],
   );
   const valid = config110();
@@ -380,6 +406,8 @@ test("[unit] DEC-20 field table: every invalid case is named with its label and 
     assert.equal(apply.display.scaleColour, field.scaleColour, c.name);
     if (c.name === "sectionPlane-non-unit-normal")
       assert.deepEqual(apply.display.sectionPlane, { point: [0, 0, 1.502], normal: [0, 0, -1] }, c.name);
+    else if (c.name === "sectionPlane-overflowing-normal")
+      assert.deepEqual(apply.display.sectionPlane, { point: [0, 0, 1.502], normal: [SQRT_HALF, SQRT_HALF, 0] }, c.name);
     else if (c.field === "display.sectionPlane") assert.ok(!("sectionPlane" in apply.display), c.name);
     else assert.deepEqual(apply.display.sectionPlane, valid.display.sectionPlane, c.name);
     if (c.label) assert.ok(configNotice(skipped).includes(c.label), c.name);

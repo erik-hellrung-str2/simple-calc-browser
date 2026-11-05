@@ -98,7 +98,9 @@ test("[unit] REQ-004-AC3 DEC-14 a checked value with 0 hits after another filter
   );
 });
 
-test("[unit] REQ-004-AC4 resetting all filters (filter sets and column filters) gives every element", () => {
+// logic of REQ-004-AC4 (filter sets and column filters only; spec Testing T5: cited in a comment; verification INC-2
+// SYNC-4). Whole AC (rules, search, hidden / isolated elements, UI): test/e2e/filter-area.spec.mjs.
+test("[unit] REQ-004 resetting all filters (filter sets and column filters) gives every element", () => {
   const store = createColumnStore(FZK_ROWS);
   const total = Object.values(REF.elementsInStepTextByKategorie).reduce((a, b) => a + b, 0);
   // the extractor lists no IfcOpeningElement rows (TASK-002); every other STEP element is a row

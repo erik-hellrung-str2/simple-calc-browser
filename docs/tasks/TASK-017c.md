@@ -123,3 +123,6 @@ Each follows the approved CR-002 delta. No assertion was weakened.
   - T5 check: `view-3d.spec` `@REQ-007-AC1 @REQ-007-AC5` and `selection.spec` `@REQ-007-AC3 @REQ-007-AC5` (1.0.0 tests) carry `@REQ-007-AC5` but verify only parts of the changed AC. The whole AC is `element-tools.spec` `@REQ-007-AC5`. Their tags were left as they were (not this task's tests); TASK-020 decides whether to retag them.
   - NFR-001 is unaffected by this task.
 - **Not tested here:** `Schneiden` while a display plan is queued (TASK-014 open point, spec T7) and the 1 mm minimum step on a flat extent.
+
+## Verification INC-2 (2026-11-05)
+- **SYNC-5 (1)/(2):** see `docs/tasks/TASK-014.md` "Verification INC-2" (open for the testing phase with the reason).

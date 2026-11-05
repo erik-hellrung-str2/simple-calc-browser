@@ -200,6 +200,10 @@ export function dec20InvalidCases() {
     withField("sectionPlane-non-unit-normal", "display.sectionPlane", null, (c) => {
       c.display.sectionPlane = { point: [0, 0, 1.502], normal: [0, 0, -2] };
     }),
+    // verification INC-2 CODE-3: finite components whose length overflows (Math.hypot = Infinity): normalised, kept
+    withField("sectionPlane-overflowing-normal", "display.sectionPlane", null, (c) => {
+      c.display.sectionPlane = { point: [0, 0, 1.502], normal: [1.7e308, 1.7e308, 0] };
+    }),
   ];
 }
 

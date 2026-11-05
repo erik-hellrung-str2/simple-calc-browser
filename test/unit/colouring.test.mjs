@@ -143,7 +143,8 @@ test("[unit] DEC-15 scale colours: 12 % tint to the full swatch colour in 24 ste
     assert.equal(normaliseHexColour(bad), null);
 });
 
-test("[unit] REQ-005-AC2 Kategorie on AC20-FZK-Haus: one colour per category, legend counts equal the reference", () => {
+// logic of REQ-005-AC2 (cited in a comment, spec Testing T5; verification INC-2 SYNC-4)
+test("[unit] REQ-005 Kategorie on AC20-FZK-Haus: one colour per category, legend counts equal the reference", () => {
   const store = createColumnStore(FZK_ROWS);
   const scheme = colourScheme(store, "Kategorie");
   assert.equal(scheme.numeric, false);

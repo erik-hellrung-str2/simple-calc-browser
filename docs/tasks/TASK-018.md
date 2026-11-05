@@ -104,3 +104,9 @@ Each follows the approved CR-002 delta. No assertion was weakened.
 - **Not tested here:**
   - a configuration load while the panel is building the index for typed text (spec T7 "latest text wins"). The synchronous build and the shared async build (`buildTextIndex` returns at once when the index exists) keep the result consistent by construction, but no test forces the race;
   - a 1.1.0 viewer file opened in a 1.0.0 builder. This is not a REQ: viewer files carry their own runtime.
+
+## Verification INC-2 (2026-11-05)
+- **SYNC-1, documented:** decision 2 (index built synchronously in the `refresh()` of a configuration load or the viewer start, without the progress text) is recorded as a refinement of spec §4.3 / NFR-001 in `docs/process-log.md` (2026-11-05) with the TASK-020 measurements (filter pass incl. the rebuild 495-549 ms at 30,931 rows; viewer with a text source usable in 7.9 s). Release-gate item.
+- **CODE-3:** see `docs/tasks/TASK-014.md` "Verification INC-2" (overflowing `sectionPlane` normal; DEC-20 case `sectionPlane-overflowing-normal` added, so `dec20InvalidCases()` now has 14 cases: 12 invalid, the non-unit and the overflowing normal).
+- **CODE-2:** see `docs/tasks/TASK-015b.md` "Verification INC-2" (large rule lists in a configuration).
+- **SYNC-4:** the integration test `config-roundtrip.spec.mjs` "configuration state -> JSON -> load …" and the unit test `applyConfig: … (REQ-009 round trip)` verify REQ-009-AC1 only in part (no rules, search, `Farbskala`, section); their titles now carry `@REQ-009` / `REQ-009`, the AC ID is in a comment (spec T5). Whole AC: `test/e2e/config.spec.mjs`.

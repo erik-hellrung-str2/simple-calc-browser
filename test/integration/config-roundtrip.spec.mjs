@@ -12,7 +12,9 @@ const VOLUME = REF["REQ-006-grouping-fzk"].column;
 
 test.describe.configure({ timeout: 180_000 });
 
-test("@integration @REQ-009-AC1 configuration state -> JSON -> load in a fresh page gives the same configuration and filter result", async ({
+// REQ-009-AC1 in part (columns, sort, column filters, grouping; no rules, search, Farbskala or section): the AC ID is
+// cited here, not in the title (spec Testing T5; verification INC-2 SYNC-4). Whole AC: test/e2e/config.spec.mjs.
+test("@integration @REQ-009 configuration state -> JSON -> load in a fresh page gives the same configuration and filter result", async ({
   page,
 }) => {
   const errors = await openBuilder(page);

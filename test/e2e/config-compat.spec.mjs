@@ -362,6 +362,9 @@ function expectedEffect(c) {
   if (c.field === "display.sectionPlane" && c.label) out.section = null;
   // a valid non-unit normal is normalised without a notice
   if (c.name === "sectionPlane-non-unit-normal") out.section = { point: [0, 0, 1.502], normal: [0, 0, -1] };
+  // a normal whose length overflows keeps its direction (verification INC-2 CODE-3; before: section silently dropped)
+  if (c.name === "sectionPlane-overflowing-normal")
+    out.section = { point: [0, 0, 1.502], normal: [1 / Math.SQRT2, 1 / Math.SQRT2, 0] };
   return out;
 }
 
@@ -389,7 +392,11 @@ for (const c of dec20InvalidCases()) {
     expect([state.search, state.searchField]).toEqual([want.search, want.search]);
     expect([state.view.colourMode, state.view.scaleColour]).toEqual([want.colourMode, want.scaleColour]);
     expect(state.view.section).toEqual(want.section);
-    expect(state.threeD.section).toEqual(want.section);
+    if (c.name === "sectionPlane-overflowing-normal") {
+      // a diagonal normal: the 3D engine re-normalises it (last bit may differ); the saved plane is the exact one
+      expect(state.threeD.section.point).toEqual(want.section.point);
+      state.threeD.section.normal.forEach((x, i) => expect(x).toBeCloseTo(want.section.normal[i], 12));
+    } else expect(state.threeD.section).toEqual(want.section);
     // the rest is applied: header, colouring property and colours on the chosen scale, filter result
     expect(state.header.title).toBe(BASE.header.title);
     expect(state.view.colourKey).toBe(BASE.display.colourBy);
@@ -401,7 +408,7 @@ for (const c of dec20InvalidCases()) {
       const full = RULES["config-1.1.0-full"];
       expect(state.filterKeys).toEqual(await keysOf(page, full.globalIds));
     }
-    if (c.name === "sectionPlane-non-unit-normal") {
+    if (c.name === "sectionPlane-non-unit-normal" || c.name === "sectionPlane-overflowing-normal") {
       // saved normalised
       expect((await saveConfig(page)).json.display.sectionPlane).toEqual(want.section);
     }

@@ -6,6 +6,7 @@ Owner: orchestrator. One row per CR, updated on every status change.
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | CR-001 | REQ-002: openings (`IfcOpeningElement`) and ports (`IfcDistributionPort`) are not rows | requirement clarification | small | low | applied | – | verification INC-1 SYNC F1 (CR-A) | spec | human, release gate 2026-11-03 | 1.0.0 | none |
 | CR-002 | Filter, erweiterter Filter, Eigenschaften und 3D-Werkzeuge wie im HTML Model Viewer; Tabelle volle Breite, rechtes Details-Panel entfällt | normal | feature | high | approved | – | user, 2026-11-04 | intake (cycle 2) | human, 2026-11-04 | 1.1.0 (planned) | – |
+| CR-003 | Spec §4.4 names the test seam `CalcView.contextState()`; §4.2 and `AGENTS.md` source layout list `test/acceptance`, `test/support` (text only) | documentation sync | small | low | proposed | CR-002 | verification INC-2 SYNC-6 (CR-C) | spec | – (release gate 1.1.0) | 1.1.0 (planned) | – |
 
 ## Active locks
 <!-- mirrors docs/state.yaml → active_changes -->

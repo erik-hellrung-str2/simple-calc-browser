@@ -121,3 +121,8 @@ Environment: Intel Xeon @ 2.10 GHz, 4 vCPU, 17 GB, Node v22.23.4, Playwright Chr
 
 ## Change history
 - 2026-11-05 implemented (TASK-020 developer).
+
+## Verification INC-2 (2026-11-05)
+- **SYNC-1:** decision 2 recorded as a refinement in `docs/process-log.md` (2026-11-05).
+- **SYNC-4:** the open point on `selection.spec` `@REQ-007-AC2 @REQ-007 a group row click …` is closed: the tag `@REQ-007-AC2` is removed (the test verifies group-row selection; AC2 keeps its whole-AC test `@REQ-007-AC1 @REQ-007-AC2 a 3D click marks the table row …`). Also retagged: `filter-engine.test.mjs` `[unit] REQ-004 resetting all filters …` (was REQ-004-AC4) and `colouring.test.mjs` `[unit] REQ-005 Kategorie on AC20-FZK-Haus …` (was REQ-005-AC2), the AC IDs now in comments. `docs/testing/traceability.md` regenerated.
+- **SYNC-3:** spec §6 and §7 (working sections) updated with the TASK-020 results (R-5, R-6, R-7, BUG-T2, T11, trace closed).

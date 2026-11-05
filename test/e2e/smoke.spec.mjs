@@ -3,36 +3,10 @@
 // shows it in 3D. Risk R-1 (FragmentsModels.load under file://) is covered by the `file` project.
 import { fileURLToPath } from "node:url";
 import { test, expect } from "../support/network-guard.mjs";
+// the 3D background is the reference gradient (verification INC-2 UX-6): pixels are compared with the empty box
+import { canvasShots, nonBackgroundShare } from "../support/viewer.mjs";
 
 const FZK = fileURLToPath(new URL("../fixtures/AC20-FZK-Haus.ifc", import.meta.url));
-const BACKGROUND = [0xec, 0xee, 0xf0]; // --cv-bg-3d behind the transparent WebGL canvas
-// screenshot the canvas only, not the hint box or the 3D view controls / legend drawn over it (TASK-005)
-// the floating properties panel (CR-002) is an overlay like the view bar
-const CANVAS_ONLY = {
-  style:
-    "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props, #cv-pick, #cv-section-handle, #cv-title-chip, #cv-hint, #cv-toolbar, #cv-filter-panel, #cv-colour-panel, #cv-pills { visibility: hidden !important; }",
-};
-
-/** Share of pixels in a PNG screenshot that differ clearly from the empty 3D background (decoded in the page). */
-async function nonBackgroundShare(page, png) {
-  return page.evaluate(
-    async ({ b64, bg }) => {
-      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-      const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
-      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(bitmap, 0, 0);
-      const { data } = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
-      let differing = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        const d = Math.abs(data[i] - bg[0]) + Math.abs(data[i + 1] - bg[1]) + Math.abs(data[i + 2] - bg[2]);
-        if (d > 24) differing++;
-      }
-      return differing / (data.length / 4);
-    },
-    { b64: png.toString("base64"), bg: BACKGROUND },
-  );
-}
 
 test("@smoke @system builder loads AC20-FZK-Haus.ifc and shows it in 3D @REQ-001", async ({ page, net }) => {
   test.setTimeout(120_000);
@@ -57,8 +31,11 @@ test("@smoke @system builder loads AC20-FZK-Haus.ifc and shows it in 3D @REQ-001
   await expect(page.locator("#cv-details")).toHaveCount(0);
   await expect(page.locator("#cv-props")).toBeHidden();
 
-  const canvas = page.locator("#cv-viewport canvas");
-  const emptyShare = await nonBackgroundShare(page, await canvas.screenshot(CANVAS_ONLY));
+  const share = async () => {
+    const { shot, background } = await canvasShots(page);
+    return nonBackgroundShare(page, shot, background);
+  };
+  const emptyShare = await share();
 
   await page.locator("#cv-file-input").setInputFiles(FZK);
   await page.waitForFunction(() => window.__calc.modelCount === 1 && window.__calc.phase === "ready", null, {
@@ -76,13 +53,11 @@ test("@smoke @system builder loads AC20-FZK-Haus.ifc and shows it in 3D @REQ-001
 
   // Canvas non-empty: the rendered model covers a clear share of the view (the empty view is background only).
   expect(emptyShare).toBeLessThan(0.01);
-  await expect
-    .poll(async () => nonBackgroundShare(page, await canvas.screenshot(CANVAS_ONLY)), { timeout: 15_000 })
-    .toBeGreaterThan(0.05);
+  await expect.poll(share, { timeout: 15_000 }).toBeGreaterThan(0.05);
   console.log(
-    `[smoke] elements=${hook.elementCount}, canvas non-background share=${(
-      await nonBackgroundShare(page, await canvas.screenshot(CANVAS_ONLY))
-    ).toFixed(3)} (empty ${emptyShare.toFixed(3)})`,
+    `[smoke] elements=${hook.elementCount}, canvas non-background share=${(await share()).toFixed(
+      3,
+    )} (empty ${emptyShare.toFixed(3)})`,
   );
 
   // The importer's web-ifc wasm and the Fragments worker came from the cache, nothing else left the machine.

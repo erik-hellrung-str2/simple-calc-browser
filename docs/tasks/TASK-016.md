@@ -86,3 +86,6 @@ New `test/e2e/colouring.spec.mjs` (7 tests). All green on `file` and `http`.
 - **TASK-019 (REQ-005-AC12 overlay layout):** with the properties panel open (e.g. after `Farbe nach Wert`) the colouring panel is not yet moved left of it; at 1280 × 800 the two can overlap (same as the filter panel today). Focus into the panel on open and back to the opener on close: keyboard pass.
 - **TASK-018:** round trip of `display.colourMode` / `display.scaleColour` chosen in the panel (REQ-009-AC1 with `Farbskala` `Grün`); the panel already shows a loaded colouring.
 - **TASK-020:** NFR-001 re-measure; the open colouring panel rebuilds ≤ 200 legend rows per refresh.
+
+## Verification INC-2 (2026-11-05)
+- **SYNC-2 (a), documented:** decision 1 (colouring property list in catalogue order with the unit in the label) is recorded together with TASK-015b decision 1 as a refinement in `docs/process-log.md` (2026-11-05). Release-gate item.

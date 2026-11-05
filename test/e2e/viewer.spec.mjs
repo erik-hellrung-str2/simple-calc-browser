@@ -13,7 +13,13 @@ import { addColumn, clickSort, headerKeys } from "../support/table.mjs";
 import { pickGroup, setView, toggleGroup } from "../support/grouping.mjs";
 import { chooseLogo, configuredState, openHeaderDialog } from "../support/config.mjs";
 import { exportFile, readExport } from "../support/export.mjs";
-import { exportViewer, nonBackgroundShare, openViewerFile, withoutExportTime } from "../support/viewer.mjs";
+import {
+  canvasShots,
+  exportViewer,
+  nonBackgroundShare,
+  openViewerFile,
+  withoutExportTime,
+} from "../support/viewer.mjs";
 import {
   afterUpdate,
   anyPickable,
@@ -36,11 +42,6 @@ const NUMBER = EXP.properties.number; // CalcTest_Export.Zahl
 const TEXT = EXP.properties.text; // CalcTest_Export.Text
 const fzkGroups = REF["REQ-006-grouping-fzk"];
 const WALL = "IfcWallStandardCase";
-// the floating properties panel (CR-002) is an overlay like the view bar
-const CANVAS_ONLY = {
-  style:
-    "#cv-overlay, #cv-view-bar, #cv-legend, #cv-props, #cv-pick, #cv-section-handle, #cv-title-chip, #cv-hint, #cv-toolbar, #cv-filter-panel, #cv-colour-panel, #cv-pills { visibility: hidden !important; }",
-};
 const modell = (path) => basename(path).replace(/\.[^.]*$/, "");
 const deDate = (iso) => {
   const [y, m, d] = iso.split("-").map(Number);
@@ -114,7 +115,7 @@ test("@acceptance @system @e2e @REQ-010-AC1 @REQ-011-AC1 @NFR-005 exported viewe
   await configureView(page);
   const builder = await shownState(page);
   expect(builder.filterCount).toBe(EXP.rows.length); // 69 walls of fzk-export + Duplex (reference)
-  const builderCanvas = await page.locator("#cv-viewport canvas").screenshot(CANVAS_ONLY);
+  const builderCanvas = await canvasShots(page);
 
   const file = await exportViewer(page, info.outputPath("viewer.html"));
   expect(file.fileName).toBe("The M Bouwkundig_2026-08-12.html");
@@ -159,9 +160,9 @@ test("@acceptance @system @e2e @REQ-010-AC1 @REQ-011-AC1 @NFR-005 exported viewe
     await expect(v.locator("#cv-date")).toHaveText(deDate("2026-08-12"));
     await expect(v.locator("#cv-logo img")).toHaveAttribute("src", dataUrl(LOGO_SVG, "image/svg+xml"));
     // the model is drawn: the canvas shows geometry, as the builder's does
-    const viewerCanvas = await v.locator("#cv-viewport canvas").screenshot(CANVAS_ONLY);
-    expect(await nonBackgroundShare(v, viewerCanvas)).toBeGreaterThan(0.01);
-    expect(await nonBackgroundShare(page, builderCanvas)).toBeGreaterThan(0.01);
+    const viewerCanvas = await canvasShots(v);
+    expect(await nonBackgroundShare(v, viewerCanvas.shot, viewerCanvas.background)).toBeGreaterThan(0.01);
+    expect(await nonBackgroundShare(page, builderCanvas.shot, builderCanvas.background)).toBeGreaterThan(0.01);
     // NFR-005: no network request at all
     expect(viewer.requests).toEqual([]);
     expect(viewer.blocked).toEqual([]);

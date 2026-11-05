@@ -5,8 +5,9 @@
 // there independently of the product), never from the code under test.
 import { readFileSync } from "node:fs";
 import { test, expect } from "../support/network-guard.mjs";
-import { REF, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
-import { toggleValue } from "../support/filter-area.mjs";
+import { REF, fixture, loadFiles, openBuilder, removeModel } from "../support/builder.mjs";
+import { shownValues, toggleValue } from "../support/filter-area.mjs";
+import { configFile, loadConfig } from "../support/config.mjs";
 import { checkColumnValue, tableGuids } from "../support/table.mjs";
 import { idle, viewState } from "../support/view-3d.mjs";
 import { XSS_NAMES, xssFixture } from "../support/xss-fixture.mjs";
@@ -596,5 +597,157 @@ test("@e2e @robustness @acceptance @REQ-012-AC13 HTML / script rule values and s
   await editRule(page, 0, { value: "wärme-wand", op: "eq" });
   expect(await filterKeys(page)).toEqual([wall]);
   expect(await ruleTexts(page)).toEqual(["Isolieren: Name gleich „wärme-wand“"]);
+  expect(errors).toEqual([]);
+});
+
+/**
+ * Holds the display-text index build open (verification INC-2): the 0 ms timeout of the pause after the last chunk
+ * (panel status `Eigenschaften werden gelesen ... 100 %`) is kept back once `window.__holdPause` is set, until the test
+ * calls `window.__heldPause()`. The committed fixtures need one chunk, so this gives the window a model with more than
+ * one chunk (> 2,000 rows) has naturally.
+ */
+async function holdIndexPause(page) {
+  await page.addInitScript(() => {
+    const original = window.setTimeout;
+    window.__heldPause = null;
+    window.__holdPause = false;
+    window.setTimeout = function (fn, delay, ...rest) {
+      const node = document.getElementById("cv-filter-status");
+      if (
+        window.__holdPause &&
+        !delay &&
+        node &&
+        node.textContent === "Eigenschaften werden gelesen ... 100 %" &&
+        typeof fn === "function"
+      ) {
+        window.__holdPause = false; // one-shot: only the pause of this build
+        window.__heldPause = () => fn(...rest);
+        return 0;
+      }
+      return original.call(this, fn, delay, ...rest);
+    };
+  });
+}
+
+// Verification INC-2 CODE-1: the panel opens and starts the display-text index build (status `Eigenschaften werden
+// gelesen ... N %`); a model is removed before the build ends. The panel status must then show `X von Y Objekten
+// sichtbar` of the remaining row set, also after the old build finishes. The committed fixtures need one chunk, so the
+// build is held open: the 0 ms timeout of the pause after the last chunk (status at `... 100 %`) is kept back until
+// the test releases it (the window a model with more than one chunk has naturally). Fails before the fix: the status
+// stays `Eigenschaften werden gelesen ... 100 %`.
+test("@e2e @robustness @REQ-012 a model removed while the filter panel builds the display-text index: the panel status shows the remaining row set (INC-2 CODE-1)", async ({
+  page,
+}) => {
+  await holdIndexPause(page);
+  const errors = await openBuilder(page);
+  await loadFiles(page, [DUPLEX, FZK]);
+  await idle(page);
+  const both = await page.evaluate(() => window.__calc.rows.length);
+  await page.evaluate(() => (window.__holdPause = true));
+  await openFilterPanel(page);
+  await expect(panelStatus(page)).toHaveText("Eigenschaften werden gelesen ... 100 %");
+  await expect.poll(() => page.evaluate(() => typeof window.__heldPause)).toBe("function");
+  await removeModel(page, "AC20-FZK-Haus");
+  const left = await page.evaluate(() => window.__calc.rows.length);
+  expect(left).toBeGreaterThan(0);
+  expect(left).toBeLessThan(both); // the remaining row set (Duplex only)
+  const want = `${de(left)} von ${de(left)} Objekten sichtbar`;
+  await expect(panelStatus(page)).toHaveText(want);
+  // the old build ends now: it must not bring the progress text back or leave it
+  await page.evaluate(() => window.__heldPause());
+  await page.waitForTimeout(300);
+  await expect(panelStatus(page)).toHaveText(want);
+  await expect(status(page)).toContainText(de(left));
+  // the new row set builds its own index on first use: a search still works and the status follows it
+  await page.getByRole("searchbox", { name: "Suchen nach Objekten" }).fill("zzz-kein-Treffer-zzz");
+  await expect(panelStatus(page)).toHaveText(`0 von ${de(left)} Objekten sichtbar`);
+  expect(errors).toEqual([]);
+});
+
+// Verification INC-2 CODE-2 (spec Testing T7: huge / odd configuration files): a configuration with 20,000 rules
+// (`Ausblenden: Name ist gleich „x<N>“`, none matches) loads, every rule is listed, and a later filter interaction
+// keeps the unchanged rule rows (fails before the fix: every refresh rebuilt all 20,000 rows). The evaluation itself
+// stays linear in the rule count (known limitation, docs/tasks/TASK-018.md "Verification INC-2").
+test("@e2e @robustness @REQ-012 a configuration with 20,000 filter rules: all applied and listed; an interaction does not rebuild the unchanged rule rows (INC-2 CODE-2)", async ({
+  page,
+}) => {
+  const errors = await openBuilder(page);
+  await loadFiles(page, FZK);
+  await idle(page);
+  const N = 20_000;
+  const config = {
+    schema: "calc-viewer-config/1",
+    filterRules: Array.from({ length: N }, (_, i) => ({ mode: "hide", key: "Name", op: "eq", value: "x" + i })),
+  };
+  const last = await loadConfig(page, configFile(config, "viele-regeln.json"));
+  expect(last.ok).toBe(true);
+  expect(last.skipped.invalid).toEqual([]);
+  expect(await hookRules(page).then((r) => r.length)).toBe(N);
+  expect(await page.evaluate(() => window.__calc.filter.count)).toBe((await allKeys(page)).length);
+  await expect(ruleRows(page)).toHaveCount(N);
+  await expect(ruleRows(page).last()).toContainText("x" + (N - 1));
+  // a filter interaction (one set value) with the rule list unchanged: the rule rows stay the same nodes
+  await page.evaluate(() => (window.__ruleRow = document.querySelector("#cv-rules .cv-rule:last-child")));
+  const [first] = await shownValues(page, "Kategorie");
+  await toggleValue(page, "Kategorie", first.label);
+  expect(await page.evaluate(() => window.__calc.filter.count)).toBe(first.count);
+  expect(await page.evaluate(() => document.querySelector("#cv-rules .cv-rule:last-child") === window.__ruleRow)).toBe(
+    true,
+  );
+  test.info().annotations.push({
+    type: "filter ms (20,000 rules)",
+    description: String(await page.evaluate(() => window.__calc.filter.lastMs)),
+  });
+  // changing the list still re-renders it: removing the last rule leaves N - 1 rows
+  await openFilterPanel(page);
+  const before = await filterUpdates(page);
+  await page.locator("#cv-rules .cv-rule:last-child .cv-rule-remove").click(); // x `Filter entfernen`
+  await waitFilterUpdate(page, before);
+  await expect(ruleRows(page)).toHaveCount(N - 1);
+  expect(await hookRules(page).then((r) => r.length)).toBe(N - 1);
+  expect(errors).toEqual([]);
+});
+
+// Verification INC-2 SYNC-5 (spec Testing T7, CR-002 part): typing in the search field and applying a `Freie
+// Textsuche` rule while the display-text index is building. The build is held open; meanwhile a search text with no
+// hit is typed, a rule `Freie Textsuche` · `Gleich` · <GlobalId of Wand-Ext-ERDG-1> is applied, and the search text is
+// replaced by `wand`. When the build ends, the latest text and the rule apply: exactly that wall (reference values
+// REQ-012-AC6: the GlobalId is one row; its Name contains `Wand`), not the earlier text's empty result.
+test("@e2e @robustness @REQ-012 search typed and `Freie Textsuche` applied while the display-text index builds: the latest text and the rule apply when the build ends (INC-2 SYNC-5)", async ({
+  page,
+}) => {
+  await holdIndexPause(page);
+  const errors = await openBuilder(page);
+  await loadFiles(page, FZK);
+  await idle(page);
+  const ac6 = R["REQ-012-AC6"];
+  await page.evaluate(() => (window.__holdPause = true));
+  await openFilterPanel(page);
+  await expect(panelStatus(page)).toHaveText("Eigenschaften werden gelesen ... 100 %");
+  await expect.poll(() => page.evaluate(() => typeof window.__heldPause)).toBe("function");
+  const updates = await filterUpdates(page);
+  const search = page.getByRole("searchbox", { name: "Suchen nach Objekten" });
+  await search.fill("zzz-kein-Treffer-zzz");
+  await page.waitForTimeout(400); // past the 250 ms debounce: this text waits for the build
+  await addRuleLink(page).click();
+  const f = dialogFields(page);
+  await f.mode.selectOption({ label: "Freie Textsuche" });
+  await f.op.selectOption({ label: "Gleich" });
+  await f.value.fill(ac6.GlobalId);
+  await f.apply.click();
+  await expect(f.dialog).toBeHidden();
+  await search.fill("wand");
+  await page.waitForTimeout(400);
+  // still building: nothing was evaluated with a text source yet
+  expect(await filterUpdates(page)).toBe(updates);
+  await expect(panelStatus(page)).toHaveText(/^Eigenschaften werden gelesen/);
+  await page.evaluate(() => window.__heldPause());
+  await expect.poll(() => filterKeys(page)).toEqual(await keysOf(page, ac6.globalIds));
+  await page.waitForTimeout(500); // no later evaluation of an older text
+  expect(await filterKeys(page)).toEqual(await keysOf(page, ac6.globalIds));
+  expect(await hookRules(page)).toEqual([{ mode: "text", key: null, op: "eq", value: ac6.GlobalId }]);
+  await expect(search).toHaveValue("wand");
+  await expect(panelStatus(page)).toHaveText(`1 von ${de(FZK_TOTAL)} Objekten sichtbar`);
+  await expect(status(page)).toHaveText(`1 von ${de(FZK_TOTAL)} Elementen`);
   expect(errors).toEqual([]);
 });

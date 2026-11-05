@@ -146,3 +146,8 @@ None. No existing test was changed.
   - the Tab order in the dialog and the rule rows;
   - the panel overlay layout.
 - **TASK-020:** NFR-001 for `Anwenden` / × incl. `Isolieren` · `Name` · `Enthält` and `Freie Textsuche` at the volume set. The `Wert` suggestions build the column of the chosen property on demand: one column build per property.
+
+## Verification INC-2 (2026-11-05)
+- **SYNC-2 (a), documented:** decision 1 (the `Eigenschaft` suggestions in catalogue order, `Allgemein` first; spec REQ-012 "sorted by group then label") is recorded as a refinement in `docs/process-log.md` (2026-11-05). Release-gate item; the spec text needs the orchestrator if the order is kept.
+- **SYNC-5 (3), tested:** "typing in the search field and applying `Freie Textsuche` while the display-text index is building (latest text wins)" (spec T7): `@e2e @robustness @REQ-012 search typed and \`Freie Textsuche\` applied while the display-text index builds …` (`test/e2e/rule-filter.spec.mjs`). The build is held open in the test; no product change was needed.
+- **CODE-2, fixed in part / known limitation:** a configuration may hold any number of rules (only the 20 MB file limit). Every refresh rebuilt all rule rows; the rows are now kept while the rule list is unchanged (20,000 rules on FZK: a refresh 635 ms before (CODE lens probe), a filter-set click 78 ms after). Test `@e2e @robustness @REQ-012 a configuration with 20,000 filter rules …` (fails before the fix). The evaluation stays linear in the rule count (about 4 µs per rule and refresh on FZK); only a hand-made file reaches such counts. Recorded as a known limitation in `docs/process-log.md` (2026-11-05).
