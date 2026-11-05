@@ -21,6 +21,7 @@ import {
   saveConfig,
 } from "../support/config.mjs";
 import { anyPickable, cutAt } from "../support/tools.mjs";
+import { addRule, openFilterPanel, toolbar } from "../support/rules.mjs";
 import { configErrorFixtures } from "../../scripts/make-config-fixtures.mjs";
 
 const FZK = fixture("AC20-FZK-Haus.ifc");
@@ -149,7 +150,7 @@ test("@e2e @acceptance @REQ-011-AC1 header: default title and date, title / date
   expect(errors).toEqual([]);
 });
 
-test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load the same IFC and the configuration, save again: equal JSON covering every field", async ({
+test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load the same IFC and the configuration, save again: equal JSON covering every field incl. two rules (one `Freie Textsuche`), the search text, `Farbskala` `Grün` and the section", async ({
   page,
 }) => {
   const errors = await openWith(page, FZK);
@@ -182,9 +183,18 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   // grouping: Kategorie, then Geschoss
   await setView(page, "Gruppiert");
   await pickGroup(page, 2, "Geschoss", "Geschoss");
-  // model display: hide, colour by Material (the section is set above)
+  // CR-002 (TASK-018): two rules, one of them `Freie Textsuche`, and a search text in the filter panel (REQ-012)
+  await addRule(page, { mode: "isolate", key: "Kategorie", op: "contains", value: "wall" });
+  await addRule(page, { mode: "text", op: "contains", value: "erdg" });
+  await page.getByRole("searchbox", { name: "Suchen nach Objekten" }).fill("wand");
+  await page.waitForFunction(() => window.__calc.filter.search === "wand");
+  await toolbar(page).getByRole("button", { name: "Filter", exact: true }).click();
+  // model display: hide, colour by Material in `Farbskala` with `Grün` (CR-002, DEC-15; the section is set above)
   await setGhosts(page, false);
-  await colourBy(page, "Material", "Material");
+  await colourBy(page, "Material", "Material", { keepOpen: true });
+  await colourPanel(page).getByRole("button", { name: "Farbskala", exact: true }).click();
+  await colourPanel(page).getByRole("button", { name: "Grün", exact: true }).click();
+  await colourTool(page).click();
   await idle(page);
 
   const before = await configuredState(page);
@@ -216,6 +226,23 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   expect([c.table.view, c.table.groupBy]).toEqual(["grouped", ["Kategorie", "Geschoss"]]);
   expect(c.display.mode).toBe("hide");
   expect(c.display.colourBy).toBe("Material");
+  // CR-002 (TASK-018, DEC-20): the rules in list order (a `text` rule with key null), the search text, the colouring
+  // mode and the scale colour (`Grün` = #2e9b4f, DEC-15) are saved
+  expect(c.filterRules).toEqual([
+    { mode: "isolate", key: "Kategorie", op: "contains", value: "wall" },
+    { mode: "text", key: null, op: "contains", value: "erdg" },
+  ]);
+  expect(c.search).toBe("wand");
+  expect([c.display.colourMode, c.display.scaleColour]).toEqual(["scale", "#2e9b4f"]);
+  expect(before.rules).toEqual(c.filterRules);
+  expect(before.ruleRows).toEqual([
+    "Isolieren: Kategorie enthält \u201ewall\u201c",
+    "Freie Textsuche: Beliebige Eigenschaft enthält \u201eerdg\u201c",
+  ]);
+  expect([before.search, before.searchField]).toEqual(["wand", "wand"]);
+  // every field of the 1.1.0 format is written (DEC-20), none of the CR-002 fields at its default
+  expect(Object.keys(c)).toEqual(["schema", "header", "filterSets", "filterRules", "search", "table", "display"]);
+  expect(Object.keys(c.display)).toEqual(["mode", "colourBy", "colourMode", "scaleColour", "sectionPlane"]);
   // TASK-012 / TASK-017c (CR-002, DEC-20): the section is saved as `display.sectionPlane` = the click section's plane
   // as state().section reports it (spec 4.4), never as `display.section` (was: display.section equal to the 1.0.0
   // axis section, then the plane of the flipped Z section)
@@ -239,7 +266,9 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   await expect(errorMessages(page)).toHaveCount(0);
   await expect(okMessages(page)).toHaveText([`Konfiguration ${first.fileName} geladen.`]);
   const after = await configuredState(page);
+  // rules, search text (field and filter), colouring mode and scale colour are part of the compared state (TASK-018)
   expect(after).toEqual(before);
+  await expect(page.locator("#cv-object-search")).toHaveValue("wand");
   // the UI follows: header, set order and collapsed state, grouping controls, display controls
   await expect(page.locator("#cv-title")).toHaveText('Mengen <Rohbau> & "Ausbau"');
   await expect(page.locator("#cv-date")).toHaveText(deDate("2026-08-12"));
@@ -254,7 +283,19 @@ test("@e2e @acceptance @REQ-009-AC1 @REQ-003-AC2 @REQ-006-AC6 save, reload, load
   await expect(page.locator("#cv-pill-colour")).toBeVisible();
   await openColourPanel(page);
   await expect(colourPanel(page).locator("#cv-colour-param .cv-suggest-label")).toHaveText("Material");
+  await expect(colourPanel(page).getByRole("button", { name: "Farbskala", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(colourPanel(page).getByRole("button", { name: "Grün", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await colourTool(page).click();
+  // the rules are listed in the filter panel in their order (TASK-018)
+  await openFilterPanel(page);
+  await expect(page.locator("#cv-rules .cv-rule .cv-rule-text")).toHaveText(before.ruleRows);
+  await toolbar(page).getByRole("button", { name: "Filter", exact: true }).click();
   // the section: the pill `Schnitt entfernen` and the handle (CR-002, TASK-017c; was the radio `Schnitt Z`)
   await expect(page.locator("#cv-pill-section")).toBeVisible();
   await expect(page.getByRole("button", { name: "Schnitt verschieben" })).toBeVisible();

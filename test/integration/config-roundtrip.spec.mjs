@@ -55,10 +55,10 @@ test("@integration @REQ-009-AC1 configuration state -> JSON -> load in a fresh p
   expect(errors).toEqual([]);
 });
 
-// TASK-012 (CR-002, DEC-20): configuration files of 1.0.0 and 1.1.0 through the real builder while the 1.0.0 UI is
-// still in place (axis section in the 3D view until TASK-014/018, `Faerben nach` until TASK-016). Expected values from
-// the DEC-20 field table and the DEC-15 scale formula (spec), not from the code under test. REQ-009-AC4 itself (with
-// `state().section` as a plane) is verified end to end in TASK-018.
+// TASK-012 / TASK-018 (CR-002, DEC-20): configuration files of 1.0.0 and 1.1.0 through the real builder, in-page
+// (CalcConfig.loadText / state()). Expected values from the DEC-20 field table, the DEC-15 scale formula (spec) and
+// reference-values.json REQ-009-rules (STEP-text derivation), not from the code under test. REQ-009-AC4..AC8 through
+// the UI: test/e2e/config-compat.spec.mjs (TASK-018).
 /** The 25 colours of a DEC-15 scale of base (12 % tint .. full colour), lower-case hex. */
 function scaleColours(base) {
   const rgb = [1, 3, 5].map((at) => parseInt(base.slice(at, at + 2), 16));
@@ -125,7 +125,7 @@ for (const [file, flipped] of [
   });
 }
 
-test("@integration @robustness 1.1.0 configuration: Farbskala Gruen and the section plane apply in the 1.0.0 UI and are saved unchanged", async ({
+test("@integration @robustness 1.1.0 configuration: rules, search text, Farbskala Gruen and the section plane apply; the whole file is saved unchanged", async ({
   page,
 }) => {
   const errors = await openBuilder(page);
@@ -143,8 +143,36 @@ test("@integration @robustness 1.1.0 configuration: Farbskala Gruen and the sect
   const green = scaleColours("#2e9b4f");
   const colours = Object.values(view.colours).map((c) => c.toLowerCase());
   for (const c of colours) expect([...green, EMPTY, MULTI]).toContain(c);
-  expect(colours).toContain("#2e9b4f");
+  // TASK-018 (changed expectation): the file's rules and search now apply, so only the 9 ground-floor walls are shown
+  // and coloured, and the largest volume of the model (a slab, outside the rules) is not among them; was: the full
+  // colour #2e9b4f among the colours while the rules were not applied yet. Each shown element has the DEC-15 step of
+  // its volume between the model's smallest and largest volume (numbers by value min -> max over all rows).
+  const rows = await page.evaluate(
+    (key) => window.__calc.rows.map((r) => [r.key, r.values[key]]),
+    file.display.colourBy,
+  );
+  const volumes = rows.map(([, v]) => v).filter((v) => typeof v === "number");
+  const [min, max] = [Math.min(...volumes), Math.max(...volumes)];
+  const byKey = new Map(rows);
+  expect(Object.keys(view.colours).length).toBe(REF["REQ-009-rules"]["config-1.1.0-full"].count);
+  for (const [key, hex] of Object.entries(view.colours)) {
+    const v = byKey.get(key);
+    const want = typeof v === "number" ? green[Math.round(((v - min) / (max - min)) * 24)] : EMPTY;
+    expect(hex.toLowerCase(), key).toBe(want);
+  }
   const saved = await page.evaluate(() => window.CalcConfig.state());
   expect(saved.display).toEqual(file.display);
+  // TASK-018: the rules (in order, the `Freie Textsuche` rule with key null) and the search text apply and are saved
+  // again, so the whole file round-trips (was: display only, rules and search were validated but not applied)
+  expect(saved).toEqual(file);
+  expect(JSON.stringify(saved, null, 2) + "\n").toBe(text);
+  const full = REF["REQ-009-rules"]["config-1.1.0-full"];
+  expect([full.rules, full.search]).toEqual([file.filterRules, file.search]);
+  const shown = await page.evaluate(() => ({
+    rules: window.__calc.filter.rules,
+    search: window.__calc.filter.search,
+    guids: window.__calc.filter.keys.map((k) => window.__calc.rows.find((r) => r.key === k).guid).sort(),
+  }));
+  expect(shown).toEqual({ rules: file.filterRules, search: file.search, guids: full.globalIds });
   expect(errors).toEqual([]);
 });

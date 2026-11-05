@@ -264,7 +264,7 @@ test("@e2e @acceptance @REQ-005-AC4 colouring by `Material` in both modes: an el
   expect(errors).toEqual([]);
 });
 
-test("@e2e @acceptance @REQ-007-AC1 @REQ-007-AC5 clicking a wall selects it and shows its properties panel in the 3D view (no details column); empty space and Esc clear", async ({
+test("@e2e @acceptance @REQ-007-AC1 clicking a wall selects it and shows its properties panel in the 3D view (no details column); empty space and Esc clear", async ({
   page,
 }) => {
   test.setTimeout(240_000);

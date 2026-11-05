@@ -2516,6 +2516,20 @@
       }
 
       /*
+       * TASK-019 overlay layout (REQ-005 overlay layout, REQ-005-AC12, spec 2 Devices; CR-002): when the properties
+       * panel would keep less than 120 px of body above the pill stack, the pills show their icon only (the label stays
+       * the button's aria-label; the main button keeps its title) and the properties panel moves left of the pill stack,
+       * above the toolbar. The positions are set by cv-ui layoutOverlays (createViewTools); these rules only drop the
+       * labels.
+       */
+      .cv-pills.cv-pills-compact .cv-pill-label {
+        display: none;
+      }
+      .cv-pills.cv-pills-compact .cv-pill-main {
+        gap: 0;
+      }
+
+      /*
        * Below 1280 px the filter area collapses to a drawer (spec 2 Devices; verification INC-1 SYNC F2 / UX M1; CR-002:
        * the `Details` drawer is gone with the details column): hidden (not reachable by Tab) until opened with `Filter`
        * in the header, then over the model area.
@@ -6707,6 +6721,15 @@
           clearTimeout(searchTimer);
           searchTimer = setTimeout(() => handlers.search(searchInput.value), SEARCH_DEBOUNCE_MS);
         });
+        // `Esc` with text clears only the text (REQ-007 `Esc` order: a filter search field's text first; TASK-019);
+        // the native clear of a search input would let the same key also clear the selection or close the panel
+        searchInput.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape" || searchInput.value === "") return;
+          event.preventDefault();
+          clearTimeout(searchTimer);
+          searchInput.value = "";
+          handlers.search("");
+        });
 
         /*
          * colouring panel (REQ-005 `Faerben`, DEC-15; TASK-016) as the reference (ref L1509-1631, CSS L1824-1846;
@@ -6898,11 +6921,20 @@
           else renderLegendView();
         }
         colourSearch.addEventListener("input", () => renderColourList(true));
+        colourSearch.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape" || colourSearch.value === "") return;
+          event.preventDefault(); // only the text, as `Suchen nach Objekten` (TASK-019)
+          colourSearch.value = "";
+          renderColourList(true);
+        });
         colourList.element.addEventListener("click", (event) => {
           const entry = colourList.itemOf(event.target);
           if (!entry) return;
+          const hadFocus = colourChoose.contains(document.activeElement);
           choosing = false;
           handlers.colour(entry.key);
+          // the list gives way to the legend: a keyboard pick keeps the focus in the panel (TASK-019)
+          if (hadFocus && open === "colour" && !colourShow.hidden) param.focus({ preventScroll: true });
         });
         param.addEventListener("click", () => {
           choosing = true;
@@ -6926,6 +6958,7 @@
         pillMain.type = "button";
         pillMain.id = "cv-pill-filter-reset";
         pillMain.title = "Alle Filter entfernen";
+        pillMain.setAttribute("aria-label", "Filter entfernen"); // the name also while the label is hidden (TASK-019)
         pillMain.append(icon("filter"), el("span", "cv-pill-label", "Filter entfernen"));
         pillMain.addEventListener("click", () => handlers.resetAll());
         const pillShow = iconButton("chevronDown", "Filter anzeigen", "cv-pill-toggle");
@@ -6942,6 +6975,7 @@
         colourPillMain.type = "button";
         colourPillMain.id = "cv-pill-colour-reset";
         colourPillMain.title = "Einf\u00e4rbung entfernen";
+        colourPillMain.setAttribute("aria-label", "Einf\u00e4rbung entfernen");
         colourPillMain.append(icon("palette"), el("span", "cv-pill-label", "Einf\u00e4rbung entfernen"));
         colourPillMain.addEventListener("click", () => handlers.clearColour());
         const colourPillShow = iconButton("chevronDown", "F\u00e4rben anzeigen", "cv-pill-toggle");
@@ -6959,6 +6993,7 @@
           main.type = "button";
           main.id = id + "-reset";
           main.title = title;
+          main.setAttribute("aria-label", label);
           main.append(icon(name), el("span", "cv-pill-label", label));
           main.addEventListener("click", () => handlers[action]());
           pill.append(main);
@@ -6982,16 +7017,127 @@
         const sectionPill = toolPill("cv-pill-section", "scissors", "Schnitt entfernen", "Schnitt aufheben", "clearSection");
         pills.append(filterPill, colourPill, isolatePill, hiddenPill, sectionPill);
 
-        box.append(titleChip, hint, filter.panel, colour.panel, pills, bar);
+        // DOM order = Tab order (spec 2 Keyboard; TASK-019): the toolbar, then the panel it opens, then the pills; the
+        // properties panel (renderLayout) and cv-3d's section handle and click menu follow
+        box.append(titleChip, hint, bar, filter.panel, colour.panel, pills);
 
-        // the properties panel ends above the pill stack (--cv-pills-h, as the reference's --tov-pills-h)
-        function layoutPills() {
+        /*
+         * Overlay layout (REQ-005, REQ-005-AC12, spec 2 Devices; TASK-019). The 3D view is ~55 % of the window high, so
+         * the reference's places (properties panel top right above the pill stack, filter / colouring panel centred
+         * above the toolbar) can collide. layoutOverlays places them so that no two of properties panel, filter or
+         * colouring panel, pill stack, toolbar and title chip overlap:
+         *  - properties panel top right, ending above the pill stack (CSS, --cv-pills-h). When its body would get less
+         *    than PROPS_MIN_BODY px there, the pills show their icon only and the panel moves left of the pill stack
+         *    (OVERLAY_GAP); lying above the toolbar then, it ends OVERLAY_GAP above the toolbar's top edge;
+         *  - an open filter or colouring panel: while the properties panel is open, left of it, centred in the
+         *    remaining width and at least OVERLAY_EDGE from the left edge; its top stays below the title chip;
+         *  - every panel body scrolls inside (CSS).
+         * Runs when a pill, the properties panel, an open panel or the title chip changes, and when the 3D view is
+         * resized (window, splitter, drawer breakpoint).
+         */
+        let props = null; // the properties panel (attachProps)
+        const OVERLAY_EDGE = 16;
+        const OVERLAY_GAP = 8;
+        const PROPS_MIN_BODY = 120;
+        const shown = (node) => Boolean(node) && !node.hidden && node.getClientRects().length > 0;
+        function layoutOverlays() {
           box.style.setProperty("--cv-pills-h", pills.offsetHeight + "px");
+          const width = box.clientWidth;
+          const height = box.clientHeight;
+          if (!width || !height) return; // not laid out (no model area yet)
+          const origin = box.getBoundingClientRect();
+          const rel = (node) => {
+            const r = node.getBoundingClientRect();
+            return { left: r.left - origin.left, right: r.right - origin.left, top: r.top - origin.top, bottom: r.bottom - origin.top };
+          };
+          // properties panel: the reference place, or left of the pill stack with icon-only pills
+          let compact = false;
+          if (props) {
+            props.style.right = "";
+            props.style.width = "";
+            props.style.maxHeight = "";
+          }
+          pills.classList.remove("cv-pills-compact");
+          const propsOpen = shown(props);
+          if (propsOpen && pills.offsetHeight > 0) {
+            const head = props.firstElementChild;
+            // the CSS max-height: from its top to max(96 px, pill stack + 32 px) above the bottom
+            const room = height - props.offsetTop - Math.max(96, pills.offsetHeight + 32);
+            compact = room - (head ? head.offsetHeight : 0) < PROPS_MIN_BODY;
+          }
+          if (compact) {
+            pills.classList.add("cv-pills-compact");
+            const right = OVERLAY_EDGE + pills.offsetWidth + OVERLAY_GAP;
+            props.style.right = right + "px";
+            props.style.width = Math.max(0, Math.min(360, width - right - OVERLAY_EDGE)) + "px";
+            const p = rel(props);
+            const t = bar.hidden ? null : rel(bar);
+            const above = t && p.left < t.right && p.right > t.left ? t.top - OVERLAY_GAP : height - 20;
+            props.style.maxHeight = Math.max(0, above - props.offsetTop) + "px";
+          }
+          // filter / colouring panel
+          const chip = shown(titleChip) ? rel(titleChip) : null;
+          for (const [name, [panel]] of Object.entries(panels)) {
+            panel.style.left = "";
+            panel.style.width = "";
+            panel.style.transform = "";
+            panel.style.maxHeight = "";
+            if (name !== open) continue;
+            let w = Math.min(380, width - 2 * OVERLAY_EDGE);
+            let left = (width - w) / 2;
+            if (propsOpen) {
+              const remaining = rel(props).left - OVERLAY_GAP;
+              w = Math.max(0, Math.min(380, remaining - OVERLAY_EDGE));
+              left = Math.max(OVERLAY_EDGE, (remaining - w) / 2);
+              panel.style.left = left + "px";
+              panel.style.width = w + "px";
+              panel.style.transform = "none";
+            }
+            // top: 32 px (CSS max-height 100% - 112 px), below the title chip where they would meet
+            const top = chip && chip.left < left + w && chip.right > left ? Math.max(32, chip.bottom + OVERLAY_GAP) : 32;
+            panel.style.maxHeight = Math.max(0, height - 80 - top) + "px";
+          }
         }
+        // the properties panel ends above the pill stack (--cv-pills-h, as the reference's --tov-pills-h)
+        const layoutPills = layoutOverlays;
+        /**
+         * Shows or hides pills (changes: [[pill, show]]) and places the overlays. A pill that disappears while it has the
+         * focus (its own button removed it, e.g. `Schnitt entfernen` by keyboard) passes the focus to the next shown
+         * pill, else the previous one, else the toolbar's `Filter` (spec 2 Keyboard; TASK-019).
+         */
+        function showPills(changes) {
+          const all = [...pills.children];
+          const focused = all.find((pill) => pill.contains(document.activeElement));
+          let changed = false;
+          for (const [pill, show] of changes) {
+            if (pill.hidden === !show) continue;
+            pill.hidden = !show;
+            changed = true;
+          }
+          if (!changed) return;
+          layoutOverlays();
+          if (!focused || !focused.hidden) return;
+          const at = all.indexOf(focused);
+          const next = all.slice(at + 1).find((p) => !p.hidden) || all.slice(0, at).reverse().find((p) => !p.hidden);
+          const target = next ? next.querySelector(".cv-pill-main") : bar.hidden ? null : filterButton;
+          if (target) target.focus({ preventScroll: true });
+        }
+        if (typeof ResizeObserver === "function") new ResizeObserver(() => layoutOverlays()).observe(box);
 
         let open = null; // "filter" | "colour" | null
+        let opener = null; // the control that opened the open panel (focus returns there, spec 2 Keyboard)
         const panels = { filter: [filter.panel, filterButton], colour: [colour.panel, colourButton] };
-        function openPanel(name) {
+        /** Moves the focus into an opened panel: the search field, or in the colouring legend the chosen property. */
+        function focusInto(name) {
+          const target = name === "filter" ? searchInput : colourShow.hidden ? colourSearch : param;
+          target.focus({ preventScroll: true });
+        }
+        /**
+         * Opens a panel ("filter" | "colour") or closes the open one (null). Opening moves the focus into the panel
+         * (spec 2 Keyboard) unless options.focus is false, and remembers the opener: the focused control, or the
+         * panel's toolbar button.
+         */
+        function openPanel(name, options) {
           const next = name && panels[name] ? name : null;
           if (next === open) return;
           open = next;
@@ -7001,7 +7147,32 @@
             button.setAttribute("aria-pressed", String(key === open));
           }
           if (open === "colour") renderColour();
+          layoutOverlays();
+          if (open) {
+            const active = document.activeElement;
+            const inside = active && Object.values(panels).some(([panel]) => panel.contains(active));
+            opener = active && active !== document.body && !inside ? active : panels[open][1];
+            if (!options || options.focus !== false) focusInto(open);
+          } else opener = null;
           if (handlers.panel) handlers.panel(open);
+        }
+        /**
+         * Closes the open panel and returns the focus to its opener (`Esc`, REQ-005-AC11), or to the panel's toolbar
+         * button when the opener is gone or hidden (e.g. a filter-area entry in the closed drawer).
+         */
+        function closePanel() {
+          if (!open) return;
+          const button = panels[open][1];
+          const back = opener;
+          openPanel(null);
+          const usable =
+            back &&
+            back.isConnected &&
+            !back.disabled &&
+            (typeof back.checkVisibility === "function"
+              ? back.checkVisibility({ checkVisibilityCSS: true, visibilityProperty: true })
+              : back.getClientRects().length > 0);
+          (usable ? back : button).focus();
         }
         /** Opens the colouring panel at the legend of the current colouring (`Farbe nach Wert`, pill chevron). */
         function showColourLegend() {
@@ -7047,6 +7218,7 @@
             titleChip.title = text || "";
             titleSub.hidden = !(modelCount > 1);
             titleSub.textContent = modelCount > 1 ? formatCount(modelCount) + " Modelle" : "";
+            layoutOverlays();
           },
           /** Ghost toggle (REQ-005-AC1): pressed `Ausgeblendete verbergen` while ghosts are shown. */
           setMode(next) {
@@ -7072,30 +7244,21 @@
           setFilterState(state) {
             filterButton.classList.toggle("cv-has-dot", Boolean(state.textActive));
             filter.reset.hidden = !state.textActive;
-            if (filterPill.hidden !== !state.pill) {
-              filterPill.hidden = !state.pill;
-              layoutPills();
-            }
+            showPills([[filterPill, Boolean(state.pill)]]);
           },
           /**
            * Element tools (REQ-013, DEC-18; TASK-017a): pill `Isolierung entfernen` shown while state.isolating, pill
            * `Ausblendung entfernen` while state.hidden (number of hidden elements) > 0.
            */
           setToolState(state) {
-            const isolating = Boolean(state.isolating);
-            const hiding = state.hidden > 0;
-            if (isolatePill.hidden === isolating || hiddenPill.hidden === hiding) {
-              isolatePill.hidden = !isolating;
-              hiddenPill.hidden = !hiding;
-              layoutPills();
-            }
+            showPills([
+              [isolatePill, Boolean(state.isolating)],
+              [hiddenPill, state.hidden > 0],
+            ]);
           },
           /** Section (REQ-013, TASK-017c): pill `Schnitt entfernen` shown while active. */
           setSectionState(active) {
-            if (sectionPill.hidden === Boolean(active)) {
-              sectionPill.hidden = !active;
-              layoutPills();
-            }
+            showPills([[sectionPill, Boolean(active)]]);
           },
           /**
            * Rule rows (REQ-012, TASK-015b; ref L1394-1410): one row per rule `<Aktion>: <Eigenschaft> <vergleich>
@@ -7143,10 +7306,7 @@
             else if (data.current.key !== before) choosing = false;
             colourButton.classList.toggle("cv-has-dot", active);
             colour.reset.hidden = !active;
-            if (colourPill.hidden !== !active) {
-              colourPill.hidden = !active;
-              layoutPills();
-            }
+            showPills([[colourPill, active]]);
             renderColour();
           },
           showColourLegend,
@@ -7155,10 +7315,17 @@
             clearTimeout(searchTimer);
             searchInput.value = text;
           },
-          /** Opens a panel ("filter" | "colour") or closes the open one (null). */
+          /** Opens a panel ("filter" | "colour") or closes the open one (null); see openPanel. */
           openPanel,
+          closePanel,
           panel: () => open,
           layoutPills,
+          layoutOverlays,
+          /** The properties panel whose place layoutOverlays manages (renderLayout, REQ-007). */
+          attachProps(panel) {
+            props = panel;
+            layoutOverlays();
+          },
           filterPanel: filter,
           colourPanel: colour,
           rules,
@@ -8408,6 +8575,9 @@
         suggestions.id = "cv-rule-suggest";
         suggestions.setAttribute("role", "listbox");
         suggestions.setAttribute("aria-label", "Eigenschaften");
+        // not a Tab stop: Chromium makes a scrolling box without focusable children focusable, so Tab from
+        // `Eigenschaft` went into the list instead of `Vergleich` (TASK-019); the list is used with the arrow keys
+        suggestions.tabIndex = -1;
         suggestions.hidden = true;
         propertyInput.setAttribute("aria-controls", suggestions.id);
         combo.append(propertyInput, suggestions);
@@ -8563,6 +8733,14 @@
             if (event.target === propertyInput && !suggestions.hidden && active >= 0) return;
             event.preventDefault();
             ok.click();
+          } else if (event.key === "Tab") {
+            // modal (aria-modal): Tab and Shift+Tab stay in the dialog, wrapping at its ends (TASK-019)
+            const stops = [close, mode, propertyInput, operator, valueInput, cancel, ok].filter((n) => !n.disabled);
+            const at = stops.indexOf(document.activeElement);
+            const next = event.shiftKey ? (at <= 0 ? stops.length - 1 : -1) : at === -1 || at === stops.length - 1 ? 0 : -1;
+            if (next === -1) return;
+            event.preventDefault();
+            stops[next].focus();
           }
         }
         document.addEventListener("keydown", onKey, true);
@@ -8883,6 +9061,43 @@
           propsPanel,
           options.propsHandlers || { clear() {} },
         );
+        /*
+         * Overlay layout and focus of the properties panel (spec 2 Keyboard, REQ-005 overlay layout; TASK-019): after
+         * each show / clear the overlays are placed again (layoutOverlays). The panel opens on a selection and does not
+         * take the focus (a table row selected by keyboard keeps it). When it closes while the focus is inside it
+         * (`Esc`, `Schliessen`, `Ausblenden`), the focus returns to the control that was focused when it opened (the
+         * table after a row selection), or to the table when there was none (a 3D click).
+         */
+        viewTools.attachProps(propsPanel);
+        let propsOpener = null;
+        const noteOpener = () => {
+          const active = document.activeElement;
+          if (!active || active === document.body) propsOpener = null;
+          else if (!propsPanel.contains(active)) propsOpener = active;
+        };
+        const showDetails = detailsPanel.show;
+        const showGroupDetails = detailsPanel.showGroup;
+        const clearDetails = detailsPanel.clear;
+        detailsPanel.show = (info) => {
+          noteOpener();
+          showDetails(info);
+          viewTools.layoutOverlays();
+        };
+        detailsPanel.showGroup = (info) => {
+          noteOpener();
+          showGroupDetails(info);
+          viewTools.layoutOverlays();
+        };
+        detailsPanel.clear = () => {
+          const hadFocus = propsPanel.contains(document.activeElement);
+          clearDetails();
+          viewTools.layoutOverlays();
+          if (!hadFocus) return;
+          const back = propsOpener;
+          propsOpener = null;
+          const usable = back && back.isConnected && !back.disabled && back.getClientRects().length > 0;
+          (usable ? back : document.getElementById("cv-tbl-scroll")).focus({ preventScroll: true });
+        };
         const splitter = el("div", "cv-splitter");
         splitter.id = "cv-splitter";
         splitter.tabIndex = 0;
@@ -11617,6 +11832,10 @@
           return buildConfig({
             header: effectiveHeader(),
             filterSets: filterSets.map((s) => ({ key: s.key, collapsed: s.collapsed, selected: s.selected })),
+            // the rules in list order (also `Markieren` and rules whose property is not loaded now) and the search text
+            // as typed (REQ-009, DEC-20; TASK-018); hidden and isolated elements are session only and never saved
+            filterRules: rules,
+            search: searchText,
             table: tableState(),
             grouping: groupingState(),
             display: { mode: viewMode, colourKey, colourMode, scaleColour: scaleColourHex, section },
@@ -11645,6 +11864,12 @@
           // loading any configuration clears hidden and isolated elements (session state of the previous view, DEC-20)
           hiddenKeys = new Set();
           isolatedKeys = null;
+          // rules and search text (REQ-009, DEC-20; TASK-018): applyConfig always sets both, an absent field clears
+          // them; the valid rules keep their file order. A `Freie Textsuche` rule or a search text needs the
+          // display-text index: refresh() below builds it at once if it does not exist yet (spec 4.3).
+          rules = apply.filterRules.map((rule) => ({ mode: rule.mode, key: rule.key, op: rule.op, value: rule.value }));
+          searchText = apply.search;
+          ui.tools.setSearch(searchText);
           if (apply.header) setHeader(apply.header);
           if (apply.filterSets) {
             const sets = apply.filterSets.map((s) => ({
@@ -12313,16 +12538,14 @@
         ui.tools.setMode(viewMode);
         // `Esc` order (REQ-007, DEC-21): it closes only the first that applies: an open dialog or popup or a filter
         // search field's text (handled there and marked defaultPrevented); the click menu (the selection stays,
-        // REQ-007-AC5); the selection with its properties panel; an open `Filter` / `Faerben` panel, whose button gets
-        // the focus back (REQ-005-AC11; keyboard pass TASK-019).
+        // REQ-007-AC5); the selection with its properties panel (focus inside it returns to where the selection was
+        // made, renderLayout); an open `Filter` / `Faerben` panel, whose opener gets the focus back (REQ-005-AC11,
+        // TASK-019: the toolbar button, a pill chevron or a filter-area entry).
         document.addEventListener("keydown", (event) => {
           if (event.key !== "Escape" || event.defaultPrevented) return;
           if (engine.menuOpen()) return engine.closeMenu();
           if (selectedKey !== null || selectedGroup !== null) return select(null);
-          const open = ui.tools.panel();
-          if (!open) return;
-          ui.tools.openPanel(null);
-          document.getElementById(open === "filter" ? "cv-tool-filter" : "cv-tool-colour").focus();
+          ui.tools.closePanel();
         });
         /** Test seam (spec 4.4) and selection hook for the table (TASK-006c). */
         window.CalcView = {

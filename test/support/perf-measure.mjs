@@ -177,3 +177,97 @@ export function summariseInteractions(runs) {
     runs: runs.map((r) => Math.round(r.done)),
   };
 }
+
+/**
+ * NFR-001 CR-002 part (TASK-020): the search field `Suchen nach Objekten`. Fills input with text (one input event)
+ * and measures in the page from the end of the 250 ms debounce (last input event + debounceMs; the time the debounce
+ * timer fires is at or after it, so the measured time is an upper bound) until filter sets, table and 3D show the
+ * result, as measureInteraction: { filter, table, frame, done, changed, shown, count }. Waits until the filters were
+ * evaluated, then for CalcView.whenIdle().
+ */
+export async function measureSearch(page, input, text, debounceMs = 250) {
+  await idle(page);
+  const before = await input.evaluate((node) => {
+    window.__lastInput = null;
+    node.addEventListener("input", () => (window.__lastInput = performance.now()), { once: true });
+    return { filter: window.__calc.filter.updates, table: window.__calc.table.updates };
+  });
+  await input.fill(text);
+  return page.evaluate(
+    async ({ b, debounceMs }) => {
+      await new Promise((resolve) => {
+        const tick = () => (window.__calc.filter.updates > b.filter ? resolve() : requestAnimationFrame(tick));
+        tick();
+      });
+      await window.CalcView.whenIdle();
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const t0 = window.__lastInput + debounceMs;
+      const rel = (t) => (t === null ? null : Math.round((t - t0) * 10) / 10);
+      const filterAt = window.__calc.filter.at;
+      const tableAt = window.__calc.table.updates > b.table ? window.__calc.table.at : null;
+      const changes = window.CalcView.changeFrames().filter((t) => t > window.__lastInput);
+      const frameAt = changes.length ? changes[changes.length - 1] : null;
+      const doneAt = Math.max(...[filterAt, tableAt, frameAt].filter((t) => t !== null));
+      const shown = window.CalcView.shownFrames().find((t) => t > doneAt);
+      return {
+        filter: rel(filterAt),
+        table: rel(tableAt),
+        frame: rel(frameAt),
+        selected: null,
+        done: rel(doneAt),
+        changed: changes.length,
+        shown: shown === undefined ? null : rel(shown),
+        count: window.__calc.filter.count,
+      };
+    },
+    { b: before, debounceMs },
+  );
+}
+
+/**
+ * NFR-001 index target (TASK-020): runs action (a Playwright click that starts the display-text index build, e.g.
+ * toolbar `Filter`, ref L1435-1449) and measures in the page from its click event until the panel status
+ * (#cv-filter-status) leaves `Eigenschaften werden gelesen ... N %` (index built and the filters evaluated again):
+ *   progressMs  click -> first progress text (the progress shown while the index builds)
+ *   indexMs     click -> progress text replaced by the result (upper bound of the build)
+ *   steps       number of progress texts shown
+ *   idle        click -> CalcView.whenIdle() afterwards
+ * Times are null when no progress text appeared (index already built).
+ */
+export async function measureIndexBuild(page, action) {
+  await idle(page);
+  await page.evaluate(() => {
+    window.__t0 = null;
+    document.addEventListener("click", (e) => (window.__t0 = e.timeStamp), { capture: true, once: true });
+    const node = document.getElementById("cv-filter-status");
+    const rec = { start: null, end: null, steps: 0 };
+    window.__indexRec = rec;
+    const observer = new MutationObserver(() => {
+      const busy = node.textContent.startsWith("Eigenschaften werden gelesen");
+      if (busy) {
+        if (rec.start === null) rec.start = performance.now();
+        rec.steps++;
+      } else if (rec.start !== null && rec.end === null) {
+        rec.end = performance.now();
+        observer.disconnect();
+      }
+    });
+    observer.observe(node, { childList: true, characterData: true, subtree: true });
+  });
+  await action();
+  return page.evaluate(async () => {
+    const rec = window.__indexRec;
+    const t1 = performance.now();
+    await new Promise((resolve) => {
+      const tick = () =>
+        rec.end !== null || (rec.start === null && performance.now() - t1 > 2000)
+          ? resolve()
+          : requestAnimationFrame(tick);
+      tick();
+    });
+    const idleAt = await window.CalcView.whenIdle();
+    const t0 = window.__t0;
+    const rel = (t) => (t === null ? null : Math.round((t - t0) * 10) / 10);
+    return { progressMs: rel(rec.start), indexMs: rel(rec.end), steps: rec.steps, idle: rel(idleAt) };
+  });
+}

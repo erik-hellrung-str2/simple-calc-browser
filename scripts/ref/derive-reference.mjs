@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { loadIfc } from "./ifc-model.mjs";
 import { readStep } from "./step.mjs";
 import { EXPORT_PROPERTY, MASS_PROPERTY, MASS_TARGET, RANGE_PROPERTY } from "../make-unit-fixtures.mjs";
+import { config110, configRulesSkipped } from "../make-config-fixtures.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const FIX = ROOT + "test/fixtures/";
@@ -926,12 +927,100 @@ function toolSection() {
   };
 }
 
+/**
+ * REQ-009 / REQ-010 configuration and viewer round trips (TASK-018, CR-002): the elements of AC20-FZK-Haus that pass
+ * the rules and the search text of the CR-002 configuration fixtures (scripts/make-config-fixtures.mjs) and of the
+ * viewer test REQ-010-AC4, with the DEC-19 matching written here independently of the product (as ruleSection: display
+ * text = table text, lower-cased; Gleich / Beginnt mit / Endet mit / Enthaelt; multi-valued Material per value; an
+ * element without the property never matches). `Freie Textsuche` and the search: some value of some property of the
+ * element (attributes, Modell = file name without extension, Typ, Geschoss, Material, every pset / qto value; the
+ * property names are not searched). `Isolieren` keeps the matching elements, `Ausblenden` removes them, `Markieren`
+ * only marks the shown matching ones; everything combines with AND. Rows: STEP elements except IfcOpeningElement and
+ * IfcSpace (as ruleSection).
+ */
+function configRulesSection() {
+  const NOT_ROWS = ["IfcOpeningElement", "IfcSpace"];
+  const FILE = "AC20-FZK-Haus.ifc";
+  const m = read(FIX + FILE);
+  const fzk = m.elements.map((id) => m.element(id)).filter((e) => !NOT_ROWS.includes(e.Kategorie));
+  const MODELL = FILE.replace(/\.ifc$/, "");
+  const text = (v) => {
+    if (typeof v === "number") return v.toLocaleString("de-DE", { maximumFractionDigits: 3 });
+    if (v && typeof v === "object" && "enum" in v) return v.enum === "T" ? "Ja" : v.enum === "F" ? "Nein" : v.enum;
+    return String(v);
+  };
+  const ATTRIBUTES = ["Kategorie", "Name", "GlobalId", "Geschoss", "Typ", "ObjectType", "Tag", "Description"];
+  const texts = (e, key) => {
+    if (key === "Material") return e.Material;
+    if (key === "Modell") return [MODELL];
+    if (ATTRIBUTES.includes(key)) return e[key] == null || e[key] === "" ? [] : [e[key]];
+    const p = e.props[key];
+    return p && p.value != null && p.value !== "" ? [text(p.value)] : [];
+  };
+  const compare = (t, op, needle) => {
+    const a = t.toLowerCase();
+    const b = needle.toLowerCase();
+    return op === "eq" ? a === b : op === "starts" ? a.startsWith(b) : op === "ends" ? a.endsWith(b) : a.includes(b);
+  };
+  const allKeys = (e) => ["Modell", ...ATTRIBUTES, "Material", ...Object.keys(e.props)];
+  const matches = (e, rule) =>
+    (rule.mode === "text" ? allKeys(e) : [rule.key]).some((k) =>
+      texts(e, k).some((t) => compare(t, rule.op, rule.value)),
+    );
+  const passes = (e, rules, search) =>
+    rules.every((r) =>
+      r.mode === "isolate" || r.mode === "text" ? matches(e, r) : r.mode === "hide" ? !matches(e, r) : true,
+    ) &&
+    (!search.trim() || matches(e, { mode: "text", op: "contains", value: search.trim() }));
+  const guids = (list) => list.map((e) => e.GlobalId).sort();
+  const shown = (rules, search) => fzk.filter((e) => passes(e, rules, search));
+  const full = config110();
+  const fullShown = shown(full.filterRules, full.search);
+  const skippedCase = configRulesSkipped();
+  const validRules = skippedCase.filterRules.filter((r) => ["isolate", "hide", "mark", "text"].includes(r.mode));
+  const ac6Rules = validRules.filter((r) => r.key !== "PSet_Revit_Other.AssetIdentifier");
+  const ac6Shown = shown(ac6Rules, "");
+  const ac4Rules = [
+    { mode: "isolate", key: "Kategorie", op: "contains", value: "wall" },
+    { mode: "mark", key: "Name", op: "contains", value: "ext" },
+  ];
+  const ac4Search = "erdg";
+  const ac4Shown = shown(ac4Rules, ac4Search);
+  const ac4Marked = ac4Shown.filter((e) => matches(e, ac4Rules[1]));
+  return {
+    file: FILE,
+    rows: fzk.length,
+    "config-1.1.0-full": {
+      rules: full.filterRules,
+      search: full.search,
+      count: fullShown.length,
+      globalIds: guids(fullShown),
+      Name: fullShown.map((e) => e.Name).sort(),
+    },
+    "REQ-009-AC6": {
+      appliedRules: ac6Rules,
+      count: ac6Shown.length,
+      globalIds: guids(ac6Shown),
+      Name: ac6Shown.map((e) => e.Name).sort(),
+    },
+    "REQ-010-AC4": {
+      rules: ac4Rules,
+      search: ac4Search,
+      count: ac4Shown.length,
+      globalIds: guids(ac4Shown),
+      Name: ac4Shown.map((e) => e.Name).sort(),
+      marked: { count: ac4Marked.length, globalIds: guids(ac4Marked) },
+    },
+    note: "DEC-19 matching on the STEP text as ruleSection; `text` rules and the search look at every value of every property (Modell, attributes, Typ, Geschoss, Material, psets / qtos; not Geometrie, whose Ja / Nein none of the needles here matches). config-1.1.0-full = its two rules AND its search; REQ-009-AC6 = the valid rules of config-1.1.0-rules-skipped.json without the rule on the property absent from AC20-FZK-Haus; REQ-010-AC4 = the rules and search of the viewer test, marked = shown elements matching the `Markieren` rule.",
+  };
+}
+
 const existing = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : {};
 const fzk = fzkSection();
 const out = {
   meta: {
     purpose:
-      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2, REQ-012-AC2..AC6/AC8/AC14, REQ-013-AC5, REQ-004-AC5 and NFR-001 (spec Testing -> Test data)",
+      "Reference values for REQ-001-AC1 (Duplex), REQ-002-AC1/AC6/AC7, REQ-003-AC1, REQ-004-AC1/AC2/AC3, REQ-005-AC4, REQ-006-AC1/AC2/AC4/AC5/AC7/AC8/AC9/AC10, REQ-007-AC1/AC2/AC3, REQ-008-AC1/AC3/AC4, REQ-009-AC2, REQ-012-AC2..AC6/AC8/AC14, REQ-013-AC5, REQ-004-AC5, REQ-009-AC1/AC6/AC7, REQ-010-AC4 and NFR-001 (spec Testing -> Test data)",
     generatedBy: "node scripts/ref/derive-reference.mjs",
     method:
       "Read directly from the IFC STEP text by a dependency-free STEP parser (scripts/ref/step.mjs) and the REQ-002 rules in scripts/ref/ifc-model.mjs; no web-ifc, no fragments, no product code. Elements = rooted IfcProduct instances except spatial structure, relations, type objects and property definitions. Kategorie = IFC class as spelled in the schema (IfcWallStandardCase). Typ = Name of the type object via IfcRelDefinesByType. Geschoss = Name of the nearest IfcBuildingStorey up the containment/aggregation tree. Material = sorted distinct IfcMaterial names of the element's IfcRelAssociatesMaterial (IfcMaterial, list, layer set (usage), constituent set, profile set (usage)), else of its type. Properties keyed '<Pset/Qto name>.<Property>', occurrence over type. Length/area/volume values converted to m/m²/m³ with the project IfcUnitAssignment (SI prefix or IfcConversionBasedUnit factor); other numeric values unconverted. Values rounded to 12 significant digits; compare numbers with a tolerance of 1e-9 relative.",
@@ -951,6 +1040,7 @@ const out = {
   "REQ-008-export": exportSection(),
   "REQ-012-rules": ruleSection(),
   "REQ-013-tools": toolSection(),
+  "REQ-009-rules": configRulesSection(),
   "REQ-002-AC7": castleSection() ?? existing["REQ-002-AC7"] ?? null,
   "REQ-006-AC1": mep2000Section()?.["REQ-006-AC1"] ?? existing["REQ-006-AC1"] ?? null,
   "NFR-001-name-filter": nameFilterSection() ?? existing["NFR-001-name-filter"] ?? null,

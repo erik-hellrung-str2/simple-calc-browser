@@ -18,25 +18,18 @@ const INC2_PENDING = [
   // REQ-003 Configure filter sets (new CR-002; AC4, AC5 covered by TASK-017b)
   // REQ-004 Filter with filter sets (new CR-002; AC5, AC6 covered by TASK-017a)
   // REQ-005 3D model view (new CR-002; AC10 covered by TASK-015a; AC5, AC8, AC9 by TASK-016; AC6 and AC7 by TASK-017c,
-  // which removed the interim axis section bar with `Schnitt X` and tagged the TASK-016 toolbar test)
-  "REQ-005-AC11",
-  "REQ-005-AC12",
+  // which removed the interim axis section bar with `Schnitt X` and tagged the TASK-016 toolbar test; AC11, AC12 by
+  // TASK-019). All covered.
   // REQ-006 Table (new CR-002; AC12 covered by TASK-013, AC11 by TASK-017c)
   // REQ-007 Selection and properties panel (AC6 covered by TASK-013; AC4 with its buttons, AC7, AC8 by TASK-017b)
   // REQ-008 Export (new CR-002; AC6 covered by TASK-017c)
-  // REQ-009 Configuration (new CR-002)
-  "REQ-009-AC4",
-  "REQ-009-AC5",
-  "REQ-009-AC6",
-  "REQ-009-AC7",
-  "REQ-009-AC8",
-  // REQ-010 Viewer file (new CR-002)
-  "REQ-010-AC4",
+  // REQ-009 Configuration (new CR-002; AC4-AC8 covered by TASK-018)
+  // REQ-010 Viewer file (new CR-002; AC4 covered by TASK-018)
   // REQ-012 In-viewer rule filter (new requirement, CR-002): AC1, AC7 covered by TASK-015a; AC2-AC6, AC8, AC10, AC11
   // by TASK-015b; AC9 by TASK-016; AC12-AC14 by TASK-017a. All covered.
   // REQ-013 Element tools (new requirement, CR-002; AC2-AC6, AC8 covered by TASK-017a, AC3 as corrected by Q-004; AC7
-  // by TASK-017b; AC1, AC9-AC11, AC13 by TASK-017c)
-  "REQ-013-AC12",
+  // by TASK-017b; AC1, AC9-AC11, AC13 by TASK-017c; AC12 by TASK-018). All covered.
+  // TASK-020 (end of INC-2): the list is empty and must stay empty (asserted below); every AC needs a test again.
 ];
 
 /** IDs whose row in the generated traceability table says "gap: no test". */
@@ -88,7 +81,8 @@ test("[unit] trace: every acceptance criterion and NFR of the spec has a test; d
     [],
     "an acceptance criterion or NFR without a test",
   );
-  // INC2_PENDING itself: no duplicates, only ACs of the spec, and none that already has a test
+  // INC2_PENDING itself: empty since TASK-020 (INC-2 complete); no duplicates, only ACs of the spec, none with a test
+  assert.deepEqual(INC2_PENDING, [], "INC-2 is complete (TASK-020): no acceptance criterion may be pending");
   assert.equal(new Set(INC2_PENDING).size, INC2_PENDING.length, "INC2_PENDING has no duplicates");
   const acIds = spec.acs.map(([id]) => id);
   assert.deepEqual(

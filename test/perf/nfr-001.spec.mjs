@@ -57,6 +57,11 @@ test("@perf @NFR-001 volume set (>= 30,000 elements): filter sets, column filter
   await idle(page);
   const total = await page.evaluate(() => window.__calc.rows.length);
   expect(total).toBeGreaterThanOrEqual(30_000);
+  // TASK-020 (CR-002 "re-measured for 1.1.0 with the table at full width"): no details column, the table ends at the
+  // window's right edge
+  const tableBox = await page.locator("#cv-table").boundingBox();
+  const width = await page.evaluate(() => window.innerWidth);
+  expect(Math.abs(tableBox.x + tableBox.width - width), "table right edge = window right edge").toBeLessThanOrEqual(1);
   const results = {};
   const measure = (name, action) =>
     measureInteraction(page, action).then((m) => {
@@ -198,7 +203,15 @@ test("@perf @NFR-001 volume set (>= 30,000 elements): filter sets, column filter
   const heapMB = await page.evaluate(() =>
     performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : null,
   );
-  const report = { total, kategorie: kat, facetSizes, environment, heapMB, summary };
+  const report = {
+    total,
+    tableWidth: Math.round(tableBox.width),
+    kategorie: kat,
+    facetSizes,
+    environment,
+    heapMB,
+    summary,
+  };
   console.log(`[perf NFR-001] ${JSON.stringify(report)}`);
   info.annotations.push({ type: "nfr-001", description: JSON.stringify(report) });
   for (const [k, s] of Object.entries(summary))

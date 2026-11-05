@@ -89,7 +89,7 @@ async function clickEmptyCanvas(page) {
   await page.mouse.click(canvas.x + 12, canvas.y + canvas.height - 12);
 }
 
-test("@e2e @acceptance @REQ-007-AC3 @REQ-007-AC5 a table row click selects the element in 3D and shows its properties panel without a click menu; the camera stays; the selection survives sort, columns and view switch", async ({
+test("@e2e @acceptance @REQ-007-AC3 a table row click selects the element in 3D and shows its properties panel without a click menu; the camera stays; the selection survives sort, columns and view switch", async ({
   page,
 }) => {
   const errors = await openWith(page, FZK);
@@ -274,7 +274,7 @@ test("@e2e @acceptance @REQ-007-AC2 DEC-16 an element in two Material groups: a 
   expect(errors).toEqual([]);
 });
 
-test("@e2e @acceptance @REQ-007-AC2 @REQ-007-AC3 a group row click selects all elements of the group in 3D; sub-groups; elements leaving the filter leave the selection", async ({
+test("@e2e @acceptance @REQ-007-AC2 @REQ-007 a group row click selects all elements of the group in 3D; sub-groups; elements leaving the filter leave the selection", async ({
   page,
 }) => {
   const errors = await openWith(page, FZK);
@@ -460,7 +460,7 @@ test("@e2e switching `Einzelelemente` / `Gruppiert` starts the table at its firs
   expect(errors).toEqual([]);
 });
 
-test("@e2e @REQ-007-AC5 Esc inside a filter search field clears only the field, not the element selection (TASK-006c R2)", async ({
+test("@e2e @REQ-007 Esc inside a filter search field clears only the field, not the element selection (TASK-006c R2)", async ({
   page,
 }) => {
   const errors = await openBuilder(page);

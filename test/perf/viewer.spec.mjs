@@ -10,12 +10,18 @@
 // The NFR names a viewer file built from >= 100 MB of IFC: the volume set (4 x Revit MEP + SampleCastle, 158.3 MiB,
 // >= 30,000 elements; Testing -> Test data). AC20-FZK-Haus and the Duplex model (2.5 / 2.3 MiB) are recorded too: the
 // embedded runtime (libraries and app, about 1 MB) dominates their files, so the 40 % ratio does not apply to them
-// (recorded, not asserted). TASK-010 adds the synthetic single IFC of NFR-002 (151.8 MB, one model of 10,905 rows). Runs in the `file` project only, never at the same time as another perf spec (perf-lock).
+// (recorded, not asserted). TASK-010 adds the synthetic single IFC of NFR-002 (151.8 MB, one model of 10,905 rows).
+// TASK-020 (CR-002, NFR-003 "re-measured for 1.1.0 viewer files"): the volume set once more, exported with a search
+// text and a `Freie Textsuche` rule. "Usable" then includes the display-text index built at the start and the table
+// showing the exported (filtered) state; the expected count is an independent scan of the extracted values (the
+// needles are letters only, so only string values can contain them, DEC-19). Runs in the `file` project only, never
+// at the same time as another perf spec (perf-lock).
 import { statSync } from "node:fs";
 import { test, expect } from "../support/perf-lock.mjs";
 import { fetched, fixture, loadFiles, openBuilder } from "../support/builder.mjs";
 import { idle } from "../support/view-3d.mjs";
 import { exportViewer, openViewerFile } from "../support/viewer.mjs";
+import { addRule } from "../support/rules.mjs";
 
 const START_BUDGET_MS = 15_000; // NFR-003
 const SIZE_BUDGET = 0.4; // NFR-003
@@ -29,7 +35,27 @@ const SETS = {
   "volume set": [...Array(4).fill(fetched("Ifc4_Revit_MEP.ifc")), fetched("Ifc2x3_SampleCastle.ifc")],
   // TASK-010: the synthetic single IFC of NFR-002 (151.8 MB, scripts/fetch-fixtures.mjs)
   "synthetic single IFC": [fetched("synthetic-castle-x3.ifc")],
+  // TASK-020: the volume set with active text sources (setup below)
+  "volume set with search and Freie Textsuche": [
+    ...Array(4).fill(fetched("Ifc4_Revit_MEP.ifc")),
+    fetched("Ifc2x3_SampleCastle.ifc"),
+  ],
 };
+const TEXT_SOURCES = { search: "duct", rule: { mode: "text", op: "contains", value: "fitting" } };
+
+/** Rows with some string value containing every needle (any letter case), from the extracted values. */
+const scanAll = (page, needles) =>
+  page.evaluate(
+    (list) =>
+      window.__calc.rows.filter((r) =>
+        list.every((needle) => {
+          const has = (v) =>
+            Array.isArray(v) ? v.some(has) : typeof v === "string" && v.toLowerCase().includes(needle);
+          return Object.values(r.values).some(has);
+        }),
+      ).length,
+    needles,
+  );
 
 for (const [name, files] of Object.entries(SETS)) {
   test(`@perf @NFR-003 @NFR-005 @REQ-010 viewer file of ${name}: size and offline start`, async ({
@@ -43,6 +69,17 @@ for (const [name, files] of Object.entries(SETS)) {
     for (const f of files) await loadFiles(page, f, 300_000);
     await idle(page);
     const rows = await page.evaluate(() => window.__calc.rows.length);
+    const textSources = name.includes("Freie Textsuche");
+    let expectedCount = null;
+    if (textSources) {
+      await addRule(page, TEXT_SOURCES.rule);
+      await page.getByRole("searchbox", { name: "Suchen nach Objekten" }).fill(TEXT_SOURCES.search);
+      expectedCount = await scanAll(page, [TEXT_SOURCES.search, TEXT_SOURCES.rule.value]);
+      expect(expectedCount).toBeGreaterThan(0);
+      expect(expectedCount).toBeLessThan(rows);
+      await page.waitForFunction((n) => window.__calc.filter.count === n, expectedCount);
+      await idle(page);
+    }
     const builderState = await page.evaluate(() => ({
       config: window.CalcConfig.state(),
       count: window.__calc.filter.count,
@@ -68,6 +105,33 @@ for (const [name, files] of Object.entries(SETS)) {
         expect(await v.evaluate(() => window.__calc.rows.length)).toBe(rows);
         expect(await v.evaluate(() => window.CalcConfig.state())).toEqual(builderState.config);
         expect(await v.evaluate(() => window.__calc.filter.count)).toBe(builderState.count);
+        if (textSources) {
+          // the exported (filtered) state: rule and search applied, the table shows exactly the filtered rows
+          const shown = await v.evaluate(() => ({
+            count: window.__calc.filter.count,
+            table: window.__calc.table.count,
+            rules: window.__calc.filter.rules.map((r) => [r.mode, r.op, r.value]),
+            types: window.__calc.filter.active.map((f) => f.type).sort(),
+          }));
+          expect(shown).toEqual({
+            count: expectedCount,
+            table: expectedCount,
+            rules: [["text", "contains", "fitting"]],
+            types: ["rule", "search"],
+          });
+          // the search field (in the closed filter panel) holds the exported text
+          await expect(v.getByRole("searchbox", { name: "Suchen nach Objekten", includeHidden: true })).toHaveValue(
+            TEXT_SOURCES.search,
+          );
+          // the toolbar responds: `Filter` opens the panel with the result at once (index built at the start, no
+          // `Eigenschaften werden gelesen` progress); recorded as usable incl. the toolbar (navigation start clock)
+          const tools = v.getByRole("toolbar", { name: "3D-Werkzeuge" });
+          await tools.getByRole("button", { name: "Filter", exact: true }).click();
+          await expect(v.locator("#cv-filter-status")).toHaveText(
+            new RegExp(`^${expectedCount.toLocaleString("de-DE")} von `),
+          );
+          timing.toolbar = await v.evaluate(() => performance.now());
+        }
         expect(viewer.requests).toEqual([]);
         expect(viewer.blocked).toEqual([]);
         expect(viewer.errors).toEqual([]);
@@ -79,6 +143,7 @@ for (const [name, files] of Object.entries(SETS)) {
 
     const report = {
       set: name,
+      textSources: textSources ? { ...TEXT_SOURCES, count: expectedCount } : null,
       ifcFiles: files.length,
       ifcMB: MB(ifcBytes),
       rows,
@@ -95,15 +160,21 @@ for (const [name, files] of Object.entries(SETS)) {
         usable: Math.round(o.usable),
         node: o.node,
         frames: o.frames,
+        ...(o.toolbar ? { toolbar: Math.round(o.toolbar) } : {}),
       })),
     };
     console.log(`[perf NFR-003 viewer] ${JSON.stringify(report)}`);
     info.annotations.push({ type: "nfr-003-viewer", description: JSON.stringify(report) });
 
     if (ifcBytes >= LARGE_IFC) {
-      if (name === "volume set") expect(rows).toBeGreaterThanOrEqual(30_000);
+      if (name.startsWith("volume set")) expect(rows).toBeGreaterThanOrEqual(30_000);
       expect(report.ratio, "NFR-003 size <= 40 % of the IFC size").toBeLessThanOrEqual(SIZE_BUDGET);
       expect(report.usableMsMedian, "NFR-003 usable within 15 s").toBeLessThanOrEqual(START_BUDGET_MS);
+      if (textSources)
+        expect(
+          median(opens.map((o) => o.toolbar)),
+          "NFR-003 usable incl. index, filtered table and toolbar within 15 s",
+        ).toBeLessThanOrEqual(START_BUDGET_MS);
     } else {
       expect(report.usableMsMedian).toBeLessThanOrEqual(START_BUDGET_MS);
     }

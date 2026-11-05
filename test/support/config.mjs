@@ -37,8 +37,10 @@ export const configFile = (config, name = "konfiguration.json") => ({
 
 /**
  * Everything a configuration covers, as the page reports it (independent of the saved JSON): table and grouping
- * seams, filter sets with collapsed state and checked values, column filters, model display, header, and the
- * resulting filter (count and row keys) and 3D state (opaque / hidden / colours / section).
+ * seams, filter sets with collapsed state and checked values, column filters, rules and search text (CR-002,
+ * TASK-018: the hook and the search field), the hidden and isolated elements (session only, DEC-18), model display
+ * incl. colouring mode and scale colour, header, and the resulting filter (count and row keys) and 3D state
+ * (opaque / hidden / tool-hidden / marked / colours / section).
  */
 export function configuredState(page) {
   return page.evaluate(() => {
@@ -48,7 +50,21 @@ export function configuredState(page) {
       table: window.CalcTable.state(),
       grouping: window.CalcTable.grouping(),
       sets: hook.filter.sets.map((s) => ({ key: s.key, collapsed: s.collapsed, selected: s.selected })),
-      view: { mode: hook.view.mode, colourKey: hook.view.colourKey, section: hook.view.section },
+      view: {
+        mode: hook.view.mode,
+        colourKey: hook.view.colourKey,
+        colourMode: hook.view.colourMode,
+        scaleColour: hook.view.scaleColour,
+        section: hook.view.section,
+      },
+      rules: hook.filter.rules.map((r) => ({ ...r })),
+      search: hook.filter.search,
+      searchField: document.getElementById("cv-object-search")?.value ?? null,
+      ruleRows: [...document.querySelectorAll("#cv-rules .cv-rule .cv-rule-text")].map((n) => n.textContent),
+      tools: {
+        hidden: [...hook.tools.hidden].sort(),
+        isolated: hook.tools.isolated ? [...hook.tools.isolated].sort() : null,
+      },
       header: window.CalcConfig.header(),
       filterCount: hook.filter.count,
       filterKeys: hook.filter.keys.slice(),
@@ -57,6 +73,8 @@ export function configuredState(page) {
         opaque: [...state.opaque].sort(),
         ghost: [...state.ghost].sort(),
         hidden: [...state.hidden].sort(),
+        toolHidden: [...state.toolHidden].sort(),
+        marked: [...state.marked].sort(),
         colours: [...state.colours].sort(),
         section: state.section,
       },

@@ -9,13 +9,23 @@ import { basename } from "node:path";
 import { test, expect } from "../support/network-guard.mjs";
 import { REF, fixture, loadFiles, openBuilder, removeModel } from "../support/builder.mjs";
 import { addFilterSet, filterSet, toggleValue } from "../support/filter-area.mjs";
-import { colourBy, idle, setGhosts } from "../support/view-3d.mjs";
 import { addColumn, clickSort, headerKeys } from "../support/table.mjs";
 import { pickGroup, setView, toggleGroup } from "../support/grouping.mjs";
 import { chooseLogo, configuredState, openHeaderDialog } from "../support/config.mjs";
 import { exportFile, readExport } from "../support/export.mjs";
 import { exportViewer, nonBackgroundShare, openViewerFile, withoutExportTime } from "../support/viewer.mjs";
-import { anyPickable, cutAt } from "../support/tools.mjs";
+import {
+  afterUpdate,
+  anyPickable,
+  clickMenu,
+  cutAt,
+  firstPickable,
+  panelAction,
+  shownPills,
+  sourceEntries,
+} from "../support/tools.mjs";
+import { addRule, filterPanel, keysOf, toolbar } from "../support/rules.mjs";
+import { colourBy, colourPanel, colourTool, idle, openColourPanel, setGhosts, viewState } from "../support/view-3d.mjs";
 
 const FZK = fixture("AC20-FZK-Haus.ifc");
 const DUPLEX = fixture("Ifc2x3_Duplex_Architecture.ifc");
@@ -165,7 +175,7 @@ test("@acceptance @system @e2e @REQ-010-AC1 @REQ-011-AC1 @NFR-005 exported viewe
   expect(errors).toEqual([]);
 });
 
-test("@acceptance @e2e @REQ-010-AC2 @REQ-011-AC1 colleague changes filters, filter sets, columns, grouping and model display in the viewer file and exports: CSV and Excel equal the builder's", async ({
+test("@acceptance @e2e @REQ-010-AC2 @REQ-011-AC1 colleague changes filters, filter sets, columns, grouping, model display, a rule `Enthält`, a search text, one hidden and one isolated element in the viewer file and exports: CSV and Excel equal the builder's", async ({
   page,
   browser,
 }, info) => {
@@ -210,6 +220,20 @@ test("@acceptance @e2e @REQ-010-AC2 @REQ-011-AC1 colleague changes filters, filt
         await idle(p);
       },
     };
+    // CR-002 (TASK-018): a rule `Enthält`, a search text, then one hidden and one isolated element, each exported;
+    // the elements are the first two table rows the builder shows under rule and search (the same keys in the viewer,
+    // whose rows equal the builder's)
+    const tools = { hide: null, isolate: null };
+    steps.rules = async (p) => {
+      await setView(p, "Einzelelemente");
+      await addRule(p, { mode: "isolate", key: "Geschoss", op: "contains", value: "level" });
+      await p.getByRole("searchbox", { name: "Suchen nach Objekten" }).fill("basic wall");
+      await p.waitForFunction(() => window.__calc.filter.search === "basic wall");
+      await toolbar(p).getByRole("button", { name: "Filter", exact: true }).click();
+      await expect(filterPanel(p)).toBeHidden();
+      await idle(p);
+      if (!tools.hide) [tools.hide, tools.isolate] = await p.evaluate(() => window.__calc.table.keys.slice(0, 2));
+    };
     const results = {};
     for (const [name, p] of [
       ["builder", page],
@@ -222,7 +246,18 @@ test("@acceptance @e2e @REQ-010-AC2 @REQ-011-AC1 colleague changes filters, filt
       await steps.display(p);
       const csv = await exportFile(p, "csv", info.outputPath(`${name}-grouped.csv`));
       const xlsx = await exportFile(p, "xlsx", info.outputPath(`${name}-grouped.xlsx`));
-      results[name] = { single, csv, xlsx, state: await shownState(p) };
+      const state = await shownState(p);
+      await steps.rules(p);
+      const ruled = { count: await p.evaluate(() => window.__calc.filter.count) };
+      ruled.csv = await exportFile(p, "csv", info.outputPath(`${name}-rule-search.csv`));
+      await panelAction(p, tools.hide, "hide");
+      await p.keyboard.press("Escape");
+      const hidden = await exportFile(p, "csv", info.outputPath(`${name}-hidden.csv`));
+      await panelAction(p, tools.isolate, "isolate");
+      await p.keyboard.press("Escape");
+      const isolated = await exportFile(p, "csv", info.outputPath(`${name}-isolated.csv`));
+      const isolatedXlsx = await exportFile(p, "xlsx", info.outputPath(`${name}-isolated.xlsx`));
+      results[name] = { single, csv, xlsx, state, ruled, hidden, isolated, isolatedXlsx, after: await shownState(p) };
     }
     const { builder, viewer: colleague } = results;
     // the viewer followed every action as the builder did
@@ -249,12 +284,170 @@ test("@acceptance @e2e @REQ-010-AC2 @REQ-011-AC1 colleague changes filters, filt
     expect(grouped.records.at(-1).slice(0, 3)).toEqual(["Summe", "", String(EXP.rows.length)]);
     const book = readExport("xlsx", colleague.xlsx.path);
     expect(book.rows.length).toBe(grouped.records.length);
+    // rule, search, hidden and isolated element (TASK-018): the same files; the hidden element is one row less, the
+    // isolated element the only row (its Name)
+    expect(colleague.after).toEqual(builder.after);
+    expect(colleague.after.rules).toEqual([{ mode: "isolate", key: "Geschoss", op: "contains", value: "level" }]);
+    expect(colleague.after.search).toBe("basic wall");
+    expect(colleague.after.tools).toEqual({ hidden: [tools.hide], isolated: [tools.isolate] });
+    for (const part of ["hidden", "isolated", "isolatedXlsx"])
+      expect(colleague[part].bytes.equals(builder[part].bytes), part).toBe(true);
+    expect(colleague.ruled.csv.bytes.equals(builder.ruled.csv.bytes)).toBe(true);
+    expect(colleague.ruled.count).toBe(builder.ruled.count);
+    expect(builder.ruled.count).toBeGreaterThan(2);
+    expect(builder.ruled.count).toBeLessThan(EXP.rows.length);
+    const ruledRows = readExport("csv", colleague.ruled.csv.path).records;
+    expect(ruledRows.length - 1).toBe(builder.ruled.count);
+    expect(readExport("csv", colleague.hidden.path).records.length - 1).toBe(builder.ruled.count - 1);
+    const onlyRow = readExport("csv", colleague.isolated.path).records;
+    expect(onlyRow.length).toBe(2);
+    const isolatedName = await v.evaluate(
+      (k) => window.__calc.rows.find((r) => r.key === k).values.Name,
+      tools.isolate,
+    );
+    expect(onlyRow[1]).toContain(isolatedName);
 
     // changes are not persisted: reopening shows the exported state (REQ-010)
     await v.reload();
     await v.waitForFunction(() => window.__calc && window.__calc.phase === "ready");
     expect(await shownState(v)).toEqual(exported);
     expect(viewer.requests).toEqual([]);
+    expect(viewer.errors).toEqual([]);
+  } finally {
+    await viewer.context.close();
+  }
+  expect(errors).toEqual([]);
+});
+
+test("@acceptance @e2e @REQ-010-AC4 builder with two rules, a search text, `Farbskala`, a section, one hidden and one isolated element: the offline viewer file shows rules, search, colouring and section as exported, nothing hidden or isolated, and `Fokus` / `Filter` / `Färben`, the click menu and the properties panel work", async ({
+  page,
+  browser,
+}, info) => {
+  const errors = await openBuilder(page);
+  await loadFiles(page, FZK);
+  await idle(page);
+  const AC4 = REF["REQ-009-rules"]["REQ-010-AC4"];
+  const TOOLS = REF["REQ-013-tools"];
+  const guidOf = (name) => TOOLS.walls.find((w) => w.Name === name).GlobalId;
+  // section (`Schneiden` in the click menu), colouring `Farbskala` `Orange` by NetVolume
+  await cutAt(page, await anyPickable(page));
+  await page.keyboard.press("Escape");
+  await colourBy(page, "NetVolume", fzkGroups.column, { keepOpen: true });
+  await colourPanel(page).getByRole("button", { name: "Farbskala", exact: true }).click();
+  await colourPanel(page).getByRole("button", { name: "Orange", exact: true }).click();
+  await colourTool(page).click();
+  // two rules (`Isolieren` Kategorie enthält wall, `Markieren` Name enthält ext) and the search text `erdg`
+  for (const rule of AC4.rules) await addRule(page, rule);
+  await page.getByRole("searchbox", { name: "Suchen nach Objekten" }).fill(AC4.search);
+  await page.waitForFunction((n) => window.__calc.filter.count === n, AC4.count);
+  await toolbar(page).getByRole("button", { name: "Filter", exact: true }).click();
+  const shownKeys = await keysOf(page, AC4.globalIds);
+  expect(await page.evaluate(() => [...window.__calc.filter.keys].sort())).toEqual(shownKeys);
+  // one hidden, one isolated element (properties panel)
+  const [hidden] = await keysOf(page, [guidOf("Wand-Int-ERDG-1")]);
+  const [isolated] = await keysOf(page, [guidOf("Wand-Ext-ERDG-1")]);
+  await panelAction(page, hidden, "hide");
+  await page.keyboard.press("Escape");
+  await panelAction(page, isolated, "isolate");
+  await page.keyboard.press("Escape");
+  await idle(page);
+  const builder = await shownState(page);
+  expect(builder.tools).toEqual({ hidden: [hidden], isolated: [isolated] });
+  expect(builder.filterKeys).toEqual([isolated]);
+  expect(builder.view.colourMode).toBe("scale");
+  expect(builder.view.scaleColour).toBe("#e8890c"); // `Orange` (DEC-15)
+  expect(builder.threeD.section).not.toBeNull();
+
+  const file = await exportViewer(page, info.outputPath("viewer.html"));
+  expect(file.last.ok).toBe(true);
+  const viewer = await openViewerFile(browser, file.path);
+  try {
+    const v = viewer.page;
+    await idle(v);
+    const shown = await shownState(v);
+    // rules, search text, colouring and section as exported
+    expect(shown.rules).toEqual(AC4.rules);
+    expect(shown.ruleRows).toEqual(builder.ruleRows);
+    expect([shown.search, shown.searchField]).toEqual([AC4.search, AC4.search]);
+    expect(shown.view).toEqual(builder.view);
+    expect([shown.view.colourKey, shown.view.colourMode, shown.view.scaleColour]).toEqual([
+      fzkGroups.column,
+      "scale",
+      "#e8890c",
+    ]);
+    expect(shown.threeD.section).toEqual(builder.threeD.section);
+    expect(shown.config).toEqual(builder.config);
+    await expect(v.locator("#cv-pill-section")).toBeVisible();
+    // no element hidden or isolated: the rule and search result (the 9 ground-floor walls), marked ones per the rule
+    expect(shown.tools).toEqual({ hidden: [], isolated: null });
+    expect(shown.threeD.toolHidden).toEqual([]);
+    expect(shown.filterKeys).toEqual(shownKeys);
+    expect(shown.threeD.marked).toEqual(await keysOf(v, AC4.marked.globalIds));
+    const entries = await sourceEntries(v);
+    expect(entries.filter((e) => /^(Ausgeblendet|Isoliert):/.test(e))).toEqual([]);
+    expect(entries).toContain("Filterregeln: 2");
+    const pills = await shownPills(v);
+    expect(pills).not.toContain("Ausblendung entfernen");
+    expect(pills).not.toContain("Isolierung entfernen");
+    await expect(v.locator("#cv-status")).toHaveText(`${AC4.count} von ${TOOLS.rows} Elementen`);
+    // the colouring panel shows `Farbskala` / `Orange`
+    await openColourPanel(v);
+    await expect(colourPanel(v).getByRole("button", { name: "Farbskala", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(colourPanel(v).getByRole("button", { name: "Orange", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await colourTool(v).click();
+    await expect(colourPanel(v)).toBeHidden();
+    // toolbar `Filter`: the panel with the exported rules and the status; closes again
+    await toolbar(v).getByRole("button", { name: "Filter", exact: true }).click();
+    await expect(filterPanel(v)).toBeVisible();
+    await expect(filterPanel(v)).toContainText(`${AC4.count} von ${TOOLS.rows} Objekten sichtbar`);
+    await expect(v.locator("#cv-rules .cv-rule")).toHaveCount(2);
+    await toolbar(v).getByRole("button", { name: "Filter", exact: true }).click();
+    await expect(filterPanel(v)).toBeHidden();
+    // toolbar `Fokus`: after zooming out, the camera fits the shown elements again, each inside the canvas
+    const c = await v.locator("#cv-viewport canvas").boundingBox();
+    await v.mouse.move(c.x + c.width / 2, c.y + c.height / 2);
+    for (let i = 0; i < 6; i++) await v.mouse.wheel(0, 400);
+    await idle(v);
+    const away = await v.evaluate(() => window.CalcView.camera());
+    await toolbar(v).getByRole("button", { name: "Fokus", exact: true }).click();
+    await idle(v);
+    expect(await v.evaluate(() => window.CalcView.camera())).not.toEqual(away);
+    const opaque = (await viewState(v)).opaque;
+    expect(opaque.length).toBeGreaterThan(0);
+    for (const key of opaque) {
+      const b = await v.evaluate((k) => window.CalcView.screenBox(k), key);
+      expect(
+        b.left >= c.x - 1 && b.top >= c.y - 1 && b.right <= c.x + c.width + 1 && b.bottom <= c.y + c.height + 1,
+        key,
+      ).toBe(true);
+    }
+    // click menu and properties panel: a click on a shown wall selects it, opens the panel and the menu;
+    // `Ausblenden` hides it (entry `Ausgeblendet: 1 Element`)
+    const at = await firstPickable(v, shownKeys);
+    await v.mouse.click(at.x, at.y);
+    await idle(v);
+    await expect(clickMenu(v)).toBeVisible();
+    expect(
+      await clickMenu(v)
+        .locator("button")
+        .evaluateAll((list) => list.map((b) => b.getAttribute("aria-label") || b.textContent.trim())),
+    ).toEqual(["Ausblenden", "Isolieren", "Schneiden", "Menü schließen"]);
+    await expect(v.locator("#cv-props")).toBeVisible();
+    const guid = await v.evaluate((k) => window.__calc.rows.find((r) => r.key === k).guid, at.key);
+    await expect(v.locator("#cv-props")).toContainText(guid);
+    expect(await v.evaluate(() => window.__calc.view.selected)).toBe(at.key);
+    await afterUpdate(v, () => clickMenu(v).getByRole("menuitem", { name: "Ausblenden", exact: true }).click());
+    expect(await v.evaluate(() => window.__calc.tools.hidden)).toEqual([at.key]);
+    expect(await sourceEntries(v)).toContain("Ausgeblendet: 1 Element");
+    await expect(v.locator("#cv-status")).toHaveText(`${AC4.count - 1} von ${TOOLS.rows} Elementen`);
+    expect(viewer.requests).toEqual([]);
+    expect(viewer.blocked).toEqual([]);
     expect(viewer.errors).toEqual([]);
   } finally {
     await viewer.context.close();
