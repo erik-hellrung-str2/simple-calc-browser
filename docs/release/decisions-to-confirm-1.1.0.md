@@ -1,0 +1,132 @@
+---
+status: draft
+date: 2026-11-06
+relates_to: [INC-2, CR-002, CR-003, Q-002, Q-005, Q-006, Q-007, NFR-001, DEC-15, DEC-18, DEC-19, DEC-20, DEC-21, DEC-22, BUG-T11, BUG-T12, BUG-T13, BUG-T14, T12, R-3, TASK-011a, TASK-011, TASK-012, TASK-013, TASK-014, TASK-015a, TASK-015b, TASK-016, TASK-017a, TASK-017b, TASK-017c, TASK-018, TASK-019, TASK-020, TASK-021]
+---
+# Decisions to confirm at the release gate — 1.1.0
+
+Release candidate `08e0fc7` (CR-002, cycle 2). Every reference deviation, agent decision, refinement, known limitation, deviation and open manual check of this cycle, consolidated for the human release gate. Sources: `docs/changes/CR-002.md` §1a and §8, `docs/spec.md` §4.7 (DEC-15, DEC-18..22), `docs/tasks/TASK-011a.md` … `TASK-021.md` ("Decisions (for the release gate / orchestrator)"), `docs/process-log.md` (rows 2026-11-04 to 2026-11-06), `docs/reviews/verification-INC-2.md`, `docs/testing/report-INC-2.md`, `docs/open-questions.md` (Q-002, Q-005..Q-007), `docs/changes/register.md` (CR-003). Test results: `docs/release/release-notes-1.1.0.md` → Test summary.
+
+**How to read:** every line says **what** the product does, **why**, the **effect** for the user, and the **source**. The product behaves as written in every line; "keep" means no change. **B** = business rule or look (your decision), **T** = technical default. A line you want changed becomes a change request (`/change`); a change before 1.1.0 means a fix and a scoped re-test before the release.
+
+The six blocks can be approved one by one. Proposal for all blocks: approve as listed.
+
+## Block A — Reference deviations and the CR-002 decisions DEC-15, DEC-18..DEC-22
+
+Your answers Q1–Q10 (CR-002 §1a) are already decided and not repeated here except where a decision builds on them.
+
+| # | What | Why | Effect | Type | Source | Proposal |
+|---|---|---|---|---|---|---|
+| A.1 | DEC-15 colouring: `Unterschiedliche Farben` (golden-angle colours in value order, repeated after 120 values with `Mehr als 120 Werte: Farben wiederholen sich.`) and `Farbskala` (`Rot`, `Blau`, `Grün`, `Orange`, `Violett`, `Grau`, `Eigene Farbe`; 24 steps; text by rank); a new property keeps the last mode and colour; precedence selection > `Markieren` > colour > ghost | Q4 `Genauso` as the reference | the 1.0.0 `Sonstige` and numeric ranges are gone; colours stay stable while filtering | B | spec DEC-15 | keep |
+| A.2 | DEC-15: with `Rot` the largest value gets the selection red `#D72622` | as the reference | a selected element and the top value look alike; pick another swatch if it disturbs | B | spec DEC-15 | keep |
+| A.3 | DEC-15: `mehrere Werte` (`#6e6259`) and `(leer)` (`#c4c7ca`) keep their own colours in both modes | 1.0.0 behaviour, CR-002 §1.9 | multi-material and empty elements stay recognisable | B | spec DEC-15 | keep |
+| A.4 | DEC-15 deviation from the reference: the legend lists only the shown elements, with their counts | kept from 1.0.0 so legend and filter-set counts agree (REQ-005-AC2) | the reference counts all elements regardless of the filter | B | spec DEC-15, DEC-21 (a) | keep |
+| A.5 | DEC-18 hide / isolate: hidden set and isolated set, session only; first `Isolieren` starts, further ones add; shown = isolated minus hidden, AND with every filter; tool-removed elements always invisible, never ghosts; model removal or IfcSpace off drops their keys; an empty isolation ends | Q3, Q5, Q6; reference | counts, sums and exports follow the tools; `Schneiden` never filters | B | spec DEC-18; CR-002 §8 | keep |
+| A.6 | DEC-19 rule matching: compares the displayed text (`0,3`, `Ja` / `Nein`, converted unit), lower-case; any value of a multi-valued property matches; empty or missing value never matches (`(leer)` not matchable); rules AND only; `Freie Textsuche` and search cover all properties (not property names) | Q2; reference; a picked suggestion always matches | `Gleich 0.3` does not match `0,3`; `Isolieren` removes elements without the property, `Ausblenden` keeps them | B | spec DEC-19; CR-002 §8 | keep |
+| A.7 | DEC-20 configuration stays `calc-viewer-config/1` with five optional fields; 1.0.0 axis section converted to a plane; loading any configuration clears hidden / isolated elements | Q6; backwards compatible | 1.0.0 files load; 1.1.0 files load in 1.0.0 with a notice and lose rules, search, section | B | spec DEC-20 | keep |
+| A.8 | DEC-20 note: the section plane is saved in the configuration and viewer file, although it is created by a click (only click hide / isolate are session only) | the 1.0.0 section was saved too (approved field, CR-002 §3) | a saved view reopens with its cut | B | spec DEC-20, §7 | keep |
+| A.9 | DEC-21 (a): toolbar button, panel kicker and pill chevron say `Färben` / `Färben anzeigen` instead of the reference `Einfärben`; the pill stays `Einfärbung entfernen` | your word in the CR-002 request | label differs from the reference | B | spec DEC-21 (a) | keep |
+| A.10 | DEC-21 (a): the pill `Filter entfernen` appears for every filter source and resets everything like `Alle Filter zurücksetzen` (your answer Q9); the reference pill only exists for, and clears, its panel filter | Q9; the ghost toggle in the pill must stay reachable for the left sets | one click clears ticks, column filters, rules, search, hidden and isolated elements | B | DEC-21 (a), CR-002 Q9 | confirm (decided by Q9, listed as a deviation) |
+| A.11 | DEC-21 (a): the properties panel shows the product grouping (`Allgemein`, psets, `Typ: …`) and formatted values instead of the reference's `Standardeigenschaften` and raw values | same values as the table | numbers in German format with converted units | B | DEC-21 (a) | keep |
+| A.12 | DEC-21 (a): a rule whose property is no longer loaded shows `Eigenschaft nicht geladen` and is not applied (the reference keeps evaluating it) | otherwise the view can empty without a visible cause | after removing a model its rules pause until it is loaded again | B | DEC-21 (a), REQ-012-AC14 | keep |
+| A.13 | DEC-21 (a): overlays adapted to the ~55 % high 3D view (filter / colouring panel left of the properties panel; with little room icon-only pills and the properties panel left of the pill stack) | the reference canvas is full height | no overlaps from 1024 to 1920 px (tested at 12 widths) | B | DEC-21 (a), REQ-005-AC12 | keep |
+| A.14 | CR-002 §8: no `Kategorie` / `Datei` chips in the filter panel | the left filter sets cover them | one way to filter by category and model | B | CR-002 §8 | keep |
+| A.15 | CR-002 §8 / DEC-21 (b): `Markieren` paints `#F08A87`, above colouring, below selection; 3D only (no table marker, no effect on counts or exports) | as the reference | marked elements are seen only in 3D | B | CR-002 §8, DEC-21 (b) | keep |
+| A.16 | CR-002 §8: no 3D `Räume` button; DEC-13 builder option `Räume (IfcSpace) einbeziehen` stays | one switch for spaces | as 1.0.0 | B | CR-002 §8 | keep |
+| A.17 | DEC-21 (b): panel `Zurücksetzen` clears rules and search only; filter-area entries also for rules (`Filterregeln: n`, `Markieren` included) and search (`Suche: „…“`) | the reference panel filter minus the chips | ticks and column filters survive the panel reset | B | DEC-21 (b) | keep |
+| A.18 | DEC-21 (b): `Nach Wert filtern` on a multi-valued property ticks all the element's values and does not open the filter drawer below 1280 px | Q8; the drawer would cover the 3D view | the set is scrolled into view when the drawer opens | B | DEC-21 (b), REQ-003 | keep |
+| A.19 | DEC-21 (b): creating a section is pointer-only; the handle moves by arrow keys; `Esc` order dialog → menu → selection → panel | as the reference; a keyboard face pick would be new scope (see B.32) | keyboard users can move and remove, not create, a cut | B | DEC-21 (b) | keep |
+| A.20 | DEC-21 (b): header drawer button stays `Filter`; the toolbar is labelled `3D-Werkzeuge`; the reference title chip is shown in the 3D view in addition to the header | closest to reference and 1.0.0 | title appears twice | B | DEC-21 (b) | keep |
+| A.21 | DEC-22 priorities: REQ-012 must; `Ausblenden` / `Isolieren` must; `Schneiden` should; toolbar must; colouring should. All built in 1.1.0, nothing cut | you decide priorities | none now; matters only if a should item must be cut later | B | spec DEC-22 | confirm |
+| A.22 | User answers that deviate from the reference (for information, already decided): `Fokus` fits the shown elements, not whole models (Q4); ghosts on by default (Q5); left filter sets stay (Q1); comparisons only as the reference, no `enthält nicht` (Q2) | your answers | – | B | CR-002 §1, §1a | for information |
+
+## Block B — Task-record decisions (TASK-011a..TASK-021)
+
+| # | What | Why | Effect | Type | Source | Proposal |
+|---|---|---|---|---|---|---|
+| B.1 | "The 6,859-property model" of NFR-001 is SampleCastle (6,106 distinct keys today) | spike named no file; it has by far the most properties | index target recorded on it and on the volume set | T | TASK-011 D1 | keep |
+| B.2 | The search text is trimmed; a `Freie Textsuche` / rule value is matched as given (the dialog trims it) | as the reference (ref L1465, L733) | a blank-only search is no filter | T | TASK-011 D2 | keep |
+| B.3 | A rule on a property that no row has never matches in the core; the app pauses such rules (`Eigenschaft nicht geladen`) | split of core and app | see A.12 | T | TASK-011 D4 | keep |
+| B.4 | `Farbskala` rank order of text = filter-set value order (numbers first, then text) | colour position matches filter set and legend | differs slightly from the reference's `localeCompare` | B | TASK-012 D1 | keep |
+| B.5 | A loaded unit normal is kept bit for bit (`-0` → `0`), other normals normalised | identical JSON after save (REQ-009-AC1) | none visible | T | TASK-012 D3 | keep |
+| B.6 | `search` is saved exactly as typed (not trimmed); the filter trims it | the field shows what was typed | `" wand "` and `"wand"` filter alike but save differently | T | TASK-012 D6, TASK-018 D1 | keep |
+| B.7 | Properties panel row tools reserve their width (invisible, not removed), so a 22-character GlobalId wraps into two lines in the 360 px panel | values do not jump on hover; tools stay keyboard-reachable (REQ-007-AC7) | BUG-T2 closed by wrapping; one-line GlobalIds would need tools floating over the value | B | TASK-013 D2 | keep |
+| B.8 | The properties panel is hidden while nothing is selected; group panels show no model chip | reference; a group can span models | – | B | TASK-013 D3, D4 | keep |
+| B.9 | One fit algorithm: load fit and `Fokus` use the reference tight box fit (padding 1.15) instead of the 1.0.0 sphere fit (1.2) | as the reference | the model fills more of the view after loading | B | TASK-014 D3 | keep |
+| B.10 | The click menu closes when its element leaves the selection; it is pointer-only (`role=menu` on the card, no arrow keys) | reference; DEC-21 | – | T | TASK-014 D1, D5 | keep |
+| B.11 | Toolbar hidden while no model is loaded | REQ-005-AC7 "Given a loaded model"; nothing to act on | the start screen shows no toolbar | B | TASK-015a D1 | keep |
+| B.12 | The hint pill starts when the first load ends (viewer: after start), shown once per page, then fully hidden | as the reference | – | B | TASK-015a D2, D3 | keep |
+| B.13 | The display-text index is built when the filter panel first opens; controls stay enabled while it builds (the reference disables them); a search typed meanwhile waits for it | the first search does not wait | panel shows `Eigenschaften werden gelesen ... N %` once | B | TASK-015a D5, TASK-020 D1; process-log 2026-11-05 | keep |
+| B.14 | `Esc` with nothing selected closes the open toolbar panel and focuses its button | REQ-007 `Esc` order | – | T | TASK-015a D6 | keep |
+| B.15 | `Eigenschaft` suggestions in catalogue order (`Allgemein` first: `Kategorie`, `Name`, …; then group and label); match on label or group; typed label accepted exactly, else ignoring case | one order everywhere a property is picked; reference | spec says "group then label" (see C.5) | B | TASK-015b D1-D3 | keep |
+| B.16 | `Wert` suggestions sorted (numbers ascending, then text in German order), each text once; the reference lists them unsorted | easier to find a value | – | B | TASK-015b D4 | keep |
+| B.17 | `Eigenschaft` is an ARIA combobox; `Enter` on a typed exact label applies (the reference never applies from this field); with the list open the first `Esc` closes only the list (X-4, supersedes D5's "Esc closes the dialog") | keyboard use | two `Esc` presses to leave the dialog with the list open | B | TASK-015b D5; BUG-T10 | keep |
+| B.18 | The dialog backdrop closes on `pointerdown`; no list and no "no result" text when no property matches; an edit whose rule list changed meanwhile does not re-add the rule; focus after × moves to the next ×, the dialog returns focus to its opener | as the reference; no lost or doubled rules | – | T | TASK-015b D6, D7, D10, D11 | keep |
+| B.19 | Colouring property list in catalogue order with unit in the label (`… (m³)`), virtualised (46 px rows); search on label or group | 6,859 properties would cost a long frame | differs from the reference order and label | B | TASK-016 D1, D2 | keep |
+| B.20 | Legend text 13 px for values and counts (reference count 12 px) | UI-02 13–14 px; 1.0.0 finding L2 | – | B | TASK-016 D3 | keep |
+| B.21 | Pill chevron `Färben anzeigen` opens the panel at the legend (the reference toggles); `Entfernen` and the pill leave the panel open at the property list | same as `Filter anzeigen` | – | B | TASK-016 D4, D5 | keep |
+| B.22 | `Farbe nach Wert` / a configuration colouring opens at the legend; on the already coloured property it only opens the legend | – | – | B | TASK-016 D6, D7 | keep |
+| B.23 | Gradient labels = first and last value over all rows; legend lists shown elements only (= BUG-T12, Q-006 `So lassen`) | stable colours (DEC-15) | labels can name values not shown | B | TASK-016 D8; Q-006 | confirmed (Q-006) |
+| B.24 | Marks are 3D only; a `Markieren` rule whose property is not loaded paints nothing; no legend strip under the model; IfcSpace is coloured like other elements (the reference uses opacity 0.55 for spaces) | DEC-21; not in the spec | – | B | TASK-016 D9-D11 | keep |
+| B.25 | Properties-panel buttons act on the element or all elements of a group selection; loading a configuration clears hidden / isolated elements | DEC-18, DEC-20 | – | B | TASK-017a D1, D2 | keep |
+| B.26 | `Alle Filter zurücksetzen` is enabled for a lone `Markieren` rule (it does the same as the pill, Q9) | consistent with Q9 | – | B | TASK-017a D3 | keep |
+| B.27 | × on `Filterregeln: n` removes all rules and keeps the search; × on `Suche` clears only the search; the entry shows the trimmed search text | one entry, one source | – | B | TASK-017a D4, D5 | keep |
+| B.28 | Clicking the `Filterregeln` / `Suche` entry below 1280 px closes the filter drawer first, then opens the filter panel | the panel would be under the drawer | – | B | TASK-017a D6 | keep |
+| B.29 | Hiding elements does not ghost or hide the IfcSite terrain; isolation hides it | REQ-013 "`Ausblenden` does not change it" | – | B | TASK-017a D7 | keep |
+| B.30 | `Nach Wert filtern`: an existing collapsed set stays collapsed but is scrolled into view; the ticked value is not scrolled into view inside a long list; a second click on a ticked value does nothing | REQ-003 "nothing else changes" | the set badge shows that something is ticked | B | TASK-017b D1-D4 | keep |
+| B.31 | A configuration plane is applied as given (any valid plane); closing the click menu with `Esc` moves no focus; `Schneiden` keeps the selection; no flip or slider for the click section | DEC-20; DEC-21; reference | new `Schneiden` or the handle replace flip / slider | B | TASK-017c D1-D4 | keep |
+| B.32 | No keyboard path to create a section in 1.1.0 (T11 review); a keyboard face pick would be a new CR | section is a should with no data effect | keyboard users cannot create a cut | B | TASK-019 D6; spec §7 | keep (new CR if wanted) |
+| B.33 | Every rule is saved, incl. `Markieren` and `Eigenschaft nicht geladen` rules | the list is your rule set | such a rule is skipped and named when its property is missing on load | B | TASK-018 D1 | keep |
+| B.34 | Opening a panel moves the focus into it also for pointer users (the reference moves none) | spec §2 Keyboard | the search field shows a focus ring after a click on `Filter`; cheap to limit to keyboard | B | TASK-019 D1 | keep |
+| B.35 | The properties panel does not take the focus when a selection opens it; Tab reaches it; on close the focus returns to the selection origin | arrow-key navigation in the table continues | – | B | TASK-019 D2 | keep |
+| B.36 | `Esc` in `Suchen nach Objekten` / `Parameter suchen` with text clears only the text | REQ-007 "a filter search field's text" | – | B | TASK-019 D3 | keep |
+| B.37 | Icon-only pills keep their `title` (e.g. `Alle Filter entfernen`, `Schnitt aufheben` as the reference); compact layout decided by height only (switches at about three pills in a ~390 px view, only while the properties panel is open) | reference; REQ-005 layout | – | B | TASK-019 D4, D5 | keep |
+| B.38 | `Fokus` fits only the free area; `Isolieren` keeps the camera (Q-005 clarified: `Nein, wie HTML Viewer`) | reference; Q-005 | after `Isolieren` use `Fokus` | B | TASK-021 D1; Q-005 | confirmed (Q-005) |
+| B.39 | Overlays that count for `Fokus`: filter / colouring panel, properties panel, pill stack (not click menu, toolbar, hint, title chip); free area chosen by the scale the model gets, fallback to the whole view below 25 % of its scale | Q-005 list; area would fall back exactly in the BUG-T11 case | at 1280 × 800 with two panels the ground floor fits small (~240 × 100 px) above the filter panel | B | TASK-021 D2, D3 | keep |
+| B.40 | After a free-area `Fokus` the orbit pivot is the middle of the free area (next to the model); the camera is not refitted when panels open or close later; the load fit stays the whole-view fit | no lasting camera state; camera moves only on request | an orbit after `Fokus` turns around a point beside the model | B | TASK-021 D4-D6 | keep |
+| B.41 | For information (test and build internals, no product effect): TASK-011a `INC2_PENDING` rules (D1, D2, now empty); TASK-011 D3, D5-D8; TASK-012 D2; interim states removed within INC-2 (TASK-012 D4, D5; TASK-013 D1, D5; TASK-014 D2, D4; TASK-015a D4, D7; TASK-015b D8, D9); test shapes TASK-017a D8, D9, TASK-017c D5, D6, TASK-018 D3-D6 (the AC7 test needs tag `v1.0.0` in the checkout), TASK-020 D3-D5 | – | none | T | task records | for information |
+
+## Block C — Verification / testing refinements, known limitations and process deviations
+
+| # | What | Why | Effect | Type | Source | Proposal |
+|---|---|---|---|---|---|---|
+| C.1 | SYNC-1: on a model change, IfcSpace switch, configuration load or viewer start with an active search or `Freie Textsuche`, the display-text index is rebuilt synchronously without the progress text (spec: "with the progress overlay") | those paths show their own progress or are one switch | measured on `08e0fc7`: IfcSpace switch filter 439 ms, frame 652 / 785 ms (earlier runs 476–663 ms filter, frame up to 1.7 s); within the 2 s index target; recorded range 495–549 ms to be updated to 439–663 ms | T | process-log 2026-11-05; verification SYNC-1; report-INC-2 §7.7 | keep; aligning the spec wording is a baseline change: include it (text only) in CR-003 on approval of E.1, otherwise it stays a process-log refinement |
+| C.2 | SYNC-2 (d): index built when the filter panel first opens (spec: "lazily on first use") | the first search does not wait | = B.13 | T | process-log 2026-11-05 | keep |
+| C.3 | SYNC-2 (a): `Eigenschaft` suggestions and colouring list in catalogue order, colouring list with unit | one order everywhere | = B.15, B.19 | B | process-log 2026-11-05 | keep; aligning the spec wording is a baseline change: include it (text only) in CR-003 on approval of E.1, otherwise it stays a process-log refinement |
+| C.4 | CODE-2 known limitation: no rule limit; evaluation linear in the rule count (20,000 rules ≈ 78 ms per interaction; a 20 MB file ≈ 1.5 s) | a rule cap would be a new business rule for hand-made files only | only hand-made configuration files notice it | B | process-log 2026-11-05; verification CODE-2 | accept |
+| C.5 | A-3: the click menu card shifts sideways to clear open panels (marker stays at the point) | nothing covers the properties panel | – | B | process-log 2026-11-05; BUG-T7 | keep |
+| C.6 | X-4: two-step `Esc` in the `Eigenschaft` combobox | the popup is the innermost open part | = B.17 | B | process-log 2026-11-05; BUG-T10 | keep |
+| C.7 | BUG-T11 / Q-005 (answered `Fokus freie Fläche`): `Fokus` fits into the free area; no layout change (split stays 55 / 45) | your answer 2026-11-06 | = B.38–B.40 | B | process-log 2026-11-06; TASK-021 | confirmed |
+| C.8 | BUG-T12 / Q-006 (answered `So lassen`): `Farbskala` labels span all elements | stable colours (DEC-15) | known limitation | B | Q-006; process-log 2026-11-05 | confirmed |
+| C.9 | BUG-T13 / Q-007 (answered `Akzeptieren`): a configuration plane far outside the models loads silently; `Schnitt entfernen` fixes it | a notice would change DEC-20 | known limitation | B | Q-007; process-log 2026-11-05 | confirmed |
+| C.10 | **Open:** a section stays after the model it was cut on is removed while another model remains; cleared with the last model | the spec does not decide this | the remaining model may look cut or empty; `Schnitt entfernen` fixes it | B | report-INC-2 §5, §7.4 | decide: keep (proposal) or clear the section on model removal (CR) |
+| C.11 | Not covered: `Schneiden` when a queued display plan hides the clicked element itself; the product cuts with the pick it holds | the spec does not decide this; an edge case of fast clicks | – | T | report-INC-2 §5 (SYNC-5) | accept |
+| C.12 | SYNC-7: the 1.0.0 gate note "not saved: collapsed details panel" is obsolete (the panel is gone); IfcSpace option and splitter position stay unsaved | as built | – | B | verification SYNC-7 | for information |
+| C.13 | Process: CR-002 work on the session branch with tag `pre-CR-002` instead of `change/CR-002-<slug>` | the environment allows pushes to the session branch only | rollback via tag and `git revert` | T | process-log 2026-11-04 | accept |
+| C.14 | Process: `INC2_PENDING` list in the traceability check during INC-2, now empty | keep `check` green per task without hiding untested ACs | trace 100 / 100 ACs | T | process-log 2026-11-04 | for information |
+| C.15 | Process: INC-2 tasks ran one after another, not in parallel waves | one HTML file; parallel edits risk lost writes | – | T | process-log 2026-11-04 | accept |
+| C.16 | BUG-T14 flaky `REQ-013-AC1` test fixed in the test (tolerance unchanged); regression on `08e0fc7`: no failure, no flaky test | test timing, not a product defect | – | T | report-INC-2 §4 | for information |
+| C.17 | Carried over from 1.0.0 (1.0.0 gate 1.6, unchanged): the builder offline shows the English `Failed to fetch` at start | not in CR-002 scope | as 1.0.0 | B | release-notes-1.0.0 | accept as known issue (or `/change`) |
+
+## Block D — NFR deviation Q-002 (PCs without GPU)
+
+| # | What | Why | Effect | Type | Source | Proposal |
+|---|---|---|---|---|---|---|
+| D.1 | NFR-001 at 30,931 elements, software WebGL (no GPU): every measured median meets ≤ 500 ms for the Q-002 metric (last changed 3D frame): filter sets 233–331 ms, CR-002 actions 13–299 ms, selection 169 / 174 ms, view-3d frames 149–296 ms; the pixels reach the screen **0.73–1.24 s** after the input (recorded only) | Q-002 (you, 2026-11-02): the last changed frame counts; software rasterisation of ~30k elements costs 0.5–0.8 s per frame and cannot be removed in the app | on PCs without GPU the 3D image lags about 1 s behind a click at ≥ 30,000 elements; filter sets and table are fast; BUG-T4 of 1.0.0 did not recur | B | report-INC-2 §3; perf run on `08e0fc7`; Q-002; 1.0.0 gate 1.1 | accept for 1.1.0 incl. the new CR-002 interactions; GPU check (F.2) decides |
+
+## Block E — CR-003 (proposed, text only)
+
+| # | What | Why | Effect | Type | Source | Proposal |
+|---|---|---|---|---|---|---|
+| E.1 | CR-003: spec §4.4 names the test seam `CalcView.contextState()` (context geometry such as IfcSite terrain, used by REQ-013-AC3); spec §4.2 and `AGENTS.md` §4 `source_layout` list `test/acceptance` and `test/support` | the seam and folders exist and are used; the baseline text lags (verification SYNC-6) | documentation only; no code, test or behaviour change; version effect none | T | `docs/changes/register.md` CR-003; verification-INC-2 CR-C; process-log 2026-11-05 | approve and apply with the 1.1.0 release |
+
+## Block F — Open manual checks (release with them open, or run before tagging)
+
+| # | What | Why | Effect | Type | Source | Proposal |
+|---|---|---|---|---|---|---|
+| F.1 | T12 smoke in current Chrome and Edge (runbook → Smoke steps for 1.1.0, incl. toolbar, rule dialog, click menu, section handle drag, colouring, viewer file); Firefox best effort | only headless Chromium 153 is automated | real-browser look and pointer handling unverified | T | spec Testing T12; ASM-007 / DEC-8 | run before tagging, or release with it open |
+| F.2 | GPU measurement of NFR-001 (pixels on screen) on a PC with a graphics card | the test machine has no GPU; estimate 150–300 ms not measured | decides D.1 | T | Q-002; 1.0.0 gate 1.1 | run at release |
+| F.3 | R-3: open an exported `.xlsx` in Microsoft Excel | only openpyxl and LibreOffice tested | unchanged from 1.0.0 | T | spec §7 R-3 | run, or keep open |
+| F.4 | Download names with umlauts in real Chrome / Edge (headless names them `download`) | headless behaviour only | unchanged from 1.0.0 | T | release-notes-1.0.0 | run, or keep open |
+| F.5 | T14 charter "quantity overview for a real project" with your own project files (only public samples tested, ASM-003) | no real project models in the repository | real-model behaviour of the new tools unverified | T | 1.0.0 gate 1.4; ASM-003 | run with your files, or keep open |
+| F.6 | After approval: commit the release documents, tag `v1.1.0` on a commit whose `calc-viewer-builder.html` equals the tested file (sha256 `055281aa…a769e`), mark CR-002 released | release procedure | – | T | runbook; release-notes-1.1.0 | do after approval |

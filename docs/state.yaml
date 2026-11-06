@@ -7,7 +7,7 @@ autonomy: autonomous
 modifiers: [ui, brownfield]
 cycle: 2
 
-current_phase: testing
+current_phase: release
 current_increment: INC-2
 resume_after: null
 
@@ -16,8 +16,8 @@ phases:
   - {id: spec,           status: done, gate: agent, approval: {by: agent, date: 2026-11-04, note: "cycle-2 delta: 3 independent lenses, 2 fix passes, recheck PASS; user answer Q9"}}
   - {id: implementation, status: done, gate: agent, approval: {by: agent, date: 2026-11-05, note: "INC-2: 15 tasks, each independently verified PASS; Q-004 answered by user"}}
   - {id: verification,   status: done, gate: agent, approval: {by: agent, date: 2026-11-05, note: "INC-2: 3 lenses + adversarial confirmation, 12 findings resolved, independent recheck PASS; CR-003 proposed"}}
-  - {id: testing,        status: in_progress, gate: agent}
-  - {id: release,        status: todo, gate: human}
+  - {id: testing,        status: done, gate: agent, approval: {by: agent, date: 2026-11-06, note: "report-INC-2 GO WITH DEVIATIONS; BUG-T11..T14 fixed or decided (Q-005..Q-007); release-candidate regression 08e0fc7: 227/0/0 file, 225/0/2 http, perf all NFRs met"}}
+  - {id: release,        status: in_progress, gate: human}
 
 increments:
   - {id: INC-1, cycle: 1, status: done, gate: agent}
@@ -26,7 +26,7 @@ blocking_questions: []
 active_changes: [CR-002]
 pending_release: []
 reserved_ids: {}
-next_action: "testing cycle 2 (release 1.1.0): full suites incl. perf, exploratory and acceptance against CR-002, SYNC-5 items 1/2; report docs/testing/report-INC-2.md; then release docs and human release gate (incl. CR-003, decisions list)"
+next_action: "human release gate 1.1.0: docs/release/decisions-to-confirm-1.1.0.md blocks A-F incl. CR-003 and open item C.10; then apply CR-003, tag v1.1.0, maintenance"
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
@@ -54,3 +54,4 @@ history:
   - {date: 2026-11-04, event: "cycle-2 spec delta approved at agent gate (independent review, recheck PASS); user answer Q9 (Filter entfernen resets everything); implementation INC-2 started"}
   - {date: 2026-11-05, event: "INC-2 implementation done: TASK-011a..020 each independently verified PASS; Q-004 answered by user (Über Gruppe, REQ-013-AC3 corrected); NFR-001/003/005 re-measured and met; INC2_PENDING empty; verification INC-2 started"}
   - {date: 2026-11-05, event: "verification INC-2 done: 23 raw findings, 12 confirmed (UX-1 major fixed), resolved, independent recheck PASS; CR-003 proposed (text only); testing cycle 2 started"}
+  - {date: 2026-11-06, event: "testing cycle 2 done (agent gate): TASK-021 (BUG-T11) verified; release-candidate 08e0fc7 regression and perf green; release docs 1.1.0 written and independently reviewed (8 doc findings fixed); human release gate opened"}
