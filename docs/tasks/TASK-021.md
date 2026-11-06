@@ -96,7 +96,11 @@ Re-run, all green: element-tools-3d (3D-side `Fokus` incl. the camera-equality c
 6. **The fit after loading stays the whole-view fit.** No overlay is open then, except a pill stack from a loaded configuration.
 
 ## Open
-1. **QUESTION FOR USER (release gate, not blocking):** Q-005 reads "`Fokus` and `Isolieren` fit the model into the area not covered by panels". `Isolieren` currently keeps the camera, as the reference and REQ-013 / DEC-18. Options:
+1. **Answered 2026-11-06 (Q-005 clarified, user: `Nein, wie HTML Viewer (Recommended)`): `Isolieren` keeps the camera.** Original question: Q-005 reads "`Fokus` and `Isolieren` fit the model into the area not covered by panels". `Isolieren` currently keeps the camera, as the reference and REQ-013 / DEC-18. Options:
    - (a) **(Recommended)** leave it: `Fokus` after `Isolieren` gives the free-area fit with one click, and the camera does not jump on each `Isolieren`;
    - (b) refit into the free area after every `Isolieren`. This changes REQ-013 behaviour against the reference, so it needs a CR or a recorded user decision. Then a small change in cv-app `isolateElements`: call the same fit after the refresh.
 2. Not tested: a free-area `Fokus` below 1280 px with the filter drawer open. The drawer is outside the 3D view's overlays, and the 3D view is then at full width. Also not tested: the splitter at its extremes.
+
+## Verification
+
+Independent verifier (fresh context), 2026-11-06: VERDICT PASS. Unit 5/5; focus-free-area + element-tools 14/14 on both projects; regression 84/84 on both projects; perf view-3d, nfr-001, nfr-001-cr002 4/4 on `file`; check green; trace current. Own probe at 1280×800 (properties + filter / colouring panel, tiny-area fallback) confirmed. Minor: AC6 fill bound loose (≥ 50 %, measured 59 %); orbit pivot after a free-area `Fokus` is the middle of the free area (decision 4, release gate); OrbitControls damping after a drag (older behaviour).
