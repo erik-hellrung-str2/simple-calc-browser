@@ -11,6 +11,7 @@ import { filterSet, toggleValue } from "../support/filter-area.mjs";
 import { colourBy, idle, keysOfGuids, rowsByKey, viewState } from "../support/view-3d.mjs";
 import { allTableRows, headerKeys } from "../support/table.mjs";
 import { clickRow } from "../support/selection.mjs";
+import { freeAreaCheck, overlayRects, unionBox } from "../support/free-area.mjs";
 import { addRule, openFilterPanel, removeRule, toolbar } from "../support/rules.mjs";
 import { exportFile, readExport } from "../support/export.mjs";
 import {
@@ -267,14 +268,36 @@ test("@e2e @acceptance @REQ-005-AC6 `Fokus` in the toolbar fits an isolated grou
   expect((await viewState(page)).opaque).toEqual([]);
   await toolbar(page).getByRole("button", { name: "Fokus", exact: true }).click();
   await idle(page);
+  const rows = [...(await rowsByKey(page)).values()].filter((row) => row.geometry);
+  for (const row of rows)
+    expect(inside(await page.evaluate((k) => window.CalcView.screenBox(k), row.key)), row.key).toBe(true);
+  // TASK-021 (user decision Q-005 for BUG-T11, changed expectation): the pills `Filter entfernen` and `Isolierung
+  // entfernen` cover the bottom right of the 3D view, so all models are fitted into the part they leave free, not the
+  // whole view. Was: the camera equals the fit after loading (still asserted without overlays: the 3D side's `Fokus`
+  // in element-tools-3d.spec.mjs and the toolbar's in focus-free-area.spec.mjs). Now: every element with geometry lies
+  // in that free area and all models together fill their free span (a fit, not just any distant camera), and the
+  // camera is the whole-view fit of all models moved across the view (same view direction as after loading).
+  const rects = await overlayRects(page);
+  expect(rects.covering.map((r) => r.id)).toEqual(["cv-pills"]);
+  const all = freeAreaCheck(
+    await unionBox(
+      page,
+      rows.map((row) => row.key),
+    ),
+    rects,
+    3,
+  );
+  expect(all.inside).toBe(true);
+  expect(all.hits, "no model part under the pill stack").toEqual([]);
+  console.log(`[REQ-005-AC6] all models fill ${(all.fill * 100).toFixed(0)} % of their free span beside the pills`);
+  expect(all.fill).toBeGreaterThanOrEqual(0.5);
   const cam = await page.evaluate(() => window.CalcView.camera());
-  for (let i = 0; i < 3; i++) {
-    expect(cam.position[i]).toBeCloseTo(loaded.position[i], 6);
-    expect(cam.target[i]).toBeCloseTo(loaded.target[i], 6);
-  }
-  for (const row of (await rowsByKey(page)).values())
-    if (row.geometry)
-      expect(inside(await page.evaluate((k) => window.CalcView.screenBox(k), row.key)), row.key).toBe(true);
+  const dir = (c) => {
+    const d = c.position.map((v, i) => v - c.target[i]);
+    const n = Math.hypot(...d);
+    return d.map((v) => v / n);
+  };
+  for (let i = 0; i < 3; i++) expect(dir(cam)[i]).toBeCloseTo(dir(loaded)[i], 6);
   expect(errors).toEqual([]);
 });
 

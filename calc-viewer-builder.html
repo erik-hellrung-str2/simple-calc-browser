@@ -5975,6 +5975,67 @@
         parts.push("</body>\n</html>\n");
         return parts;
       }
+
+      /**
+       * `Fokus` into the free area (TASK-021, Q-005 for BUG-T11; design detail inside REQ-005-AC6): the share of the
+       * full-view fit scale below which the free area counts as too small and the whole 3D view is used instead.
+       */
+      export const FREE_AREA_MIN_SCALE = 0.25;
+
+      /**
+       * The part of the 3D view a `Fokus` fits the model into while overlays cover the view (TASK-021, Q-005). view =
+       * { width, height } in px; overlays = [{ left, top, right, bottom }] in px relative to the view (parts outside
+       * the view and empty rects are ignored); modelWidth / modelHeight = the model's extent across and up the screen
+       * (any unit, only their ratio counts). Among the largest rectangles of the view that no overlay covers (edges
+       * from the view and overlay edges), it takes the one the model can be shown biggest in: the highest scale
+       * min(w / modelWidth, h / modelHeight), then the larger area, then the first found (left, then top). Returns
+       * { left, top, right, bottom } (px, relative to the view), or null for the whole view: no overlay covers the
+       * view, or the best scale is below minScale (default FREE_AREA_MIN_SCALE) of the whole view's scale.
+       */
+      export function freeFitArea(view, overlays, modelWidth, modelHeight, minScale) {
+        const W = Number(view && view.width) || 0;
+        const H = Number(view && view.height) || 0;
+        if (W <= 0 || H <= 0) return null;
+        const blocks = [];
+        for (const o of overlays || []) {
+          if (!o) continue;
+          const left = Math.max(0, Number(o.left));
+          const right = Math.min(W, Number(o.right));
+          const top = Math.max(0, Number(o.top));
+          const bottom = Math.min(H, Number(o.bottom));
+          if (![left, right, top, bottom].every(Number.isFinite) || right <= left || bottom <= top) continue;
+          blocks.push({ left, right, top, bottom });
+        }
+        if (!blocks.length) return null;
+        const mw = Number(modelWidth) > 0 ? Number(modelWidth) : 1;
+        const mh = Number(modelHeight) > 0 ? Number(modelHeight) : 1;
+        const scaleOf = (w, h) => Math.min(w / mw, h / mh);
+        const edges = (a, b) => {
+          const set = new Set([0, a]);
+          for (const block of blocks) set.add(block[b[0]]).add(block[b[1]]);
+          return [...set].sort((x, y) => x - y);
+        };
+        const xs = edges(W, ["left", "right"]);
+        const ys = edges(H, ["top", "bottom"]);
+        let best = null;
+        for (let i = 0; i < xs.length; i++)
+          for (let j = i + 1; j < xs.length; j++)
+            for (let k = 0; k < ys.length; k++)
+              for (let l = k + 1; l < ys.length; l++) {
+                const r = { left: xs[i], right: xs[j], top: ys[k], bottom: ys[l] };
+                if (blocks.some((b) => b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top))
+                  continue;
+                const w = r.right - r.left;
+                const h = r.bottom - r.top;
+                const scale = scaleOf(w, h);
+                const area = w * h;
+                if (!best || scale > best.scale || (scale === best.scale && area > best.area))
+                  best = { rect: r, scale, area };
+              }
+        const min = minScale === undefined ? FREE_AREA_MIN_SCALE : Number(minScale);
+        if (!best || best.scale < min * scaleOf(W, H)) return null;
+        return best.rect;
+      }
     </script>
 
     <!-- DOM: layout, model list, messages, progress and status (builder and viewer file). ASCII only. -->
@@ -7395,6 +7456,21 @@
           panel: () => open,
           layoutPills,
           layoutOverlays,
+          /**
+           * Page rects ({ left, top, right, bottom }) of the overlays that cover the 3D view for a `Fokus` into the free
+           * area (TASK-021, Q-005): the open filter or colouring panel, the properties panel and the pill stack while
+           * shown and not empty. Toolbar, hint, title chip and the click menu (anchored at a model point, it moves with
+           * the camera) do not count.
+           */
+          coveringRects() {
+            const out = [];
+            for (const node of [filter.panel, colour.panel, props, pills]) {
+              if (!shown(node)) continue;
+              const r = node.getBoundingClientRect();
+              if (r.width > 0 && r.height > 0) out.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+            }
+            return out;
+          },
           /** The properties panel whose place layoutOverlays manages (renderLayout, REQ-007). */
           attachProps(panel) {
             props = panel;
@@ -9541,6 +9617,7 @@
       import * as THREE from "three";
       import * as FRAGS from "@thatopen/fragments";
       import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import { freeFitArea } from "calc-core";
 
       const VIEW_DIRECTION = new THREE.Vector3(1, 0.75, 1).normalize();
       const FIT_PADDING = 1.15; // `Fokus` and the fit after loading: tight box fit with the reference padding (ref L820-847)
@@ -9934,9 +10011,10 @@
         /**
          * Camera on box along the default view direction, as the reference (ref L820-847): the smallest distance at
          * which all 8 corners are inside the frustum, times FIT_PADDING. For a corner offset p from the centre:
-         * d >= |p . right| / tan(hFov / 2) + p . dir (and the same for up / vFov).
+         * d >= |p . right| / tan(hFov / 2) + p . dir (and the same for up / vFov). covering (optional, `Fokus`
+         * only, TASK-021): see freeArea; with a free area the box is fitted into that part of the view instead.
          */
-        function fitBox(box) {
+        function fitBox(box, covering) {
           if (box.isEmpty()) return;
           const center = box.getCenter(new THREE.Vector3());
           const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
@@ -9944,27 +10022,101 @@
           const forward = VIEW_DIRECTION.clone().negate();
           const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
           const up = new THREE.Vector3().crossVectors(right, forward);
-          const corner = new THREE.Vector3();
-          let distance = 0;
+          const corners = [];
           for (let i = 0; i < 8; i++) {
-            corner.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z);
-            corner.sub(center);
-            const towardCamera = corner.dot(VIEW_DIRECTION);
-            distance = Math.max(
-              distance,
-              Math.abs(corner.dot(right)) / tanH + towardCamera,
-              Math.abs(corner.dot(up)) / tanV + towardCamera,
+            const corner = new THREE.Vector3(
+              i & 1 ? box.max.x : box.min.x,
+              i & 2 ? box.max.y : box.min.y,
+              i & 4 ? box.max.z : box.min.z,
             );
+            corners.push(corner.sub(center));
           }
-          distance = Math.max(distance * FIT_PADDING, 0.1);
-          controls.target.copy(center);
-          camera.position.copy(center).addScaledVector(VIEW_DIRECTION, distance);
+          const area = freeArea(corners, right, up, covering);
+          let distance = 0;
+          const shift = new THREE.Vector3(); // camera and orbit target moved across the view (free-area fit only)
+          if (!area) {
+            for (const corner of corners) {
+              const towardCamera = corner.dot(VIEW_DIRECTION);
+              distance = Math.max(
+                distance,
+                Math.abs(corner.dot(right)) / tanH + towardCamera,
+                Math.abs(corner.dot(up)) / tanV + towardCamera,
+              );
+            }
+            distance = Math.max(distance * FIT_PADDING, 0.1);
+          } else {
+            /*
+             * Free-area fit (TASK-021, Q-005): the box must project into the part [lo, hi] (as tangents of the view
+             * angle) of the view. With the camera at centre + dir * d + axis * s, a corner offset p projects to
+             * (p . axis - s) / (d - p . dir) on that axis, so lo * (d - p . dir) <= p . axis - s <= hi * (d - p . dir)
+             * for every corner: linear in d and s. The smallest d is (max v - min u) / (hi - lo) with u = lo * p . dir
+             * + p . axis and v = hi * p . dir + p . axis; the padding then scales d as the reference, and s is set to
+             * the middle of its allowed range, so the box is centred in the free area.
+             */
+            const { width, height } = renderer.domElement.getBoundingClientRect();
+            const axes = [
+              [right, ((2 * area.left) / width - 1) * tanH, ((2 * area.right) / width - 1) * tanH],
+              [up, (1 - (2 * area.bottom) / height) * tanV, (1 - (2 * area.top) / height) * tanV],
+            ];
+            const bounds = (axis, lo, hi) => {
+              let minU = Infinity;
+              let maxV = -Infinity;
+              for (const corner of corners) {
+                const along = corner.dot(axis);
+                const toward = corner.dot(VIEW_DIRECTION);
+                minU = Math.min(minU, lo * toward + along);
+                maxV = Math.max(maxV, hi * toward + along);
+              }
+              return { minU, maxV };
+            };
+            const limits = axes.map(([axis, lo, hi]) => ({ axis, lo, hi, ...bounds(axis, lo, hi) }));
+            for (const corner of corners) distance = Math.max(distance, corner.dot(VIEW_DIRECTION));
+            for (const { lo, hi, minU, maxV } of limits) distance = Math.max(distance, (maxV - minU) / (hi - lo));
+            distance = Math.max(distance * FIT_PADDING, 0.1);
+            for (const { axis, lo, hi, minU, maxV } of limits) {
+              const a = (lo * distance - minU + hi * distance - maxV) / 2; // a = -s, middle of its allowed range
+              shift.addScaledVector(axis, -a);
+            }
+          }
+          controls.target.copy(center).add(shift);
+          camera.position.copy(center).add(shift).addScaledVector(VIEW_DIRECTION, distance);
           camera.near = Math.max(distance / 1000, 0.01);
           camera.far = distance * 100;
           camera.updateProjectionMatrix();
           controls.update();
           requestRender();
           updateView(true);
+        }
+
+        /**
+         * The free part of the view for a `Fokus` (TASK-021, Q-005): covering() gives the page rects of the overlays
+         * that cover the 3D view (cv-app: open panels, properties panel, pill stack); freeFitArea picks the part the
+         * box (corner offsets from its centre) can be shown biggest in. Returns { left, top, right, bottom } in px
+         * relative to the canvas, or null for the whole canvas (no covering overlay, or no reasonable free part).
+         */
+        function freeArea(corners, right, up, covering) {
+          if (typeof covering !== "function") return null;
+          const rects = covering() || [];
+          if (!rects.length) return null;
+          const canvas = renderer.domElement.getBoundingClientRect();
+          if (!canvas.width || !canvas.height) return null;
+          const overlays = rects.map((r) => ({
+            left: r.left - canvas.left,
+            right: r.right - canvas.left,
+            top: r.top - canvas.top,
+            bottom: r.bottom - canvas.top,
+          }));
+          const extent = (axis) => {
+            let lo = Infinity;
+            let hi = -Infinity;
+            for (const corner of corners) {
+              const v = corner.dot(axis);
+              lo = Math.min(lo, v);
+              hi = Math.max(hi, v);
+            }
+            return hi - lo;
+          };
+          return freeFitArea({ width: canvas.width, height: canvas.height }, overlays, extent(right), extent(up));
         }
 
         /** Fit on all models (after loading; `Fokus` without an opaque element; the 1.0.0 `Ansicht einpassen`). */
@@ -9977,7 +10129,7 @@
          * applied display plan: ghosts, tool-hidden and filtered-out elements and elements without geometry do not
          * count); with no opaque element it fits all models.
          */
-        async function focus() {
+        async function focus(covering) {
           const box = new THREE.Box3();
           for (const [modelId, items] of mirror) {
             const model = models.get(modelId);
@@ -9988,7 +10140,7 @@
             const merged = await model.getMergedBox(ids);
             if (merged && !merged.isEmpty()) box.union(merged);
           }
-          fitBox(box.isEmpty() ? sceneBox() : box);
+          fitBox(box.isEmpty() ? sceneBox() : box, covering);
         }
 
         // ---------- serialised engine calls ----------
@@ -10726,9 +10878,13 @@
           },
           axisRange,
           fit,
-          /** `Fokus` (REQ-005): fit to the opaque elements of the latest display plan queued before this call. */
-          focus() {
-            return enqueue(focus);
+          /**
+           * `Fokus` (REQ-005): fit to the opaque elements of the latest display plan queued before this call. covering
+           * (optional, TASK-021): a function returning the page rects of the overlays that cover the 3D view, read when
+           * the fit runs; the fit then uses the free part of the view (freeFitArea), else the whole view.
+           */
+          focus(covering) {
+            return enqueue(() => focus(covering));
           },
           /** Closes the click menu (e.g. `Esc`, REQ-007 order). */
           closeMenu,
@@ -12456,7 +12612,8 @@
         /** Toolbar, filter panel and pill (TASK-015a; REQ-005, REQ-012). */
         const toolHandlers = {
           focus() {
-            engine.focus();
+            // TASK-021 (Q-005, BUG-T11): fit into the part of the 3D view the open overlays leave free
+            engine.focus(() => ui.tools.coveringRects());
           },
           mode(mode) {
             if (mode === viewMode) return;
