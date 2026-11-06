@@ -401,6 +401,12 @@ test("@e2e @acceptance @REQ-012-AC11 by keyboard only at 1024 px: `Anwenden` (En
   await page.keyboard.press("Enter");
   await page.keyboard.press("Tab");
   await page.keyboard.type("Kategorie");
+  // the typed text opened the suggestion list: the first `Esc` closes only that popup (REQ-007 `Esc` order; testing
+  // cycle 2 X-4), the second closes the dialog without change
+  await expect(f.suggestions).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(f.suggestions).toBeHidden();
+  await expect(f.dialog).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(f.dialog).toBeHidden();
   await expect(filterPanel(page)).toBeVisible(); // Esc closed only the dialog

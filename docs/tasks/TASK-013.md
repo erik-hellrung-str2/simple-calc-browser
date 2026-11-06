@@ -135,3 +135,6 @@ Other files:
 - **TASK-016:** wire `propsHandlers.colourByValue`.
 - **TASK-017c / TASK-019:** `Esc` order with the menu, and focus return when the panel closes. Today Esc clears the selection, and focus is not moved.
 - **Not built:** the reference's bottom sheet below 600 px. Outside the supported widths (≥ 1024 px, §2 Devices).
+
+## Testing cycle 2 (2026-11-05)
+- Follow-up fixes in this task's area (A-1 table width, X-1 panel head, X-2 legend, X-3 rule rows, A-4 gradient labels documented): see `docs/tasks/TASK-019.md` "Testing cycle 2" and `test/e2e/overlay-robustness.spec.mjs`.

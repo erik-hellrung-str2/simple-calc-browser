@@ -945,6 +945,16 @@
         position: relative;
         min-width: 100%;
       }
+      /*
+       * Header, rows and total row are at least as wide as the table area, so header bar, row stripes and the selection
+       * reach the right edge when the columns are narrower (CR-002 1.4 "Die Tabelle unten geht bis nach rechts";
+       * testing cycle 2 A-1). Their explicit width (sum of the columns) still applies when it is larger.
+       */
+      .cv-tbl-head,
+      .cv-tbl-body > .cv-tr,
+      .cv-tbl-foot {
+        min-width: 100%;
+      }
       .cv-tbl-head {
         position: sticky;
         top: 0;
@@ -1436,6 +1446,26 @@
         color: var(--cv-ink);
         overflow-wrap: anywhere;
       }
+      /*
+       * Very long texts in overlay heads, legend rows, rule rows and filter-area entries are clamped to a few lines with
+       * an ellipsis; the full text is the element's tooltip (spec Testing T7; testing cycle 2 X-1..X-3). The properties
+       * panel head stays within the 160 px of the REQ-005 overlay layout, so its buttons and body stay reachable.
+       */
+      .cv-clamp-2,
+      .cv-clamp-3,
+      .cv-props-panel .cv-det-title,
+      .cv-props-panel .cv-det-kicker,
+      .cv-props-chip {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        overflow: hidden;
+      }
+      .cv-clamp-2,
+      .cv-props-panel .cv-det-kicker,
+      .cv-props-chip {
+        -webkit-line-clamp: 2;
+      }
       .cv-props-panel .cv-det-close {
         flex: none;
         width: 30px;
@@ -1656,7 +1686,8 @@
         position: absolute;
         left: 0;
         bottom: 20px;
-        transform: translateX(-50%);
+        /* --cv-pick-shift: sideways shift that keeps the card clear of the floating panels (cv-3d, testing cycle 2 A-3) */
+        transform: translateX(calc(-50% + var(--cv-pick-shift, 0px)));
         display: flex;
         gap: 2px;
         padding: 6px;
@@ -1668,12 +1699,15 @@
       .cv-pick-card::after {
         content: "";
         position: absolute;
-        left: 50%;
+        left: calc(50% - var(--cv-pick-shift, 0px));
         bottom: -5px;
         width: 10px;
         height: 10px;
         background: #fff;
         transform: translateX(-50%) rotate(45deg);
+      }
+      .cv-pick-detached .cv-pick-card::after {
+        display: none;
       }
       .cv-pick-below .cv-pick-card {
         top: 20px;
@@ -2477,6 +2511,12 @@
         color: var(--cv-muted);
         font-size: 11px;
       }
+      .cv-gradient-labels > span {
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
       /* legend in the panel: 13 px value and count (UI-02, TASK-005 L2), 14 px swatch (REQ-005) */
       .cv-colour-step > .cv-legend {
         flex: 0 1 auto;
@@ -2489,7 +2529,7 @@
       }
       .cv-legend-row {
         display: flex;
-        align-items: center;
+        align-items: flex-start; /* swatch and count at the first line of a clamped long value (testing cycle 2 X-2) */
         gap: 10px;
         padding: 6px 10px;
         border-bottom: 1px solid var(--cv-line);
@@ -2501,6 +2541,7 @@
         flex: none;
         width: 14px;
         height: 14px;
+        margin-top: calc((1lh - 14px) / 2);
         border-radius: 4px;
         box-shadow: inset 0 0 0 1px rgba(23, 24, 26, 0.12);
       }
@@ -6453,6 +6494,7 @@
                 node.dataset.source = item.id;
                 node.dataset.opens = String(Boolean(item.opens));
                 const text = item.opens ? el("button", "cv-fa-source-text") : el("span", "cv-fa-source-text");
+                text.append(el("span", "cv-clamp-3")); // long search texts are clamped (testing cycle 2 X-3)
                 if (item.opens) {
                   text.type = "button";
                   text.title = "Filter anzeigen";
@@ -6462,7 +6504,8 @@
                 remove.addEventListener("click", () => handlers.removeSource && handlers.removeSource(item.id));
                 node.append(text, remove);
               }
-              node.firstChild.textContent = item.text;
+              node.firstChild.firstChild.textContent = item.text;
+              node.firstChild.firstChild.title = item.text;
               const remove = node.lastChild;
               remove.title = item.text + " entfernen";
               remove.setAttribute("aria-label", item.text + " entfernen");
@@ -6910,6 +6953,8 @@
           gradient.style.background = g ? "linear-gradient(to right, " + g.from + ", " + g.to + ")" : "";
           gradientFirst.textContent = g ? g.first : "";
           gradientLast.textContent = g ? g.last : "";
+          gradientFirst.title = gradientFirst.textContent;
+          gradientLast.title = gradientLast.textContent;
           const { rows, more } = data.legend();
           const nodes = rows.map((entry) => {
             const row = el("div", "cv-legend-row");
@@ -6919,7 +6964,8 @@
             const swatch = el("span", "cv-legend-swatch");
             swatch.style.background = entry.colour;
             swatch.setAttribute("aria-hidden", "true");
-            const value = el("span", "cv-legend-value", entry.label);
+            const value = el("span", "cv-legend-value cv-clamp-3", entry.label);
+            value.title = entry.label; // long values are clamped (testing cycle 2 X-2)
             value.classList.toggle("cv-empty-value", entry.kind !== "value");
             row.append(swatch, value, el("span", "cv-legend-count", formatCount(entry.count)));
             return row;
@@ -7300,7 +7346,11 @@
                 const edit = el("button", "cv-rule-text");
                 edit.type = "button";
                 edit.title = "Filter bearbeiten";
-                edit.append(el("span", "cv-rule-mode", item.mode + ": "), document.createTextNode(item.text));
+                // long values are clamped to three lines, the full rule is the tooltip (testing cycle 2 X-3)
+                const label = el("span", "cv-clamp-3");
+                label.title = item.mode + ": " + item.text;
+                label.append(el("span", "cv-rule-mode", item.mode + ": "), document.createTextNode(item.text));
+                edit.append(label);
                 if (item.missing) edit.append(el("span", "cv-rule-note", "Eigenschaft nicht geladen"));
                 edit.addEventListener("click", () => handlers.editRule(index, edit));
                 const remove = iconButton("close", "Filter entfernen", "cv-rule-remove");
@@ -8398,7 +8448,10 @@
           const text = el("div", "cv-det-head-text");
           const titleNode = el("div", "cv-det-title", title);
           titleNode.id = "cv-props-title";
-          text.append(el("div", "cv-det-kicker", kicker), titleNode);
+          if (title) titleNode.title = String(title); // the head clamps long texts (testing cycle 2 X-1)
+          const kickerNode = el("div", "cv-det-kicker", kicker);
+          if (kicker) kickerNode.title = String(kicker);
+          text.append(kickerNode, titleNode);
           const close = iconButton("close", "Schlie\u00dfen", "cv-det-close");
           close.id = "cv-props-close";
           close.addEventListener("click", () => handlers.clear());
@@ -8749,7 +8802,13 @@
           if (options.returnFocus && options.returnFocus.isConnected) options.returnFocus.focus();
         }
         function onKey(event) {
-          if (event.key === "Escape") {
+          if (event.key === "Escape" && event.target === propertyInput && !suggestions.hidden) {
+            // an open popup first (REQ-007 `Esc` order, ARIA combobox): only the suggestion list closes, the dialog
+            // and the typed text stay (testing cycle 2 X-4)
+            event.preventDefault();
+            event.stopPropagation();
+            hideSuggestions();
+          } else if (event.key === "Escape") {
             event.preventDefault(); // handled: Escape closes the dialog only (not the panel, not the 3D selection)
             event.stopPropagation();
             finish();
@@ -9499,6 +9558,7 @@
       const SECTION_KEY_STEP_SHIFT = 0.1; // with Shift
       const SECTION_MIN_STEP = 0.001; // m, at least 1 mm per key press
       const PICK_MENU_FLIP_PX = 110; // the click menu opens below its point when the point is closer to the top (ref)
+      const PICK_MENU_PANEL_GAP = 8; // px between the click menu card and a floating panel or the 3D view's edge (A-3)
       // reasons in the display mirror (spec 4.4): visibility shown | filter | tool, paint ghost | mark | colour
       const SHOWN = "shown";
       const FILTERED = "filter";
@@ -10305,6 +10365,7 @@
             if (at) {
               pickMenu.style.transform = "translate(" + at.x + "px, " + at.y + "px)";
               pickMenu.classList.toggle("cv-pick-below", at.y < PICK_MENU_FLIP_PX);
+              shiftPickCard();
             }
           }
           if (section !== null) {
@@ -10315,6 +10376,64 @@
             if (inside) sectionHandle.style.transform = "translate(" + at.x + "px, " + at.y + "px)";
           }
         }
+        /**
+         * Keeps the card clear of the floating panels (properties, filter, colouring): spec 2 Devices "no two overlays
+         * overlap" (testing cycle 2 A-3). The card moves sideways only (the marker stays at the point, the card stays
+         * above or below it); the smallest shift that clears every open panel and stays inside the 3D view wins; when
+         * none exists the card stays centred.
+         */
+        function shiftPickCard() {
+          const panels = [...container.querySelectorAll(".cv-props-panel, .cv-float-panel")].filter(
+            (n) => !n.hidden && n.offsetWidth > 0,
+          );
+          const current = parseFloat(pickCard.style.getPropertyValue("--cv-pick-shift")) || 0;
+          let shift = 0;
+          if (panels.length) {
+            const box = container.getBoundingClientRect();
+            const k = pickCard.getBoundingClientRect();
+            const x = pickClose.getBoundingClientRect(); // the close button overhangs the card's top right corner
+            const c = {
+              left: k.left,
+              top: Math.min(k.top, x.top),
+              bottom: Math.max(k.bottom, x.bottom),
+              width: Math.max(k.right, x.right) - k.left,
+            };
+            const left = c.left - current; // the centred card
+            const gap = PICK_MENU_PANEL_GAP;
+            const rects = panels.map((n) => n.getBoundingClientRect());
+            const clear = (dx) =>
+              left + dx >= box.left + gap &&
+              left + dx + c.width <= box.right - gap &&
+              rects.every(
+                (r) =>
+                  left + dx >= r.right + gap ||
+                  left + dx + c.width <= r.left - gap ||
+                  c.top >= r.bottom + gap ||
+                  c.bottom <= r.top - gap,
+              );
+            if (!clear(0)) {
+              const candidates = [];
+              for (const r of rects) candidates.push(r.left - gap - (left + c.width), r.right + gap - left);
+              candidates.sort((a, b) => Math.abs(a) - Math.abs(b));
+              const found = candidates.find(clear);
+              if (found !== undefined) shift = found;
+            }
+          }
+          if (shift !== current) pickCard.style.setProperty("--cv-pick-shift", shift + "px");
+          // the arrow under the card points at the marker while it is over the card, else it is hidden
+          pickMenu.classList.toggle("cv-pick-detached", Math.abs(shift) > pickCard.offsetWidth / 2 - 14);
+        }
+        // a panel opened, closed or moved while the menu is open (no camera frame follows): place the card again
+        let shiftQueued = false;
+        new MutationObserver((records) => {
+          if (menuPick === null || shiftQueued) return;
+          if (records.every((r) => pickMenu.contains(r.target) || r.target === sectionHandle)) return;
+          shiftQueued = true;
+          requestAnimationFrame(() => {
+            shiftQueued = false;
+            if (menuPick !== null && !pickMenu.hidden && pickMenu.style.visibility !== "hidden") shiftPickCard();
+          });
+        }).observe(container, { subtree: true, attributes: true, attributeFilter: ["hidden", "style"] });
         function openMenu(hit) {
           menuPick = hit;
           pickMenu.hidden = false;

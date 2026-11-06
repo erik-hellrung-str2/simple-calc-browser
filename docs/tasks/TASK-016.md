@@ -89,3 +89,6 @@ New `test/e2e/colouring.spec.mjs` (7 tests). All green on `file` and `http`.
 
 ## Verification INC-2 (2026-11-05)
 - **SYNC-2 (a), documented:** decision 1 (colouring property list in catalogue order with the unit in the label) is recorded together with TASK-015b decision 1 as a refinement in `docs/process-log.md` (2026-11-05). Release-gate item.
+
+## Testing cycle 2 (2026-11-05)
+- Follow-up fixes in this task's area (A-1 table width, X-1 panel head, X-2 legend, X-3 rule rows, A-4 gradient labels documented): see `docs/tasks/TASK-019.md` "Testing cycle 2" and `test/e2e/overlay-robustness.spec.mjs`.

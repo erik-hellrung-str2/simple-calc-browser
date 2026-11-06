@@ -126,3 +126,6 @@ Each follows the approved CR-002 delta. No assertion was weakened.
 
 ## Verification INC-2 (2026-11-05)
 - **SYNC-5 (1)/(2):** see `docs/tasks/TASK-014.md` "Verification INC-2" (open for the testing phase with the reason).
+
+## Testing cycle 2 (2026-11-05)
+- The "Not tested here" items (`Schneiden` / `Fokus` while a display plan is queued; 1 mm minimum step on a flat extent) are now tested end to end through the toolbar `Fokus`, the menu item `Schneiden` and the focused handle: `test/e2e/section-robustness.spec.mjs` (`@e2e @robustness`, green on both projects). Details and bite checks: `docs/tasks/TASK-014.md` "Testing cycle 2".

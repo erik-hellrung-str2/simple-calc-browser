@@ -49,6 +49,38 @@ async function openWith(page, files) {
 const canvasBox = (page) => page.locator("#cv-viewport canvas").boundingBox();
 const project = (page, point) => page.evaluate((p) => window.CalcView3D.project(p), point);
 
+/**
+ * Waits until the click menu's marker stands still over two consecutive animation frames (each read after that
+ * frame's render, so after the menu's follow placement), then returns the marker geometry and the engine's projection
+ * of the clicked point read in that same frame: { g (as menuGeometry), p ({ x, y }) }. BUG-T14: the damped orbit
+ * still moves the camera after idle, and reads in separate evaluates could straddle a frame.
+ */
+function settledMenu(page, point) {
+  return page.evaluate(async (pt) => {
+    const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    const read = () => {
+      const d = document.querySelector("#cv-pick .cv-pick-dot").getBoundingClientRect();
+      const c = document.querySelector("#cv-pick .cv-pick-card").getBoundingClientRect();
+      return {
+        g: { x: d.left + d.width / 2, y: d.top + d.height / 2, card: { top: c.top, bottom: c.bottom } },
+        p: window.CalcView3D.project(pt),
+      };
+    };
+    const same = (a, b) => a.g.x === b.g.x && a.g.y === b.g.y;
+    await nextFrame();
+    let prev = read();
+    let still = 0;
+    for (let i = 0; i < 1200; i++) {
+      await nextFrame();
+      const now = read();
+      still = same(now, prev) ? still + 1 : 0;
+      prev = now;
+      if (still >= 2) return now;
+    }
+    throw new Error("click menu marker did not settle within 1200 frames");
+  }, point);
+}
+
 /** A canvas point where no element is picked (empty space), searched along the canvas border. */
 async function emptyPoint(page) {
   const c = await canvasBox(page);
@@ -112,9 +144,12 @@ test("@e2e @acceptance @REQ-013-AC1 a click on a wall at its projected screen po
   await idle(page);
   expect((await viewState(page)).selected, "an orbit is no pick").toEqual([at.key]);
   await expect(menu).toBeVisible();
-  g = await menuGeometry(page);
+  // the damped orbit keeps moving the camera after idle (about 1 px per frame at first); marker and projection are
+  // read in the same frame once the marker stood still over two follow frames (BUG-T14)
+  const settled = await settledMenu(page, opened.point);
+  g = settled.g;
   expect(Math.hypot(g.x - at.x, g.y - at.y), "the orbit moved the point on screen").toBeGreaterThan(5);
-  const p = await project(page, opened.point);
+  const p = settled.p;
   expect(Math.hypot(g.x - p.x, g.y - p.y), "menu at the clicked point after the orbit").toBeLessThanOrEqual(1.5);
   const again = await page.evaluate(([x, y]) => window.CalcView3D.pickAt(x, y), [g.x, g.y]);
   expect(again && again.key, "the marker lies on the wall").toBe(at.key);
