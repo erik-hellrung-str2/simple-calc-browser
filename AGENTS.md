@@ -42,7 +42,7 @@ A message that changes scope, requirements or design is a `/change`. A message t
 ```yaml
 project_name: Calc Viewer Builder
 stack: plain JavaScript in one hand-written HTML file (no build step); @thatopen/fragments 3.4.7 + three 0.185.1 + web-ifc 0.0.77 from jsDelivr; dev tooling Node 22, Playwright 1.63 (Chromium), Python 3 + openpyxl 3.1.5 (tests only)
-source_layout: calc-viewer-builder.html (product); scripts/ (vendor, fixtures, serve, check); test/{unit,integration,e2e,perf,fixtures}; docs/ (process)
+source_layout: calc-viewer-builder.html (product); scripts/ (vendor, fixtures, serve, check); test/{unit,integration,e2e,acceptance,perf,fixtures,support}; docs/ (process)
 commands:                  # exact shell commands, runnable from repo root (established by TASK-001a)
   install: npm ci && python3 -m pip install openpyxl==3.1.5 && node scripts/vendor-cdn.mjs && node scripts/fetch-fixtures.mjs
   format: npx prettier --write .

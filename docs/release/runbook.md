@@ -1,11 +1,11 @@
 ---
-status: draft
-date: 2026-11-06
-relates_to: [REQ-001, REQ-004, REQ-005, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-013, NFR-001, NFR-002, NFR-003, NFR-005, CON-001, CON-002, CON-003, CON-004, ASM-007, DEC-8, DEC-18, DEC-20, CR-002, Q-002, Q-007, R-3, T12]
+status: approved
+date: 2026-11-07
+relates_to: [REQ-001, REQ-004, REQ-005, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-013, NFR-001, NFR-002, NFR-003, NFR-005, CON-001, CON-002, CON-003, CON-004, ASM-007, DEC-8, DEC-18, DEC-20, CR-002, CR-003, Q-002, Q-007, R-3, T12]
 ---
 # Runbook — Calc Viewer Builder 1.1.0
 
-Updated for 1.1.0 (CR-002). Release notes: `docs/release/release-notes-1.1.0.md`; previous release 1.0.0 (tag `v1.0.0`).
+Updated for 1.1.0 (CR-002), released 2026-11-07 after the human release gate. Release notes: `docs/release/release-notes-1.1.0.md`; previous release 1.0.0 (tag `v1.0.0`).
 
 ## Overview
 - **What runs where:** everything runs in the user's browser. There is no server, database, login or telemetry (CON-004); IFC data never leaves the computer.
@@ -183,7 +183,7 @@ The messages below are the exact German texts of the product (`<Datei>` = file n
 2. Run the 1.0.0 health check: load FZK; the 1.0.0 screen with `Element-Details` on the right, `Ansicht einpassen` and the X/Y/Z `Schnitt`; `npx playwright test --grep @smoke` on a checkout of `v1.0.0`.
 3. Tell the authors: configurations saved by 1.1.0 load with a notice and lose rules, search and section; hidden and isolated elements were never saved.
 4. Viewer files exported with 1.1.0 keep working (self-contained); there is no need to re-export them.
-5. In the repository: revert the cycle-2 commits back to tag `pre-CR-002` (CR-002 §7). After a 1.1.0 release, the revert ships as 1.1.1 with smoke and full regression.
+5. In the repository: revert the cycle-2 commits back to tag `pre-CR-002` (CR-002 §7). 1.1.0 is released, so the revert ships as 1.1.1 with smoke and full regression.
 
 ## Backup and restore
 - Backup: nothing is stored by the application. Keep the IFC files, the saved `*_Konfiguration.json` files and the exported viewer files; keep each released `calc-viewer-builder.html` (git tag).

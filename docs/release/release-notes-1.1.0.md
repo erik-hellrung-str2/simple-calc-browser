@@ -1,12 +1,12 @@
 ---
 version: 1.1.0
-date: unreleased - pending release gate
-status: draft     # draft | approved | released
+date: 2026-11-07
+status: released  # draft | approved | released
 relates_to: [INC-2, CR-002, CR-003, REQ-003, REQ-004, REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-012, REQ-013, NFR-001, NFR-002, NFR-003, NFR-004, NFR-005, DEC-15, DEC-18, DEC-19, DEC-20, DEC-21, DEC-22, BUG-T2, BUG-T4, BUG-T5, BUG-T6, BUG-T7, BUG-T8, BUG-T9, BUG-T10, BUG-T11, BUG-T12, BUG-T13, BUG-T14, Q-002, Q-005, Q-006, Q-007, T12, R-3]
 ---
 # Release 1.1.0 — Calc Viewer Builder
 
-Second release (delivery cycle 2, increment INC-2, change request CR-002 "Filter, Eigenschaften und 3D-Werkzeuge wie im HTML Model Viewer"). Release candidate: commit `08e0fc7` on `claude/keen-cori-j7ysfx` (`calc-viewer-builder.html` sha256 `055281aa318f4f94cf5795b319b0637491f5d7821fa1a518fb8014ce983a769e`). It is tagged `v1.1.0` only after the human release gate. Test basis: `docs/testing/report-INC-2.md` (recommendation **GO WITH DEVIATIONS**), `docs/reviews/verification-INC-2.md`, `docs/tasks/TASK-011a.md` … `TASK-021.md`, and the regression and perf runs on `08e0fc7` (Test summary below). Release gate: `docs/release/decisions-to-confirm-1.1.0.md`.
+Second release (delivery cycle 2, increment INC-2, change request CR-002 "Filter, Eigenschaften und 3D-Werkzeuge wie im HTML Model Viewer"). Release candidate: commit `08e0fc7` on `claude/keen-cori-j7ysfx` (`calc-viewer-builder.html` sha256 `055281aa318f4f94cf5795b319b0637491f5d7821fa1a518fb8014ce983a769e`). Released as tag `v1.1.0` after the human release gate of 2026-11-07 (the released `calc-viewer-builder.html` is unchanged since `08e0fc7`). Test basis: `docs/testing/report-INC-2.md` (recommendation **GO WITH DEVIATIONS**), `docs/reviews/verification-INC-2.md`, `docs/tasks/TASK-011a.md` … `TASK-021.md`, and the regression and perf runs on `08e0fc7` (Test summary below). Release gate outcome (approved 2026-11-07): `docs/release/decisions-to-confirm-1.1.0.md` → Approval.
 
 ## Highlights
 - **The 3D view works like the HTML Model Viewer.** A round toolbar at the bottom of the 3D view has `Fokus`, `Filter` and `Färben`. A click on an element opens a menu at the click point with `Ausblenden`, `Isolieren` and `Schneiden`, and a floating properties panel at the top right.
@@ -49,7 +49,7 @@ Found and fixed during the INC-2 verification before testing (`docs/reviews/veri
 | CR | Category | Description | Version effect |
 |---|---|---|---|
 | CR-002 | normal, feature | In-viewer toolbar, rule filter, properties panel, element tools `Ausblenden` / `Isolieren` / `Schneiden`, colouring modes; right details column removed; table at full width. Approved by the user 2026-11-04 (answers Q1–Q10, `docs/changes/CR-002.md` §1a). | minor (1.1.0) |
-| CR-003 | documentation sync (proposed) | Spec §4.4 names the test seam `CalcView.contextState()`; spec §4.2 and `AGENTS.md` list `test/acceptance` and `test/support`. Text only, decided at this release gate. | none |
+| CR-003 | documentation sync | Spec §4.4 names the test seam `CalcView.contextState()`; spec §4.2 and `AGENTS.md` list `test/acceptance` and `test/support`; the spec wording of the synchronous display-text index build (§4.3, NFR-001; SYNC-1) and of the property order (REQ-012 suggestions, colouring list) follows the built behaviour. Text only; approved at the release gate 2026-11-07 and applied (`docs/changes/CR-003.md`). | none |
 
 ## Compatibility and upgrade notes
 - **Configuration files** keep `schema: "calc-viewer-config/1"`. 1.1.0 adds optional fields only (DEC-20).
@@ -60,18 +60,20 @@ Found and fixed during the INC-2 verification before testing (`docs/reviews/veri
 - **Removed controls:** `Ansicht einpassen` → `Fokus`; `Elemente außerhalb des Filters` → ghost toggle in the pill `Filter entfernen`; `Färben nach` → `Färben`; X/Y/Z `Schnitt` → `Schneiden` in the click menu; `Element-Details` → floating properties panel.
 
 ## Known issues, limitations and deviations
-- **NFR-001 on PCs without a GPU (Q-002 deviation, unchanged).** The last changed 3D frame meets ≤ 500 ms in every case, but on software WebGL the pixels reach the screen 0.73–1.24 s after the input. On a GPU this was **not measured** (manual check T12).
+- **Release gate 2026-11-07:** blocks A–E approved as proposed; the known limitations and deviations below were accepted; the manual checks F.1–F.5 stay open (see the last item).
+- **NFR-001 on PCs without a GPU (Q-002 deviation, unchanged, accepted at the release gate).** The last changed 3D frame meets ≤ 500 ms in every case, but on software WebGL the pixels reach the screen 0.73–1.24 s after the input. On a GPU this was **not measured** (manual check T12, F.2).
 - **`Farbskala` labels (BUG-T12, known limitation, user decision Q-006 `So lassen`):** the scale and its first / last label span all elements, so colours stay stable while filtering; with a narrow filter the labels can name values no shown element has.
 - **Configuration section far outside the models (BUG-T13, known limitation, user decision Q-007 `Akzeptieren`):** applied as given; the 3D view can look empty and the handle is off-screen. `Schnitt entfernen` fixes it in one click.
-- **Section after removing its model:** a section stays while another model is still loaded and is cleared with the last model. The spec does not decide this (testing observation; release gate item).
+- **Section after removing its model (C.10, known limitation, user decision `So lassen` at the release gate):** a section stays while another model is still loaded and is cleared with the last model; the remaining model may look cut or empty. `Schnitt entfernen` fixes it in one click.
 - **Many rules:** filter evaluation is linear in the number of rules (about 78 ms per interaction with 20,000 rules); only hand-made configuration files reach such counts (CODE-2).
 - **Display-text index without progress text** on a model change, IfcSpace switch, configuration load or viewer start with an active search or `Freie Textsuche` (SYNC-1). Measured over the INC-2 test runs and the release perf run: the IfcSpace switch with an active search takes 439–663 ms for the filter step and 652 ms to 1.7 s until the 3D frame at 30,931 elements (release run on `08e0fc7`: 439 ms, frame 652 / 785 ms), within the 2 s index target.
 - **Creating a section is pointer-only** (DEC-21; TASK-019 decision 6). The handle and `Schnitt entfernen` work by keyboard.
 - **`Isolieren` does not move the camera** (as the reference; Q-005 clarified). Use `Fokus`.
 - **Not supported by design (CR-002 §3, user answer Q2):** comparisons other than `Gleich`, `Beginnt mit`, `Endet mit`, `Enthält` (no `enthält nicht`, `ungleich`, `ist leer`, `<` / `>`); OR between rules; `Kategorie` / `Datei` chips in the filter panel; a 3D `Räume` button; more than one section plane.
 - **Colour `Rot` in `Farbskala`:** the largest value gets the selection red `#D72622`, as in the reference (DEC-15).
-- **Carried over from 1.0.0:** the builder needs internet access to `cdn.jsdelivr.net` and offline stops at start with the browser's English text `Failed to fetch`; `.xlsx` read back with openpyxl and LibreOffice only, not Microsoft Excel (R-3); headless Chromium names downloads with non-ASCII titles `download` (real Chrome / Edge not checked); only headless Chromium is tested automatically (T12 manual smoke in Chrome, Edge, Firefox best effort pending).
+- **Carried over from 1.0.0:** the builder needs internet access to `cdn.jsdelivr.net` and offline stops at start with the browser's English text `Failed to fetch`; `.xlsx` read back with openpyxl and LibreOffice only, not Microsoft Excel (R-3); headless Chromium names downloads with non-ASCII titles `download` (real Chrome / Edge not checked); only headless Chromium is tested automatically (T12 manual smoke in Chrome, Edge, Firefox best effort still open, F.1).
 - **Small models:** the viewer file of a small model is about 58–62 % of its IFC size (fixed runtime); the 40 % target applies from 100 MB of IFC.
+- **Open manual checks (released with them open, release gate F.1–F.5):** F.1 T12 smoke in current Chrome and Edge (Firefox best effort); F.2 GPU measurement of NFR-001; F.3 R-3 exported `.xlsx` in Microsoft Excel; F.4 download names with umlauts in real Chrome / Edge; F.5 T14 charter with real project files (ASM-003).
 
 ## Test summary
 Release candidate `08e0fc7`, working tree clean, nothing committed during testing. Machine: Intel Xeon 2.10 GHz, 4 cores, 17 GB RAM, no GPU (SwiftShader software WebGL); Node 22.23.4, Playwright 1.63, headless Chromium 153.0.8010.12.
@@ -114,7 +116,7 @@ Exploratory and acceptance (`docs/testing/report-INC-2.md` §5): the requesting-
 
 ## Deployment steps
 The product is the single file `calc-viewer-builder.html`. There is no server, build or installation.
-1. After the release gate: commit the release documents and tag the release commit `v1.1.0`. `calc-viewer-builder.html` must equal the tested file (sha256 above).
+1. After the release gate (approved 2026-11-07): commit the release documents and tag the release commit `v1.1.0`. `calc-viewer-builder.html` must equal the tested file (sha256 above).
 2. Take `calc-viewer-builder.html` from tag `v1.1.0` and hand it to the authors (shared drive, e-mail, intranet page); optionally record its SHA-256.
 3. Authors open it by double-click in current Chrome or Edge. As in 1.0.0 the builder needs **internet access to `https://cdn.jsdelivr.net`** at every start (`@thatopen/fragments@3.4.7`, `three@0.185.1`, `web-ifc@0.0.77`, version drift guard unchanged). IFC data never leaves the computer.
 4. Keep the 1.0.0 file available for rollback (`docs/release/runbook.md` → Rollback).

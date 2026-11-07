@@ -3,7 +3,7 @@
 All notable changes to Calc Viewer Builder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - unreleased - pending release gate
+## [1.1.0] - 2026-11-07
 
 CR-002: filter, properties and 3D tools as in the HTML Model Viewer. Details: `docs/release/release-notes-1.1.0.md`.
 
@@ -24,6 +24,7 @@ CR-002: filter, properties and 3D tools as in the HTML Model Viewer. Details: `d
 - `Färben nach` and the legend under the model are replaced by the colouring panel; more than 120 values repeat colours instead of `Sonstige`.
 - The switch `Elemente außerhalb des Filters` is replaced by the ghost toggle `Ausgeblendete verbergen` / `Ausgeblendete anzeigen` in the pill `Filter entfernen`.
 - The X/Y/Z `Schnitt` is replaced by `Schneiden`; a 1.0.0 axis section in a configuration is converted to a plane.
+- Documentation (CR-003, text only): the specification names the test seam `CalcView.contextState()` and the test folders `test/acceptance` and `test/support`, and describes the synchronous display-text index build (without progress overlay) and the property order as built.
 
 ### Fixed
 - BUG-T2: long values such as a GlobalId broke mid-word in the element details.
@@ -32,7 +33,7 @@ CR-002: filter, properties and 3D tools as in the HTML Model Viewer. Details: `d
 - BUG-T11: open panels covered the model after `Fokus` at 1280 × 800.
 
 ### Known issues
-- Pixels of a 3D update reach the screen 0.7–1.2 s after a click on PCs without a GPU (Q-002); `Farbskala` labels span all elements (BUG-T12); a configuration section far outside the model looks empty (BUG-T13); see the release notes.
+- Pixels of a 3D update reach the screen 0.7–1.2 s after a click on PCs without a GPU (Q-002); `Farbskala` labels span all elements (BUG-T12); a configuration section far outside the model looks empty (BUG-T13); a section stays after its model is removed while another model remains; manual checks in real browsers, on a GPU, in Microsoft Excel and with real project files are open; see the release notes.
 
 ## [1.0.0] - 2026-11-03
 

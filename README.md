@@ -2,7 +2,7 @@
 
 A browser tool for BIM specialists to explore one or more IFC models like a report: filter sets narrow down the 3D model and a configurable quantity table; the table exports to CSV and Excel; the whole view can be saved as a configuration and handed to colleagues as **one offline HTML file** they can still filter, group and export.
 
-Version 1.1.0 (release candidate, release gate pending) — see `CHANGELOG.md` and `docs/release/release-notes-1.1.0.md`. Previous release: 1.0.0 (tag `v1.0.0`).
+Version 1.1.0 (released 2026-11-07, tag `v1.1.0`) — see `CHANGELOG.md` and `docs/release/release-notes-1.1.0.md`. Previous release: 1.0.0 (tag `v1.0.0`).
 
 ## Use it
 

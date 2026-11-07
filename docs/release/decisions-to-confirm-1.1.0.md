@@ -1,9 +1,26 @@
 ---
-status: draft
+status: approved
 date: 2026-11-06
+approved: 2026-11-07
 relates_to: [INC-2, CR-002, CR-003, Q-002, Q-005, Q-006, Q-007, NFR-001, DEC-15, DEC-18, DEC-19, DEC-20, DEC-21, DEC-22, BUG-T11, BUG-T12, BUG-T13, BUG-T14, T12, R-3, TASK-011a, TASK-011, TASK-012, TASK-013, TASK-014, TASK-015a, TASK-015b, TASK-016, TASK-017a, TASK-017b, TASK-017c, TASK-018, TASK-019, TASK-020, TASK-021]
 ---
 # Decisions to confirm at the release gate — 1.1.0
+
+## Approval
+
+Human release gate held on 2026-11-07 through the question dialog. Answers:
+
+| Block | Answer | Outcome |
+|---|---|---|
+| A — reference deviations, DEC-15, DEC-18..DEC-22 | `Freigeben` | all kept as proposed (A.10, A.21 confirmed) |
+| B — task-record decisions | `Freigeben` | all kept as proposed |
+| C.10 — section stays after its model is removed while another model remains | `So lassen` | decided: keep; accepted known limitation, no CR |
+| C — refinements, known limitations, process deviations | `Freigeben` | accepted as known limitations / deviations as proposed; per C.1 and C.3 the spec wording of SYNC-1 and SYNC-2 (a) is included in CR-003 (text only) |
+| D — NFR-001 deviation on PCs without GPU (Q-002) | `Freigeben` | deviation accepted for 1.1.0 incl. the CR-002 interactions; the GPU measurement (F.2) stays the deciding check |
+| E — CR-003 | `Freigeben` | CR-003 approved and applied with the release (`docs/changes/CR-003.md`) |
+| Release | `Jetzt freigeben` | 1.1.0 released now; the manual checks F.1–F.5 stay open as known items; F.6 is the release procedure |
+
+Released file: `calc-viewer-builder.html` sha256 `055281aa318f4f94cf5795b319b0637491f5d7821fa1a518fb8014ce983a769e`, unchanged since the tested commit `08e0fc7`.
 
 Release candidate `08e0fc7` (CR-002, cycle 2). Every reference deviation, agent decision, refinement, known limitation, deviation and open manual check of this cycle, consolidated for the human release gate. Sources: `docs/changes/CR-002.md` §1a and §8, `docs/spec.md` §4.7 (DEC-15, DEC-18..22), `docs/tasks/TASK-011a.md` … `TASK-021.md` ("Decisions (for the release gate / orchestrator)"), `docs/process-log.md` (rows 2026-11-04 to 2026-11-06), `docs/reviews/verification-INC-2.md`, `docs/testing/report-INC-2.md`, `docs/open-questions.md` (Q-002, Q-005..Q-007), `docs/changes/register.md` (CR-003). Test results: `docs/release/release-notes-1.1.0.md` → Test summary.
 
@@ -99,7 +116,7 @@ Your answers Q1–Q10 (CR-002 §1a) are already decided and not repeated here ex
 | C.7 | BUG-T11 / Q-005 (answered `Fokus freie Fläche`): `Fokus` fits into the free area; no layout change (split stays 55 / 45) | your answer 2026-11-06 | = B.38–B.40 | B | process-log 2026-11-06; TASK-021 | confirmed |
 | C.8 | BUG-T12 / Q-006 (answered `So lassen`): `Farbskala` labels span all elements | stable colours (DEC-15) | known limitation | B | Q-006; process-log 2026-11-05 | confirmed |
 | C.9 | BUG-T13 / Q-007 (answered `Akzeptieren`): a configuration plane far outside the models loads silently; `Schnitt entfernen` fixes it | a notice would change DEC-20 | known limitation | B | Q-007; process-log 2026-11-05 | confirmed |
-| C.10 | **Open:** a section stays after the model it was cut on is removed while another model remains; cleared with the last model | the spec does not decide this | the remaining model may look cut or empty; `Schnitt entfernen` fixes it | B | report-INC-2 §5, §7.4 | decide: keep (proposal) or clear the section on model removal (CR) |
+| C.10 | **Decided (keep):** a section stays after the model it was cut on is removed while another model remains; cleared with the last model | the spec does not decide this | the remaining model may look cut or empty; `Schnitt entfernen` fixes it | B | report-INC-2 §5, §7.4 | **decided 2026-11-07: keep** (`So lassen`; known limitation, no CR) |
 | C.11 | Not covered: `Schneiden` when a queued display plan hides the clicked element itself; the product cuts with the pick it holds | the spec does not decide this; an edge case of fast clicks | – | T | report-INC-2 §5 (SYNC-5) | accept |
 | C.12 | SYNC-7: the 1.0.0 gate note "not saved: collapsed details panel" is obsolete (the panel is gone); IfcSpace option and splitter position stay unsaved | as built | – | B | verification SYNC-7 | for information |
 | C.13 | Process: CR-002 work on the session branch with tag `pre-CR-002` instead of `change/CR-002-<slug>` | the environment allows pushes to the session branch only | rollback via tag and `git revert` | T | process-log 2026-11-04 | accept |
@@ -129,4 +146,4 @@ Your answers Q1–Q10 (CR-002 §1a) are already decided and not repeated here ex
 | F.3 | R-3: open an exported `.xlsx` in Microsoft Excel | only openpyxl and LibreOffice tested | unchanged from 1.0.0 | T | spec §7 R-3 | run, or keep open |
 | F.4 | Download names with umlauts in real Chrome / Edge (headless names them `download`) | headless behaviour only | unchanged from 1.0.0 | T | release-notes-1.0.0 | run, or keep open |
 | F.5 | T14 charter "quantity overview for a real project" with your own project files (only public samples tested, ASM-003) | no real project models in the repository | real-model behaviour of the new tools unverified | T | 1.0.0 gate 1.4; ASM-003 | run with your files, or keep open |
-| F.6 | After approval: commit the release documents, tag `v1.1.0` on a commit whose `calc-viewer-builder.html` equals the tested file (sha256 `055281aa…a769e`), mark CR-002 released | release procedure | – | T | runbook; release-notes-1.1.0 | do after approval |
+| F.6 | After approval: commit the release documents, tag `v1.1.0` on a commit whose `calc-viewer-builder.html` equals the tested file (sha256 `055281aa…a769e`), mark CR-002 released | release procedure | – | T | runbook; release-notes-1.1.0 | release procedure after the approval of 2026-11-07 (commit and tag by the orchestrator) |

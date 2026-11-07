@@ -7,7 +7,7 @@ autonomy: autonomous
 modifiers: [ui, brownfield]
 cycle: 2
 
-current_phase: release
+current_phase: maintenance
 current_increment: INC-2
 resume_after: null
 
@@ -17,16 +17,16 @@ phases:
   - {id: implementation, status: done, gate: agent, approval: {by: agent, date: 2026-11-05, note: "INC-2: 15 tasks, each independently verified PASS; Q-004 answered by user"}}
   - {id: verification,   status: done, gate: agent, approval: {by: agent, date: 2026-11-05, note: "INC-2: 3 lenses + adversarial confirmation, 12 findings resolved, independent recheck PASS; CR-003 proposed"}}
   - {id: testing,        status: done, gate: agent, approval: {by: agent, date: 2026-11-06, note: "report-INC-2 GO WITH DEVIATIONS; BUG-T11..T14 fixed or decided (Q-005..Q-007); release-candidate regression 08e0fc7: 227/0/0 file, 225/0/2 http, perf all NFRs met"}}
-  - {id: release,        status: in_progress, gate: human}
+  - {id: release,        status: done, gate: human, approval: {by: human, date: 2026-11-07, note: "release gate 1.1.0: blocks A-E Freigeben; C.10 So lassen (known limitation, no CR); D Q-002 deviation accepted; CR-003 approved and applied; Jetzt freigeben with manual checks F.1-F.5 open"}}
 
 increments:
   - {id: INC-1, cycle: 1, status: done, gate: agent}
   - {id: INC-2, cycle: 2, status: done, gate: agent}
 blocking_questions: []
-active_changes: [CR-002]
+active_changes: []
 pending_release: []
 reserved_ids: {}
-next_action: "human release gate 1.1.0: docs/release/decisions-to-confirm-1.1.0.md blocks A-F incl. CR-003 and open item C.10; then apply CR-003, tag v1.1.0, maintenance"
+next_action: "Maintenance after 1.1.0 (released 2026-11-07; tag v1.1.0 on the release commit, push of the tag by the user if needed): manual release checks F.1-F.5 open (T12 smoke in Chrome/Edge/Firefox, GPU measurement of NFR-001, R-3 Excel, umlaut download names, real project files); findings and known issues (C.10 section after model removal, BUG-T12, BUG-T13, Failed to fetch offline) via /change."
 
 history:
   - {date: 2026-11-02, event: "intake interview complete; tier S (user override of proposed M), lean track, autonomy autonomous; awaiting intake approval"}
@@ -55,3 +55,4 @@ history:
   - {date: 2026-11-05, event: "INC-2 implementation done: TASK-011a..020 each independently verified PASS; Q-004 answered by user (Über Gruppe, REQ-013-AC3 corrected); NFR-001/003/005 re-measured and met; INC2_PENDING empty; verification INC-2 started"}
   - {date: 2026-11-05, event: "verification INC-2 done: 23 raw findings, 12 confirmed (UX-1 major fixed), resolved, independent recheck PASS; CR-003 proposed (text only); testing cycle 2 started"}
   - {date: 2026-11-06, event: "testing cycle 2 done (agent gate): TASK-021 (BUG-T11) verified; release-candidate 08e0fc7 regression and perf green; release docs 1.1.0 written and independently reviewed (8 doc findings fixed); human release gate opened"}
+  - {date: 2026-11-07, event: "release gate 1.1.0 approved by human (blocks A-E Freigeben; C.10 So lassen; NFR-001 Q-002 deviation accepted; Jetzt freigeben with F.1-F.5 open); CR-002 applied and released; CR-003 approved and applied (spec 4.2/4.3/4.4, NFR-001, REQ-005/012 wording, AGENTS.md source_layout); release 1.1.0 (calc-viewer-builder.html sha256 055281aa...a769e, unchanged since 08e0fc7); maintenance"}
